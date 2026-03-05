@@ -849,6 +849,10 @@ async function sendEmail(to, subject, body) {
     await fetch(EMAIL_FN, { method: "POST", headers: { "Content-Type": "application/json", "apikey": SUPA_ANON, "Authorization": `Bearer ${SUPA_ANON}` }, body: JSON.stringify({ to, subject, body, mode: "direct" }) });
   } catch (e) {}
 }
+// TEMP: Always send email to myself for testing
+if (CU && CU.email) {
+  await sendEmail(CU.email, "Test from NEPAWatch", "This is a test email to confirm Resend works.");
+}
 
 async function sendAreaAlerts(repName, repArea, repType) {
   if (!repArea) return;
