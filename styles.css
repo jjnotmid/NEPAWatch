@@ -455,3 +455,39 @@ nav{
   background:var(--sf2);border:1px solid var(--bd);
   font-size:.68rem;color:var(--ink3);line-height:1.6;
 }
+
+/* Map container */
+#mapContainer {
+  background: var(--sf);
+  box-shadow: var(--sh);
+  transition: height 0.3s ease;
+}
+#mapContainer.show {
+  display: block;
+}
+/* Info window content */
+.map-info {
+  font-family: var(--font-body);
+  color: var(--ink);
+  font-size: 0.75rem;
+}
+.map-info strong {
+  color: var(--p);
+}
+.map-info button {
+  margin-top: 6px;
+  background: var(--p);
+  border: none;
+  color: #000;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  font-size: 0.7rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.map-info button:hover {
+  opacity: 0.9;
+}
