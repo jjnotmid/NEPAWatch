@@ -1,0 +1,12 @@
+User-agent: *
+Allow: /
+
+# Block crawlers from internal/functional paths
+Disallow: /functions/
+Disallow: /api/
+
+# Sitemap location
+Sitemap: https://nepawatch.app/sitemap.xml
+
+# Crawl delay (optional — helps avoid hammering on low-traffic servers)
+Crawl-delay: 5
