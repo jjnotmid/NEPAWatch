@@ -21,6 +21,9 @@
 <!-- Favicon: logo.jpg -->
 <link rel="icon" type="image/jpeg" href="logo.jpg">
 <link rel="apple-touch-icon" href="logo.jpg">
+   <!-- Add this for modern browsers with better size control -->
+<link rel="icon" type="image/jpeg" href="logo.jpg" sizes="32x32">
+<link rel="apple-touch-icon" href="logo.jpg" sizes="180x180">
 
 <!-- Open Graph / Social Sharing — logo2.PNG -->
 <meta property="og:type" content="website">
@@ -79,6 +82,26 @@
 
 <!-- Styles -->
 <link rel="stylesheet" href="styles.css">
+
+  <!-- Add this for modern browsers with better size control -->
+<link rel="icon" type="image/jpeg" href="logo.jpg" sizes="32x32">
+<link rel="apple-touch-icon" href="logo.jpg" sizes="180x180">
+
+<!-- Add this CSS to style the favicon when displayed in browser tabs -->
+<style>
+  /* This affects how the favicon appears when saved as a shortcut */
+  link[rel="icon"] {
+    border-radius: 20%;
+    transform: scale(1.2);
+  }
+  
+  /* For Apple devices - makes the icon larger with rounded corners */
+  link[rel="apple-touch-icon"] {
+    border-radius: 20%;
+    -webkit-border-radius: 20%;
+  }
+</style>
+
 </head>
 <body>
 
