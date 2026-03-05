@@ -7,7 +7,7 @@ const SUPA_URL = 'https://djurokbkkqrmpafcxlez.supabase.co';
 const SUPA_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRqdXJva2Jra3FybXBhZmN4bGV6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI1NzE5OTUsImV4cCI6MjA4ODE0Nzk5NX0.ZLOtWFB7qy_J0mitjb_pcZ88wxmRjMe-3OdbQCRL8xE';
 const EMAIL_FN = `${SUPA_URL}/functions/v1/send-alert`;
 const APP_URL = 'https://nepawatch.app';
-const APP_LOGO_URL = APP_URL + '/logo2.PNG';
+const APP_LOGO_URL = APP_URL + '/logo2.jpg';
 
 const sb = supabase.createClient(SUPA_URL, SUPA_ANON, {
   auth: { autoRefreshToken: true, persistSession: true, detectSessionInUrl: true }
