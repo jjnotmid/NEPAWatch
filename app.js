@@ -855,6 +855,11 @@ if (CU && CU.email) {
 }
 
 async function sendAreaAlerts(repName, repArea, repType) {
+  // TEMP: Always send a test email to myself
+if (CU && CU.email) {
+  console.log("Sending test email to:", CU.email);
+  await sendEmail(CU.email, "Test from NEPAWatch", "This is a test to confirm email sending works.");
+}
   if (!repArea) return;
   try {
     const subject = repType === "out" ? `Power Outage — ${repArea}, Lagos` : `Power Restored — ${repArea}, Lagos`;
