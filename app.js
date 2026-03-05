@@ -846,34 +846,11 @@ function seedFallback() {
 async function sendEmail(to, subject, body) {
   if (!to || !subject) return;
   try {
-    console.log("Fetching edge function for email to:", to);
-    const res = await fetch(EMAIL_FN, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "apikey": SUPA_ANON,
-        "Authorization": `Bearer ${SUPA_ANON}`
-      },
-      body: JSON.stringify({ to, subject, body, mode: "direct" })
-    });
-    console.log("Response status:", res.status);
-    const text = await res.text();
-    console.log("Response body:", text);
-  } catch (e) {
-    console.error("Fetch error:", e);
-  }
-}
-// TEMP: Always send email to myself for testing
-if (CU && CU.email) {
-  await sendEmail(CU.email, "Test from NEPAWatch", "This is a test email to confirm Resend works.");
+    await fetch(EMAIL_FN, { method: "POST", headers: { "Content-Type": "application/json", "apikey": SUPA_ANON, "Authorization": `Bearer ${SUPA_ANON}` }, body: JSON.stringify({ to, subject, body, mode: "direct" }) });
+  } catch (e) {}
 }
 
 async function sendAreaAlerts(repName, repArea, repType) {
-  // TEMP: Always send a test email to myself
-if (CU && CU.email) {
-  console.log("Sending test email to:", CU.email);
-  await sendEmail(CU.email, "Test from NEPAWatch", "This is a test to confirm email sending works.");
-}
   if (!repArea) return;
   try {
     const subject = repType === "out" ? `Power Outage — ${repArea}, Lagos` : `Power Restored — ${repArea}, Lagos`;
