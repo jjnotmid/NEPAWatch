@@ -846,8 +846,22 @@ function seedFallback() {
 async function sendEmail(to, subject, body) {
   if (!to || !subject) return;
   try {
-    await fetch(EMAIL_FN, { method: "POST", headers: { "Content-Type": "application/json", "apikey": SUPA_ANON, "Authorization": `Bearer ${SUPA_ANON}` }, body: JSON.stringify({ to, subject, body, mode: "direct" }) });
-  } catch (e) {}
+    console.log("Fetching edge function for email to:", to);
+    const res = await fetch(EMAIL_FN, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "apikey": SUPA_ANON,
+        "Authorization": `Bearer ${SUPA_ANON}`
+      },
+      body: JSON.stringify({ to, subject, body, mode: "direct" })
+    });
+    console.log("Response status:", res.status);
+    const text = await res.text();
+    console.log("Response body:", text);
+  } catch (e) {
+    console.error("Fetch error:", e);
+  }
 }
 // TEMP: Always send email to myself for testing
 if (CU && CU.email) {
