@@ -164,6 +164,8 @@
     </div>
   </div>
 </div>
+  <!-- Map container (hidden by default) -->
+<div id="mapContainer" style="display: none; margin: 16px; border-radius: 12px; overflow: hidden; height: 200px; border: 1px solid var(--bd);"></div>
 
 <!-- SAVED PLACE MODAL -->
 <div class="overlay" id="placeOverlay">
@@ -355,5 +357,7 @@
 
 <!-- App Script -->
 <script src="app.js"></script>
+  <!-- Google Maps API -->
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyD-s0M5G3eFlcYl1MRRetl_3cLq-59nlj0&callback=initGoogleMaps&libraries=places" async defer></script>
 </body>
 </html>
