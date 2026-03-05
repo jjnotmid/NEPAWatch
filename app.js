@@ -98,6 +98,13 @@ let _userCount = 0;
 let _nearbyAreas = [];
 let _userLat = null, _userLng = null;
 let _pollTimer = null;
+let googleMapsReady = false;
+let googleMapsLoading = false;
+let map = null;
+let userMarker = null;
+let powerMarkers = [];
+let userExactLat = null, userExactLng = null;
+let placesAutocomplete = null;
 
 /* ===== INLINE SVG ICONS ===== */
 const IC = {
@@ -479,6 +486,8 @@ async function detectLocation() {
 
   const { latitude: lat, longitude: lng, accuracy } = pos.coords;
   _userLat = lat; _userLng = lng;
+  userExactLat = lat; userExactLng = lng;  // store exact coordinates for map
+
   _nearbyAreas = findNearestAreas(lat, lng, 8);
   const nearest = _nearbyAreas[0]?.area;
 
@@ -495,14 +504,117 @@ async function detectLocation() {
   btn.disabled = false;
 
   const accStr = accuracy < 100 ? `±${Math.round(accuracy)}m` : "";
-  toast(`Located — ${nearest}${accStr ? " " + accStr : ""}`, "ok");
+  toast(`📍 You are near ${nearest}${accStr ? " " + accStr : ""}`, "ok");
 
   renderNearbyDashboard();
+
+  // Show the map container and render the map
+  document.getElementById('mapContainer').classList.add('show');
+  if (googleMapsReady) {
+    showPreciseLocation(lat, lng);
+  } else {
+    // Map will be shown when initGoogleMaps runs
+  }
 
   if (CU && PR && !PR.location_id) {
     const loc = LOCS.find(l => l.name === nearest && !l.street);
     if (loc) await saveLocation(loc);
   }
+}
+
+function initGoogleMaps() {
+  googleMapsReady = true;
+  // If we were waiting to show a map after location detection, do it now
+  if (userExactLat && userExactLng) {
+    showPreciseLocation(userExactLat, userExactLng);
+  }
+}
+
+function showPreciseLocation(lat, lng) {
+  if (!googleMapsReady) return;
+
+  const mapDiv = document.getElementById('mapContainer');
+  if (!map) {
+    map = new google.maps.Map(mapDiv, {
+      center: { lat, lng },
+      zoom: 15,
+      mapTypeControl: false,
+      streetViewControl: false,
+      styles: [ /* optional custom map style */ ]
+    });
+  } else {
+    map.setCenter({ lat, lng });
+    map.setZoom(15);
+  }
+
+  // Clear old markers
+  if (userMarker) userMarker.setMap(null);
+  powerMarkers.forEach(m => m.setMap(null));
+  powerMarkers = [];
+
+  // User marker
+  userMarker = new google.maps.Marker({
+    position: { lat, lng },
+    map: map,
+    title: "You are here",
+    icon: {
+      path: google.maps.SymbolPath.CIRCLE,
+      scale: 10,
+      fillColor: "#4285F4",
+      fillOpacity: 1,
+      strokeColor: "white",
+      strokeWeight: 2,
+    }
+  });
+
+  // Find nearby areas with power status
+  const nearby = findNearbyPowerSpots(lat, lng, 5);
+  nearby.forEach(spot => {
+    const marker = new google.maps.Marker({
+      position: spot.coords,
+      map: map,
+      title: spot.area,
+      icon: {
+        url: spot.status === 'on' 
+          ? 'http://maps.google.com/mapfiles/ms/icons/green-dot.png' 
+          : 'http://maps.google.com/mapfiles/ms/icons/red-dot.png',
+      }
+    });
+
+    // Info window with directions button
+    const infoWindow = new google.maps.InfoWindow({
+      content: `
+        <div class="map-info">
+          <strong>${spot.area}</strong><br>
+          Power: ${spot.status === 'on' ? '✅ On' : '❌ Out'}<br>
+          ${spot.dist < 1 ? (spot.dist*1000).toFixed(0)+'m' : spot.dist.toFixed(1)+'km'} away
+          <button onclick="window.open('https://www.google.com/maps/dir/?api=1&origin=${lat},${lng}&destination=${spot.coords.lat},${spot.coords.lng}', '_blank')">
+            🧭 Directions
+          </button>
+        </div>
+      `
+    });
+
+    marker.addListener('click', () => {
+      infoWindow.open(map, marker);
+    });
+
+    powerMarkers.push(marker);
+  });
+}
+
+function findNearbyPowerSpots(lat, lng, limit = 5) {
+  const spots = [];
+  Object.entries(AREA_COORDS).forEach(([area, coords]) => {
+    const dist = haversine(lat, lng, coords.lat, coords.lng);
+    // Only include areas within 10 km
+    if (dist <= 10) {
+      const status = getPlaceStatus(area);
+      spots.push({ area, status, coords, dist });
+    }
+  });
+  // Sort by distance, then return nearest 'limit' items
+  return spots.sort((a, b) => a.dist - b.dist).slice(0, limit);
 }
 
 function clearLoc() {
@@ -513,6 +625,11 @@ function clearLoc() {
   document.getElementById("geoBtn").classList.remove("active");
   document.getElementById("geoBtnTxt").textContent = "Locate Me";
   _nearbyAreas = []; _userLat = null; _userLng = null;
+  userExactLat = userExactLng = null;
+  document.getElementById('mapContainer').classList.remove('show');
+  if (userMarker) userMarker.setMap(null);
+  powerMarkers.forEach(m => m.setMap(null));
+  powerMarkers = [];
   renderNearbyDashboard();
   renderFeed("liveFeed");
   if (CU && PR) {
@@ -800,7 +917,34 @@ function toggleSuggestLoc() {
   const form = document.getElementById("suggestLocForm"); const txt = document.getElementById("suggestLocToggleTxt"); if (!form) return;
   const show = form.style.display === "none"; form.style.display = show ? "block" : "none";
   txt.textContent = show ? "Hide" : "+ Cannot find your street? Add it for everyone";
-  if (show) setTimeout(() => document.getElementById("suggestStreet")?.focus(), 80);
+  if (show) {
+    setTimeout(() => {
+      document.getElementById("suggestStreet")?.focus();
+      // Initialize Places Autocomplete on the street input
+      if (googleMapsReady && !placesAutocomplete) {
+        const streetInput = document.getElementById('suggestStreet');
+        placesAutocomplete = new google.maps.places.Autocomplete(streetInput, {
+          types: ['address'],
+          componentRestrictions: { country: 'NG' },
+          fields: ['address_components', 'formatted_address', 'geometry']
+        });
+        placesAutocomplete.addListener('place_changed', () => {
+          const place = placesAutocomplete.getPlace();
+          if (place.geometry) {
+            // Fill the area input based on address components
+            const components = place.address_components;
+            let street = '', area = '';
+            for (let comp of components) {
+              if (comp.types.includes('route')) street = comp.long_name;
+              if (comp.types.includes('sublocality') || comp.types.includes('locality')) area = comp.long_name;
+            }
+            document.getElementById('suggestStreet').value = street || place.formatted_address;
+            if (area) document.getElementById('suggestArea').value = area;
+          }
+        });
+      }
+    }, 200);
+  }
 }
 
 async function handleSuggestLoc() {
