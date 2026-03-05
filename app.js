@@ -456,6 +456,32 @@ function findNearestAreas(lat, lng, count = 8) {
     .slice(0, count);
 }
 
+function reverseGeocode(lat, lng) {
+  if (!googleMapsReady) return;
+  const geocoder = new google.maps.Geocoder();
+  geocoder.geocode({ location: { lat, lng } }, (results, status) => {
+    if (status === "OK" && results[0]) {
+      const addrComp = results[0].address_components;
+      let precise = "";
+      for (let comp of addrComp) {
+        if (comp.types.includes("neighborhood")) {
+          precise = comp.long_name;
+          break;
+        } else if (comp.types.includes("sublocality") && !precise) {
+          precise = comp.long_name;
+        } else if (comp.types.includes("locality") && !precise) {
+          precise = comp.long_name;
+        }
+      }
+      if (precise) {
+        const txt = document.getElementById("geoBtnTxt");
+        txt.textContent = precise.length > 12 ? precise.substring(0, 12) + "..." : precise;
+        toast(`📍 You are at ${precise}`, "ok");
+      }
+    }
+  });
+}
+
 async function detectLocation() {
   const btn = document.getElementById("geoBtn");
   const txt = document.getElementById("geoBtnTxt");
@@ -500,11 +526,13 @@ async function detectLocation() {
   const sel = document.getElementById("areaFilter");
   sel.value = nearest; filterArea = nearest; renderFeed("liveFeed");
   btn.classList.add("active");
-  txt.textContent = nearest.length > 12 ? nearest.substring(0, 12) + "..." : nearest;
   btn.disabled = false;
 
   const accStr = accuracy < 100 ? `±${Math.round(accuracy)}m` : "";
-  toast(`📍 You are near ${nearest}${accStr ? " " + accStr : ""}`, "ok");
+  toast(`📍 Located near ${nearest}${accStr ? " " + accStr : ""}`, "ok");
+
+  // Set button text (will be updated by reverse geocode if available)
+  txt.textContent = nearest.length > 12 ? nearest.substring(0, 12) + "..." : nearest;
 
   renderNearbyDashboard();
 
@@ -512,8 +540,9 @@ async function detectLocation() {
   document.getElementById('mapContainer').classList.add('show');
   if (googleMapsReady) {
     showPreciseLocation(lat, lng);
+    reverseGeocode(lat, lng);
   } else {
-    // Map will be shown when initGoogleMaps runs
+    // Map will be shown when initGoogleMaps runs, and reverse geocode then
   }
 
   if (CU && PR && !PR.location_id) {
@@ -527,6 +556,7 @@ function initGoogleMaps() {
   // If we were waiting to show a map after location detection, do it now
   if (userExactLat && userExactLng) {
     showPreciseLocation(userExactLat, userExactLng);
+    reverseGeocode(userExactLat, userExactLng);
   }
 }
 
