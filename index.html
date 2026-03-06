@@ -298,11 +298,11 @@ body.lp-active #nepaBotBubble, body.lp-active #botWin, body.lp-active #botNotif 
         <div class="lp-stat-l">Areas</div>
       </div>
       <div class="lp-stat">
-        <div class="lp-stat-n" id="lpStatReports">100+/Day</div>
+        <div class="lp-stat-n" id="lpStatReports">—</div>
         <div class="lp-stat-l">Reports Today</div>
       </div>
       <div class="lp-stat">
-        <div class="lp-stat-n" id="lpStatUsers">You & I</div>
+        <div class="lp-stat-n" id="lpStatUsers">—</div>
         <div class="lp-stat-l">Watchers</div>
       </div>
       <div class="lp-stat">
@@ -328,6 +328,8 @@ body.lp-active #nepaBotBubble, body.lp-active #botWin, body.lp-active #botNotif 
       <div class="lp-feat-ico">
         <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><rect x="1" y="2.5" width="13" height="10" rx="1.5" stroke="currentColor" stroke-width="1.4"/><path d="M1 5.5l6.5 4.5L14 5.5" stroke="currentColor" stroke-width="1.4"/></svg>
       </div>
+      <div class="lp-feat-title">Free Email Alerts</div>
+      <div class="lp-feat-desc">Get an email within seconds of any power change near your home, work, or school.</div>
     </div>
     <div class="lp-feat">
       <div class="lp-feat-ico">
@@ -920,18 +922,26 @@ async function lpDoForgot() {
 
 /* ── BOOT ── */
 (function lpBoot() {
+  // Use onAuthStateChange ONLY — it fires 'INITIAL_SESSION' on every page load
+  // with the persisted session from localStorage. Never call getSession() here
+  // because it can return null before the session has hydrated, causing a
+  // false logout on refresh.
+  let _booted = false;
   const wait = setInterval(() => {
     if (typeof sb !== 'undefined') {
       clearInterval(wait);
       sb.auth.onAuthStateChange((event, session) => {
-        if (session) hideLanding();
-        else {
-          showLanding();
-          setTimeout(() => { lpBuildTicker(); lpBuildAreaGrid(); }, 900);
+        if (session) {
+          hideLanding();
+        } else {
+          // Only show landing after the INITIAL_SESSION event has fired.
+          // This prevents the flicker/false-logout on refresh.
+          if (event === 'INITIAL_SESSION' || _booted) {
+            showLanding();
+            setTimeout(() => { lpBuildTicker(); lpBuildAreaGrid(); }, 900);
+          }
         }
-      });
-      sb.auth.getSession().then(({ data: { session } }) => {
-        if (!session) showLanding();
+        _booted = true;
       });
     }
   }, 40);
