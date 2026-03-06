@@ -648,26 +648,14 @@ body.lp-active #nepaBotBubble, body.lp-active #botWin, body.lp-active #botNotif 
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyD-s0M5G3eFlcYl1MRRetl_3cLq-59nlj0&callback=initGoogleMaps&libraries=places" async defer></script>
 <script src="predict.js"></script>
 <script src="app.js"></script>
-<script src="nepabot.js"></script>
+<script src="nepabot.js" onerror="console.warn('nepabot.js not found — chatbot disabled')"></script>
 
 <script>
 /* ═══════════════════════════════════════════════════════════
    LANDING PAGE LOGIC
    ════════════════════════════════════════════════════════════ */
 
-/* Auth gate — wrap go() to block nav when not logged in */
-(function patchGoWithAuthGate() {
-  const wait = setInterval(() => {
-    if (typeof go === 'function' && typeof sb !== 'undefined') {
-      clearInterval(wait);
-      const _origGo = window.go;
-      window.go = function(page) {
-        if (!window.CU) { lpOpenAuth('register'); return; }
-        _origGo(page);
-      };
-    }
-  }, 60);
-})();
+/* Auth gate removed — handled per-action in app.js */
 
 function showLanding() {
   document.body.classList.add('lp-active');
@@ -922,26 +910,22 @@ async function lpDoForgot() {
 
 /* ── BOOT ── */
 (function lpBoot() {
-  // Use onAuthStateChange ONLY — it fires 'INITIAL_SESSION' on every page load
-  // with the persisted session from localStorage. Never call getSession() here
-  // because it can return null before the session has hydrated, causing a
-  // false logout on refresh.
-  let _booted = false;
+  // IMPORTANT: Only use onAuthStateChange — never getSession() here.
+  // getSession() can return null before localStorage has hydrated,
+  // causing a false logout on every refresh.
   const wait = setInterval(() => {
     if (typeof sb !== 'undefined') {
       clearInterval(wait);
+      let initialFired = false;
       sb.auth.onAuthStateChange((event, session) => {
         if (session) {
           hideLanding();
-        } else {
-          // Only show landing after the INITIAL_SESSION event has fired.
-          // This prevents the flicker/false-logout on refresh.
-          if (event === 'INITIAL_SESSION' || _booted) {
-            showLanding();
-            setTimeout(() => { lpBuildTicker(); lpBuildAreaGrid(); }, 900);
-          }
+        } else if (event === 'INITIAL_SESSION' || initialFired) {
+          // Only show landing AFTER the initial session check completes
+          showLanding();
+          setTimeout(() => { lpBuildTicker(); lpBuildAreaGrid(); }, 900);
         }
-        _booted = true;
+        initialFired = true;
       });
     }
   }, 40);
