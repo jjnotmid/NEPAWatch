@@ -1,0 +1,142 @@
+/* ===== NEPAWatch Lagos — predict.css ===== */
+
+/* ─── PREDICT PAGE ─────────────────────────────────────────────────────── */
+.pred-wrap { padding-bottom: 88px; }
+
+/* Area selector */
+.pred-area-select-wrap { margin: 14px 16px 10px; }
+.pred-area-label { font-size:.58rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--ink3);margin-bottom:5px; }
+.pred-area-select {
+  width:100%;background:var(--sf);border:1px solid var(--bd);border-radius:11px;
+  color:var(--ink);font-family:var(--font-body);font-size:.82rem;font-weight:600;
+  padding:11px 36px 11px 14px;outline:none;cursor:pointer;
+  -webkit-appearance:none;appearance:none;
+  background-image:url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23445E4A' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round' fill='none'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 14px center;
+  transition:border-color .2s,box-shadow .2s;
+}
+.pred-area-select:focus { border-color:var(--p);box-shadow:0 0 0 3px var(--pp); }
+[data-theme="light"] .pred-area-select {
+  background-image:url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%236A8A72' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round' fill='none'/%3E%3C/svg%3E");
+}
+
+/* Hero card */
+.pred-hero {
+  margin:0 16px 10px;border-radius:16px;padding:18px 18px 16px;
+  background:var(--sf);border:1px solid var(--bd);
+  display:flex;align-items:flex-start;gap:12px;
+  position:relative;overflow:hidden;box-shadow:var(--sh);
+  transition:border-color .3s;
+}
+.pred-hero-glow { position:absolute;inset:0;pointer-events:none;z-index:0;transition:background .4s; }
+.pred-hero-left { flex:1;position:relative;z-index:1; }
+.pred-hero-right { display:flex;flex-direction:column;gap:10px;align-items:flex-end;position:relative;z-index:1;flex-shrink:0; }
+.pred-hero-label { font-size:.58rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--ink3);margin-bottom:4px; }
+.pred-hero-prob { font-family:var(--font-display);font-size:3.6rem;font-weight:800;line-height:1;letter-spacing:-.04em;margin-bottom:10px;transition:color .3s; }
+.pred-risk-badge { display:inline-flex;align-items:center;font-size:.68rem;font-weight:700;border-radius:6px;padding:4px 10px;border:1px solid;letter-spacing:.04em;margin-bottom:8px;transition:all .3s; }
+.pred-hero-time { font-size:.61rem;color:var(--ink3);margin-top:6px; }
+.pred-stat-box { text-align:right; }
+.pred-stat-val { font-family:var(--font-display);font-size:1.1rem;font-weight:800;color:var(--p);line-height:1.15;transition:color .3s; }
+.pred-stat-lbl { font-size:.55rem;color:var(--ink3);text-transform:uppercase;letter-spacing:.06em;margin-top:1px;font-weight:600; }
+
+/* Confidence pill */
+.pred-conf {
+  margin:0 16px 10px;padding:9px 13px;border-radius:9px;
+  background:var(--sf2);border:1px solid var(--bd);
+  display:flex;align-items:center;gap:9px;font-size:.67rem;
+}
+.pred-conf-dot { font-size:.85rem;color:var(--ink3);flex-shrink:0;line-height:1; }
+.pred-conf-title { font-weight:600;color:var(--ink2); }
+
+/* ─── AI BANNER ──────────────────────────────────────────────────────────── */
+.pred-ai-banner {
+  margin:0 16px 6px;padding:12px 14px;border-radius:11px;
+  background:var(--pp);border:1px solid var(--pb);
+  display:flex;align-items:center;gap:12px;
+}
+.pred-ai-icon { font-size:1.2rem;flex-shrink:0; }
+.pred-ai-body { flex:1; }
+.pred-ai-title { font-size:.78rem;font-weight:700;color:var(--p);margin-bottom:2px; }
+.pred-ai-sub { font-size:.64rem;color:var(--ink3);line-height:1.5; }
+.pred-ai-dot {
+  width:8px;height:8px;border-radius:50%;background:var(--p);flex-shrink:0;
+  animation:livepulse 2.2s ease infinite;
+}
+
+/* ─── 24H CHART ──────────────────────────────────────────────────────────── */
+.pred-chart-wrap { margin:0 16px 2px;display:flex;gap:6px;align-items:stretch; }
+.pred-chart-y { display:flex;flex-direction:column;justify-content:space-between;font-size:.52rem;color:var(--ink3);width:28px;flex-shrink:0;text-align:right;padding-bottom:4px; }
+.pred-bars {
+  flex:1;display:flex;align-items:flex-end;height:96px;gap:2px;
+  background:var(--sf);border-radius:12px;padding:8px 6px 4px;
+  border:1px solid var(--bd);position:relative;
+}
+.pred-bar-col { flex:1;height:100%;display:flex;flex-direction:column;justify-content:flex-end;position:relative; }
+.pred-bar-fill { width:100%;min-height:2px;transition:height .5s cubic-bezier(.34,.35,.36,1); }
+.pred-bar-now .pred-bar-fill { filter:brightness(1.2); }
+.pred-bar-tick { position:absolute;bottom:-7px;left:50%;transform:translateX(-50%);width:4px;height:4px;background:var(--p);border-radius:50%; }
+.pred-chart-footer { margin:5px 16px 0;display:flex;justify-content:space-between;font-size:.55rem;color:var(--ink3);padding:0 6px; }
+
+/* ─── WEEKLY CHART ───────────────────────────────────────────────────────── */
+.pred-week {
+  margin:0 16px 4px;display:flex;gap:6px;padding:14px 12px 10px;
+  background:var(--sf);border-radius:12px;border:1px solid var(--bd);
+  align-items:flex-end;height:106px;
+}
+.pred-week-col { flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;height:100%; }
+.pred-week-bar-wrap { flex:1;width:100%;display:flex;flex-direction:column;justify-content:flex-end;background:var(--sf2);border-radius:4px 4px 0 0;overflow:hidden; }
+.pred-week-fill { width:100%;min-height:3px;border-radius:4px 4px 0 0;transition:height .7s cubic-bezier(.34,.35,.36,1); }
+.pred-week-today .pred-week-fill { filter:brightness(1.15); }
+.pred-week-pct { font-size:.59rem;font-weight:700;line-height:1;transition:color .3s; }
+.pred-week-day { font-size:.56rem;color:var(--ink3);font-weight:600; }
+.pred-week-today .pred-week-day { color:var(--p); }
+
+/* ─── AREA RISK LIST ─────────────────────────────────────────────────────── */
+.pred-area-list { margin:0 16px 4px;background:var(--sf);border-radius:12px;border:1px solid var(--bd);overflow:hidden; }
+.pred-area-row {
+  display:flex;align-items:center;gap:9px;padding:11px 14px;
+  border-bottom:1px solid var(--bd);cursor:pointer;transition:background .12s;
+}
+.pred-area-row:last-child { border-bottom:none; }
+.pred-area-row:hover { background:var(--sf2); }
+.pred-area-selected { background:var(--pp) !important; }
+.pred-area-dot { width:7px;height:7px;border-radius:50%;flex-shrink:0; }
+.pred-area-name { font-size:.76rem;font-weight:600;color:var(--ink);flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+.pred-band-badge { font-size:.56rem;font-weight:700;letter-spacing:.05em;border:1px solid;border-radius:4px;padding:2px 5px;flex-shrink:0; }
+.pred-area-bar { width:50px;height:4px;background:var(--bd);border-radius:2px;overflow:hidden;flex-shrink:0; }
+.pred-area-fill { height:100%;border-radius:2px;transition:width .8s cubic-bezier(.34,.35,.36,1); }
+.pred-area-pct { font-size:.72rem;font-weight:700;width:30px;text-align:right;flex-shrink:0; }
+
+/* ─── MODEL INFO CARD ────────────────────────────────────────────────────── */
+.pred-model-card { margin:0 16px 16px;background:var(--sf);border-radius:12px;border:1px solid var(--bd);overflow:hidden; }
+.pred-model-row { display:flex;gap:12px;padding:14px;border-bottom:1px solid var(--bd);align-items:flex-start; }
+.pred-model-ico { font-size:1.1rem;flex-shrink:0;margin-top:1px; }
+.pred-model-title { font-size:.76rem;font-weight:700;color:var(--ink);margin-bottom:4px; }
+.pred-model-text { font-size:.66rem;color:var(--ink3);line-height:1.65; }
+
+/* ─── MY AREA WIDGET ─────────────────────────────────────────────────────── */
+.pred-widget {
+  margin:0 16px 4px;background:var(--sf);border-radius:13px;border:1px solid var(--bd);
+  padding:14px 16px;display:flex;align-items:center;gap:14px;
+  cursor:pointer;transition:all .15s;
+}
+.pred-widget:hover { border-color:var(--p);background:var(--pp); }
+.pred-widget:active { transform:scale(.98); }
+.pred-widget-left { flex:1; }
+.pred-widget-label { font-size:.57rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--ink3);margin-bottom:3px; }
+.pred-widget-prob { font-family:var(--font-display);font-size:2rem;font-weight:800;line-height:1;margin-bottom:6px; }
+.pred-widget-risk { display:inline-flex;font-size:.62rem;font-weight:700;border-radius:5px;padding:3px 8px;letter-spacing:.04em; }
+.pred-widget-right { display:flex;flex-direction:column;gap:8px;align-items:flex-end;flex-shrink:0; }
+.pred-widget-stat { text-align:right; }
+.pred-widget-stat span { font-family:var(--font-display);font-size:.95rem;font-weight:700;color:var(--p);display:block;line-height:1.1; }
+.pred-widget-stat small { font-size:.55rem;color:var(--ink3);text-transform:uppercase;letter-spacing:.06em;font-weight:600; }
+.pred-widget-arrow { font-size:1.4rem;color:var(--ink3);flex-shrink:0; }
+
+/* ─── AI BADGE in live feed ──────────────────────────────────────────────── */
+/* Applied to .fc cards that have isAI=true */
+.fc-ai-badge {
+  font-size:.54rem;font-weight:700;letter-spacing:.06em;
+  background:var(--pp);color:var(--p);border:1px solid var(--pb);
+  border-radius:4px;padding:2px 6px;display:inline-flex;align-items:center;gap:3px;
+  margin-top:3px;
+}

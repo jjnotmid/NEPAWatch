@@ -4,7 +4,6 @@
 <meta charset="UTF-8">
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-
 <title>NEPAWatch Lagos — Live Power Outage Tracker</title>
 <meta name="description" content="Real-time crowd-sourced power outage tracker for Lagos. Know when light don go or come back in Lekki, Ikeja, VI, Surulere and every area. Get instant email alerts for your street.">
 <meta name="keywords" content="NEPA Lagos, power outage Lagos, light don go Lagos, PHCN outage, Ikeja Electric, Eko Electric, Lagos electricity tracker, no light Lagos, power cut Lagos, NEPA watch, load shedding Lagos">
@@ -16,12 +15,8 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="NEPAWatch">
 <link rel="canonical" href="https://nepawatch.app/">
-
-<!-- Favicon: logo.jpg -->
 <link rel="icon" type="image/jpeg" href="logo.jpg">
 <link rel="apple-touch-icon" href="logo.jpg">
-
-<!-- Open Graph / Social Sharing — logo2.PNG -->
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="NEPAWatch Lagos">
 <meta property="og:title" content="NEPAWatch Lagos — Live Power Outage Tracker">
@@ -34,8 +29,6 @@
 <meta property="og:image:height" content="630">
 <meta property="og:image:alt" content="NEPAWatch Lagos — Live power outage tracker for Lagos Nigeria">
 <meta property="og:locale" content="en_NG">
-
-<!-- Twitter Card — logo2.PNG -->
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:site" content="@NEPAWatchLagos">
 <meta name="twitter:creator" content="@NEPAWatchLagos">
@@ -43,45 +36,21 @@
 <meta name="twitter:description" content="Know when light don go or come back in your Lagos area. Real-time crowd-sourced reports + email alerts. Free.">
 <meta name="twitter:image" content="https://nepawatch.app/logo2.jpg">
 <meta name="twitter:image:alt" content="NEPAWatch Lagos live power tracker">
-
-<!-- WhatsApp / iMessage preview inherits og:image above (logo2.PNG) -->
-
 <script type="application/ld+json">
-{
-  "@context": "https://schema.org",
-  "@type": "WebApplication",
-  "name": "NEPAWatch Lagos",
-  "url": "https://nepawatch.app/",
-  "description": "Real-time crowd-sourced power outage tracker for Lagos. Get live reports and email alerts when electricity goes out or is restored in your street.",
-  "applicationCategory": "UtilitiesApplication",
-  "operatingSystem": "Any",
-  "browserRequirements": "Requires JavaScript",
-  "offers": {"@type": "Offer", "price": "0", "priceCurrency": "NGN"},
-  "featureList": ["Real-time power outage reports","Email alerts for your street","Live DISCO zone status","Saved places (Home, Work, School)","Community confirmation system","Lagos area reliability scores"],
-  "areaServed": {"@type": "City", "name": "Lagos", "addressCountry": "NG"},
-  "inLanguage": "en-NG",
-  "logo": "https://nepawatch.app/logo2.jpg"
-}
+{"@context":"https://schema.org","@type":"WebApplication","name":"NEPAWatch Lagos","url":"https://nepawatch.app/","description":"Real-time crowd-sourced power outage tracker for Lagos with AI-powered outage predictions.","applicationCategory":"UtilitiesApplication","operatingSystem":"Any","browserRequirements":"Requires JavaScript","offers":{"@type":"Offer","price":"0","priceCurrency":"NGN"},"featureList":["Real-time power outage reports","Email alerts for your street","Live DISCO zone status","Saved places (Home, Work, School)","AI-powered outage predictions","Community confirmation system","Lagos area reliability scores"],"areaServed":{"@type":"City","name":"Lagos","addressCountry":"NG"},"inLanguage":"en-NG","logo":"https://nepawatch.app/logo2.jpg"}
 </script>
-
-<!-- Supabase -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
-<!-- Fonts -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Bricolage+Grotesque:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-
-<!-- Styles -->
 <link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="predict.css">
 </head>
 <body>
 
 <header>
   <div class="logo">
-    <div class="logo-icon">
-      <img src="logo.jpg" alt="NEPAWatch Logo">
-    </div>
+    <div class="logo-icon"><img src="logo.jpg" alt="NEPAWatch Logo"></div>
     <div>
       <span class="logo-txt">NEPA<em>Watch</em></span>
       <span class="logo-badge">Lagos</span>
@@ -148,20 +117,16 @@
       <div style="font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--ink3);margin-bottom:10px">Place Type</div>
       <div class="place-type-grid" id="placeTypeGrid">
         <button class="pt-btn selected" data-type="home" onclick="selectPlaceType(this,'home')">
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2 8L8 2L14 8V14H10V10H6V14H2V8Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>
-          Home
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2 8L8 2L14 8V14H10V10H6V14H2V8Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>Home
         </button>
         <button class="pt-btn" data-type="work" onclick="selectPlaceType(this,'work')">
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="2" y="6" width="12" height="8" rx="1.5" stroke="currentColor" stroke-width="1.4"/><path d="M5 6V4a3 3 0 0 1 6 0v2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
-          Work
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="2" y="6" width="12" height="8" rx="1.5" stroke="currentColor" stroke-width="1.4"/><path d="M5 6V4a3 3 0 0 1 6 0v2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>Work
         </button>
         <button class="pt-btn" data-type="school" onclick="selectPlaceType(this,'school')">
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 1L1 5l7 4 7-4-7-4z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><path d="M3.5 7v4.5c0 1 2 1.5 4.5 1.5s4.5-.5 4.5-1.5V7" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
-          School
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 1L1 5l7 4 7-4-7-4z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><path d="M3.5 7v4.5c0 1 2 1.5 4.5 1.5s4.5-.5 4.5-1.5V7" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>School
         </button>
         <button class="pt-btn" data-type="custom" onclick="selectPlaceType(this,'custom')">
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.4"/><path d="M8 5v3l2 2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
-          Other
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.4"/><path d="M8 5v3l2 2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>Other
         </button>
       </div>
       <div style="font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--ink3);margin-bottom:8px" id="customLabelWrap">
@@ -186,35 +151,19 @@
 <div class="page active" id="page-home">
   <div class="rep-grid">
     <button class="rep-btn out" onclick="openModal('out')">
-      <div class="rb-icon">
-        <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="7.5" stroke="currentColor" stroke-width="1.6"/><path d="M10 6.5V10.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="10" cy="13.5" r=".9" fill="currentColor"/></svg>
-      </div>
-      <div class="rb-texts">
-        <div class="rb-t">Light Don Go</div>
-        <div class="rb-s">No power in my area</div>
-      </div>
+      <div class="rb-icon"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="7.5" stroke="currentColor" stroke-width="1.6"/><path d="M10 6.5V10.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="10" cy="13.5" r=".9" fill="currentColor"/></svg></div>
+      <div class="rb-texts"><div class="rb-t">Light Don Go</div><div class="rb-s">No power in my area</div></div>
     </button>
     <button class="rep-btn bck" onclick="openModal('bck')">
-      <div class="rb-icon">
-        <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M10 2.5L5.5 10.5H9L8 17.5L14.5 9.5H11L10 2.5Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>
-      </div>
-      <div class="rb-texts">
-        <div class="rb-t">Light Don Come</div>
-        <div class="rb-s">Power just restored!</div>
-      </div>
+      <div class="rb-icon"><svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M10 2.5L5.5 10.5H9L8 17.5L14.5 9.5H11L10 2.5Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg></div>
+      <div class="rb-texts"><div class="rb-t">Light Don Come</div><div class="rb-s">Power just restored!</div></div>
     </button>
   </div>
-
   <div class="banner" id="mainBanner">
-    <div class="banner-ico">
-      <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1.5L1 12.5H13L7 1.5Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M7 5.5V8.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><circle cx="7" cy="10.5" r=".6" fill="currentColor"/></svg>
-    </div>
+    <div class="banner-ico"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1.5L1 12.5H13L7 1.5Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M7 5.5V8.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><circle cx="7" cy="10.5" r=".6" fill="currentColor"/></svg></div>
     <p id="bannerTxt">Sign in to receive email alerts when power changes in your area.</p>
-    <button class="banner-x" onclick="document.getElementById('mainBanner').classList.remove('show')">
-      <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 2L10 10M10 2L2 10" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
-    </button>
+    <button class="banner-x" onclick="document.getElementById('mainBanner').classList.remove('show')"><svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 2L10 10M10 2L2 10" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg></button>
   </div>
-
   <div class="loc-tag" id="locTag">
     <div class="loc-left">
       <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6 1A2.8 2.8 0 0 0 3.2 3.8C3.2 6.4 6 11 6 11S8.8 6.4 8.8 3.8A2.8 2.8 0 0 0 6 1z" stroke="currentColor" stroke-width="1.2"/><circle cx="6" cy="3.8" r="1.1" fill="currentColor"/></svg>
@@ -222,37 +171,24 @@
     </div>
     <button class="lclr" onclick="clearLoc()">Clear</button>
   </div>
-
-  <!-- Saved Places Quick Access -->
   <div id="savedPlacesHome"></div>
-
-  <!-- Nearby Areas Dashboard -->
   <div id="nearbyDashboard"></div>
-
-  <!-- Map Container (hidden by default) -->
-  <div id="mapContainer" style="display: none; margin: 16px; border-radius: 12px; overflow: hidden; height: 200px; border: 1px solid var(--bd);"></div>
-
+  <div id="mapContainer" style="display:none;margin:16px;border-radius:12px;overflow:hidden;height:200px;border:1px solid var(--bd);"></div>
   <div class="user-count-pill" id="userCountPill" style="display:none">
     <div class="ucp-dot"></div>
     <span><strong id="userCountNum">—</strong> Lagosians using NEPAWatch</span>
   </div>
-
   <div class="sbar">
     <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style="color:var(--ink3);flex-shrink:0"><rect x="1.5" y="2.5" width="11" height="1.4" rx=".7" fill="currentColor"/><rect x="3" y="6" width="8" height="1.4" rx=".7" fill="currentColor"/><rect x="5" y="9.5" width="4" height="1.4" rx=".7" fill="currentColor"/></svg>
-    <select id="areaFilter" onchange="applyFilter()">
-      <option value="">All Lagos areas</option>
-    </select>
+    <select id="areaFilter" onchange="applyFilter()"><option value="">All Lagos areas</option></select>
   </div>
-
   <div class="stats-row">
     <div class="sc"><div class="sn r" id="s-out">—</div><div class="sl">Out</div></div>
     <div class="sc"><div class="sn g" id="s-bck">—</div><div class="sl">Restored</div></div>
     <div class="sc"><div class="sn a" id="s-rep">—</div><div class="sl">Reports</div></div>
   </div>
-
   <div class="slbl">Live Reports</div>
   <div class="feed" id="liveFeed"><div class="loading-row"><div class="spin w"></div>Loading reports...</div></div>
-
   <div class="slbl">DISCO Zone Status</div>
   <div class="zones" id="discoZones"></div>
 </div>
@@ -268,21 +204,24 @@
       <div class="score-desc" id="myDesc">Set your location on Home to see your area's power stats.</div>
     </div>
   </div>
+  <!-- AI prediction widget -->
+  <div id="myAreaPredictWidget"></div>
   <div class="slbl">Saved Places</div>
   <div class="myplaces-list" id="myPlacesList"></div>
   <button onclick="openPlaceModal()" style="margin:0 16px 14px;width:calc(100% - 32px);border:1px dashed var(--bd);border-radius:11px;padding:12px;background:transparent;color:var(--ink3);font-size:.78rem;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;transition:all .15s;" onmouseover="this.style.borderColor='var(--p)';this.style.color='var(--p)'" onmouseout="this.style.borderColor='var(--bd)';this.style.color='var(--ink3)'">
-    <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1v12M1 7h12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
-    Add Saved Place
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1v12M1 7h12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>Add Saved Place
   </button>
   <div class="slbl">This Week</div>
   <div class="wk" id="weekGrid"></div>
   <div class="slbl">Recent Near You</div>
   <div class="feed" id="myFeed">
-    <div class="empty">
-      <div class="empty-ico"><svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M9 2A4 4 0 0 0 5 6C5 10 9 16 9 16s4-6 4-10A4 4 0 0 0 9 2z" stroke="currentColor" stroke-width="1.4"/><circle cx="9" cy="6" r="1.5" fill="currentColor"/></svg></div>
-      <p>Set your location on Home or tap Locate Me.</p>
-    </div>
+    <div class="empty"><div class="empty-ico"><svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M9 2A4 4 0 0 0 5 6C5 10 9 16 9 16s4-6 4-10A4 4 0 0 0 9 2z" stroke="currentColor" stroke-width="1.4"/><circle cx="9" cy="6" r="1.5" fill="currentColor"/></svg></div><p>Set your location on Home or tap Locate Me.</p></div>
   </div>
+</div>
+
+<!-- PREDICT (new) -->
+<div class="page" id="page-predict">
+  <div class="loading-row"><div class="spin w"></div>Loading AI predictions...</div>
 </div>
 
 <!-- COMMUNITY -->
@@ -292,9 +231,7 @@
   <div id="lbList"><div class="loading-row"><div class="spin w"></div>Loading...</div></div>
   <div class="slbl">Area Reliability Ranking</div>
   <div id="areaRank" style="padding:0 16px 8px"></div>
-  <div class="comm-note" id="commNote" style="display:none">
-    Rankings are based on live crowd-sourced reports. The more reports in an area, the more accurate the reliability score.
-  </div>
+  <div class="comm-note" id="commNote" style="display:none">Rankings are based on live crowd-sourced reports. The more reports in an area, the more accurate the reliability score.</div>
 </div>
 
 <!-- ACCOUNT -->
@@ -304,6 +241,7 @@
 
 </main>
 
+<!-- BOTTOM NAV — 5 tabs -->
 <nav>
   <div class="ni active" id="nav-home" onclick="go('home')">
     <div class="ni-pip"></div>
@@ -314,6 +252,14 @@
     <div class="ni-pip"></div>
     <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M10 3A5 5 0 0 0 5 8C5 13 10 18 10 18s5-5 5-10A5 5 0 0 0 10 3z" stroke="currentColor" stroke-width="1.5"/><circle cx="10" cy="8" r="2" fill="currentColor"/></svg>
     My Area
+  </div>
+  <div class="ni" id="nav-predict" onclick="go('predict')">
+    <div class="ni-pip"></div>
+    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+      <path d="M2 15L7 9.5L11 13L16 7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <circle cx="17.5" cy="5" r="1.8" stroke="currentColor" stroke-width="1.4"/>
+    </svg>
+    Predict
   </div>
   <div class="ni" id="nav-community" onclick="go('community')">
     <div class="ni-pip"></div>
@@ -327,10 +273,9 @@
   </div>
 </nav>
 
-<!-- Google Maps API (with your key) -->
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyD-s0M5G3eFlcYl1MRRetl_3cLq-59nlj0&callback=initGoogleMaps&libraries=places" async defer></script>
-
-<!-- Your existing app.js (make sure it's the updated version) -->
+<!-- Prediction engine (must load before app.js) -->
+<script src="predict.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
