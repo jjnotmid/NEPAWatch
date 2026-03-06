@@ -16,6 +16,16 @@ const EMAIL_FN = `${SUPA_URL}/functions/v1/send-alert`;
 const APP_URL = 'https://nepawatch.app';
 const APP_LOGO_URL = APP_URL + '/logo2.jpg';
 
+function appTogglePw(btn){
+  const inp=btn.previousElementSibling||btn.parentElement.querySelector('input');
+  if(!inp)return;
+  const show=inp.type==='password';
+  inp.type=show?'text':'password';
+  btn.innerHTML=show?'<svg width=\\"16\\" height=\\"16\\" viewBox=\\"0 0 16 16\\" fill=\\"none\\"><path d=\\"M1 8C2.5 5 5 3.5 8 3.5C11 3.5 13.5 5 15 8C13.5 11 11 12.5 8 12.5C5 12.5 2.5 11 1 8Z\\" stroke=\\"currentColor\\" stroke-width=\\"1.3\\"/><circle cx=\\"8\\" cy=\\"8\\" r=\\"2.2\\" stroke=\\"currentColor\\" stroke-width=\\"1.3\\"/><path d=\\"M2 2L14 14\\" stroke=\\"currentColor\\" stroke-width=\\"1.3\\" stroke-linecap=\\"round\\"/></svg>':'<svg width=\\"16\\" height=\\"16\\" viewBox=\\"0 0 16 16\\" fill=\\"none\\"><path d=\\"M1 8C2.5 5 5 3.5 8 3.5C11 3.5 13.5 5 15 8C13.5 11 11 12.5 8 12.5C5 12.5 2.5 11 1 8Z\\" stroke=\\"currentColor\\" stroke-width=\\"1.3\\"/><circle cx=\\"8\\" cy=\\"8\\" r=\\"2.2\\" stroke=\\"currentColor\\" stroke-width=\\"1.3\\"/></svg>';
+  inp.focus();
+}
+
+
 const sb = supabase.createClient(SUPA_URL, SUPA_ANON, {
   auth: { autoRefreshToken: true, persistSession: true, detectSessionInUrl: true }
 });
@@ -2114,7 +2124,7 @@ async function initAuth(){try{const{data:{session}}=await sb.auth.getSession();C
 
 async function loadProfile(){if(!CU)return;try{const{data,error}=await sb.from("profiles").select("*").eq("id",CU.id).single();if(!error&&data){PR=data;if(PR.location_id){document.getElementById("locTag").classList.add("on");document.getElementById("locLabel").textContent=PR.location_label||PR.location_name;}}else if(error&&error.code==="PGRST116"){const name=CU.user_metadata?.name||CU.email.split("@")[0];await sb.from("profiles").upsert({id:CU.id,email:CU.email,name,notif_on:true},{onConflict:"id"});PR={id:CU.id,email:CU.email,name,notif_on:true,location_id:null};}}catch(e){}}
 
-async function doRegister(name,email,pass){const{data,error}=await sb.auth.signUp({email,password:pass,options:{data:{name},emailRedirectTo:window.location.origin+window.location.pathname+"?mode=reset"}});if(error){if(error.message?.toLowerCase().includes("rate limit")||error.message?.toLowerCase().includes("over_email_send_rate_limit"))throw new Error("RATE_LIMIT");throw new Error(error.message);}if(data.user){await sb.from("profiles").upsert({id:data.user.id,email,name,notif_on:true},{onConflict:"id"});}if(data.session){CU=data.user;await loadProfile();renderAccount();updateBanner();toast(`Welcome, ${name}!`,"ok");}sendEmail(email,"Welcome to NEPAWatch Lagos",`Hi ${name},\n\nWelcome to NEPAWatch Lagos!\n\nYou will receive real-time email alerts whenever power goes out or is restored near your street.\n\nOpen the app and set your location to activate alerts.\n\nStay powered,\nNEPAWatch Lagos`);return data;}
+async function doRegister(name,email,pass){const{data,error}=await sb.auth.signUp({email,password:pass,options:{data:{name},emailRedirectTo:window.location.origin+window.location.pathname+"?mode=reset"}});if(error){if(error.message?.toLowerCase().includes("rate limit")||error.message?.toLowerCase().includes("over_email_send_rate_limit"))throw new Error("RATE_LIMIT");throw new Error(error.message);}if(data.user){await sb.from("profiles").upsert({id:data.user.id,email,name,notif_on:true},{onConflict:"id"});}if(data.session){CU=data.user;await loadProfile();renderAccount();updateBanner();toast(`Welcome, ${name}!`,"ok");}sendEmail(email,"Welcome to NEPAWatch Lagos",`Hi ${name},\n\nWelcome to NEPAWatch Lagos!\n\nYou will receive real-time email alerts whenever power goes out or is restored near your street.\n\nOpen the app and set your location to activate alerts.\n\nStay powered,\nNEPAWatch Lagos`,buildEmailHtml({type:'welcome',name,appUrl:APP_URL}));return data;}
 async function doLogin(email,pass){const{data,error}=await sb.auth.signInWithPassword({email,password:pass});if(error)throw new Error(error.message);return data;}
 async function doLogout(){try{await sb.auth.signOut();}catch(e){}CU=null;PR=null;savedPlaces=[];document.getElementById("locTag").classList.remove("on");updateBanner();renderAccount();toast("Signed out","info");}
 
@@ -2198,8 +2208,99 @@ async function addConfirm(repId) {
 
 function seedFallback(){reports=[{id:"s1",name:"Adeola Odeku Street",area:"Victoria Island",type:"out",time:Date.now()-7*60000,confirms:14},{id:"s2",name:"Allen Avenue",area:"Ikeja (Allen/Opebi)",type:"out",time:Date.now()-22*60000,confirms:9},{id:"s3",name:"Admiralty Way",area:"Lekki Phase 1",type:"bck",time:Date.now()-5*60000,confirms:18},{id:"s4",name:"Adeniran Ogunsanya St",area:"Surulere",type:"out",time:Date.now()-35*60000,confirms:6},{id:"s5",name:"Bourdillon Road",area:"Ikoyi",type:"bck",time:Date.now()-12*60000,confirms:11},{id:"s6",name:"Agege Motor Road",area:"Mushin",type:"out",time:Date.now()-55*60000,confirms:7},{id:"s7",name:"Agric Road Ikorodu",area:"Ikorodu",type:"out",time:Date.now()-80*60000,confirms:4},{id:"s8",name:"Badore Road",area:"Ajah",type:"bck",time:Date.now()-10*60000,confirms:8}];}
 
-async function sendEmail(to,subject,body){if(!to||!subject)return;try{await fetch(EMAIL_FN,{method:"POST",headers:{"Content-Type":"application/json","apikey":SUPA_ANON,"Authorization":`Bearer ${SUPA_ANON}`},body:JSON.stringify({to,subject,body,mode:"direct"})});}catch(e){}}
-async function sendAreaAlerts(repName,repArea,repType){if(!repArea)return;const _aKey=repArea+'|'+repType;const _now=Date.now();if(_alertCooldowns[_aKey]&&(_now-_alertCooldowns[_aKey])<ALERT_COOLDOWN_MS)return;_alertCooldowns[_aKey]=_now;try{const subject=repType==="out"?`Power Outage — ${repArea}, Lagos`:`Power Restored — ${repArea}, Lagos`;const time=new Date().toLocaleTimeString("en-NG",{hour:"2-digit",minute:"2-digit"});const body=`${repType==="out"?"Power outage":"Power restored"} near ${repName}, ${repArea}.\n\nTime: ${time}\n\nSee live updates: ${APP_URL}\n\n— NEPAWatch Lagos`;let edgeSent=false;try{const res=await fetch(EMAIL_FN,{method:"POST",headers:{"Content-Type":"application/json","apikey":SUPA_ANON,"Authorization":`Bearer ${SUPA_ANON}`},body:JSON.stringify({mode:"area_alert",area:repArea,repName,repType,subject,body,time})});if(res.ok){const json=await res.json().catch(()=>({}));const count=json.sent||0;edgeSent=true;if(count>0){emailLog.unshift({subject,to:`${count} watcher${count!==1?"s":""} in ${repArea}`,time});if(emailLog.length>8)emailLog.pop();}}}catch(fe){}if(CU&&savedPlaces.length){const matchingPlaces=savedPlaces.filter(p=>p.location_area===repArea&&p.notif_on!==false);if(matchingPlaces.length&&CU.email&&!edgeSent){const placeNames=matchingPlaces.map(p=>getPlaceDisplayName(p)).join(", ");const placeBody=`Hi ${PR?.name||"there"},\n\n${body}\n\nThis affects your saved place(s): ${placeNames}`;await sendEmail(CU.email,subject,placeBody);emailLog.unshift({subject,to:CU.email+"  (saved place)",time});if(emailLog.length>8)emailLog.pop();toast("Alert sent for your saved place","ok");if(document.getElementById("page-account").classList.contains("active"))renderAccount();}}else if(!edgeSent&&CU&&PR&&PR.location_area===repArea&&PR.notif_on&&CU.email){const userBody=`Hi ${PR.name||"there"},\n\n${body}`;await sendEmail(CU.email,subject,userBody);emailLog.unshift({subject,to:CU.email,time});if(emailLog.length>8)emailLog.pop();toast("Alert sent to your email","ok");if(document.getElementById("page-account").classList.contains("active"))renderAccount();}}catch(e){}}
+function buildEmailHtml({type='info', name='', area='', street='', time='', places='', appUrl='https://nepawatch.app'} = {}) {
+  const isOut = type === 'out';
+  const isWelcome = type === 'welcome';
+  const accentColor = isOut ? '#FF3D57' : '#00E676';
+  const statusBg = isOut ? '#FF3D57' : '#00E676';
+  const statusText = isOut ? '#fff' : '#07090A';
+  const statusLabel = isOut ? 'POWER OUT' : (isWelcome ? 'WELCOME' : 'POWER RESTORED');
+  const iconPath = isOut
+    ? '<path d="M13 2L5 14H12L10 22L20 10H13L15 2H13Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>'
+    : (isWelcome
+      ? '<path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" fill="currentColor"/>'
+      : '<path d="M13 2L5 14H12L10 22L20 10H13L15 2H13Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>');
+
+  const headline = isWelcome
+    ? `Welcome to NEPAWatch${name ? ', ' + name : ''}!`
+    : isOut
+    ? `Power outage near ${street || area}`
+    : `Power restored near ${street || area}`;
+
+  const bodyHtml = isWelcome
+    ? `<p style="margin:0 0 14px;color:#8FAE97;font-size:15px;line-height:1.7">You're now set up to receive <strong style="color:#E6EDE8">real-time power alerts</strong> for Lagos. Whenever there's an outage or power comes back in your area, we'll ping you straight away.</p>
+       <p style="margin:0 0 20px;color:#8FAE97;font-size:15px;line-height:1.7">Open the app, set your location, and join thousands of Lagosians keeping each other updated.</p>`
+    : `<p style="margin:0 0 6px;color:#8FAE97;font-size:14px;text-transform:uppercase;letter-spacing:.1em;font-weight:600">Location</p>
+       <p style="margin:0 0 18px;color:#E6EDE8;font-size:16px;font-weight:600">${street ? street + ', ' : ''}${area}, Lagos</p>
+       <p style="margin:0 0 6px;color:#8FAE97;font-size:14px;text-transform:uppercase;letter-spacing:.1em;font-weight:600">Time Reported</p>
+       <p style="margin:0 0 18px;color:#E6EDE8;font-size:16px;font-weight:600">${time || new Date().toLocaleTimeString('en-NG', {hour:'2-digit',minute:'2-digit'})}</p>
+       ${places ? `<p style="margin:0 0 6px;color:#8FAE97;font-size:14px;text-transform:uppercase;letter-spacing:.1em;font-weight:600">Your Saved Place(s)</p><p style="margin:0 0 18px;color:#E6EDE8;font-size:15px">${places}</p>` : ''}
+       <p style="margin:0 0 20px;color:#8FAE97;font-size:14px;line-height:1.7">This was reported by the NEPAWatch community. Check the app for the latest updates, or to confirm the report.</p>`;
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>NEPAWatch Alert</title></head>
+<body style="margin:0;padding:0;background:#07090A;font-family:'Segoe UI',Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#07090A;padding:32px 16px">
+    <tr><td align="center">
+      <table width="100%" style="max-width:520px;background:#0F1511;border:1px solid #1C271E;border-radius:16px;overflow:hidden">
+        <!-- Header -->
+        <tr><td style="background:#080C09;padding:20px 28px;border-bottom:1px solid #1C271E">
+          <table width="100%" cellpadding="0" cellspacing="0"><tr>
+            <td style="vertical-align:middle">
+              <span style="font-family:'Arial Black',Arial,sans-serif;font-size:22px;font-weight:900;color:#E6EDE8;letter-spacing:.02em">NEPA<span style="color:#00E676">Watch</span></span>
+              <span style="font-size:11px;font-weight:600;letter-spacing:.08em;color:rgba(230,237,232,.35);background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:4px;padding:2px 6px;margin-left:8px;vertical-align:middle">LAGOS</span>
+            </td>
+            <td align="right" style="vertical-align:middle">
+              <span style="display:inline-flex;align-items:center;gap:5px;background:rgba(0,230,118,.08);border:1px solid rgba(0,230,118,.18);border-radius:99px;padding:4px 10px;font-size:11px;font-weight:700;color:#00E676;letter-spacing:.08em">
+                <span style="width:6px;height:6px;background:#00E676;border-radius:50%;display:inline-block"></span> LIVE
+              </span>
+            </td>
+          </tr></table>
+        </td></tr>
+        <!-- Status badge -->
+        <tr><td style="padding:28px 28px 0">
+          <div style="display:inline-flex;align-items:center;gap:8px;background:${statusBg};border-radius:8px;padding:8px 14px;margin-bottom:18px">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" style="flex-shrink:0">${iconPath}</svg>
+            <span style="font-size:12px;font-weight:800;color:${statusText};letter-spacing:.12em">${statusLabel}</span>
+          </div>
+          <h1 style="margin:0 0 20px;font-size:22px;font-weight:800;color:#E6EDE8;line-height:1.25">${headline}</h1>
+        </td></tr>
+        <!-- Body -->
+        <tr><td style="padding:0 28px 24px">
+          <div style="background:#141C16;border:1px solid #1C271E;border-radius:12px;padding:20px">
+            ${bodyHtml}
+          </div>
+        </td></tr>
+        <!-- CTA -->
+        <tr><td style="padding:0 28px 28px;text-align:center">
+          <a href="${appUrl}" style="display:inline-block;background:#00E676;color:#07090A;font-size:15px;font-weight:700;text-decoration:none;padding:13px 32px;border-radius:10px;letter-spacing:.01em">
+            ${isWelcome ? 'Open NEPAWatch →' : 'See Live Updates →'}
+          </a>
+        </td></tr>
+        <!-- Footer -->
+        <tr><td style="padding:18px 28px;border-top:1px solid #1C271E;text-align:center">
+          <p style="margin:0 0 4px;font-size:12px;color:rgba(230,237,232,.25)">You're receiving this because you signed up for alerts on NEPAWatch.</p>
+          <p style="margin:0;font-size:12px;color:rgba(230,237,232,.18)"><a href="${appUrl}" style="color:#00E676;text-decoration:none">nepawatch.app</a> &mdash; Real-time power tracking for Lagos</p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`;
+}
+
+async function sendEmail(to, subject, body, htmlBody) {
+  if (!to || !subject) return;
+  try {
+    await fetch(EMAIL_FN, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json', 'apikey': SUPA_ANON, 'Authorization': `Bearer ${SUPA_ANON}`},
+      body: JSON.stringify({to, subject, body, html: htmlBody || body, mode: 'direct'})
+    });
+  } catch(e) {}
+}
+async function sendAreaAlerts(repName,repArea,repType){if(!repArea)return;const _aKey=repArea+'|'+repType;const _now=Date.now();if(_alertCooldowns[_aKey]&&(_now-_alertCooldowns[_aKey])<ALERT_COOLDOWN_MS)return;_alertCooldowns[_aKey]=_now;try{const subject=repType==="out"?`Power Outage — ${repArea}, Lagos`:`Power Restored — ${repArea}, Lagos`;const time=new Date().toLocaleTimeString("en-NG",{hour:"2-digit",minute:"2-digit"});const body=`${repType==="out"?"Power outage":"Power restored"} near ${repName}, ${repArea}.\n\nTime: ${time}\n\nSee live updates: ${APP_URL}\n\n— NEPAWatch Lagos`;const alertHtml=buildEmailHtml({type:repType,area:repArea,street:repName,time,appUrl:APP_URL});let edgeSent=false;try{const res=await fetch(EMAIL_FN,{method:"POST",headers:{"Content-Type":"application/json","apikey":SUPA_ANON,"Authorization":`Bearer ${SUPA_ANON}`},body:JSON.stringify({mode:"area_alert",area:repArea,repName,repType,subject,body,html:alertHtml,time})});if(res.ok){const json=await res.json().catch(()=>({}));const count=json.sent||0;edgeSent=true;if(count>0){emailLog.unshift({subject,to:`${count} watcher${count!==1?"s":""} in ${repArea}`,time});if(emailLog.length>8)emailLog.pop();}}}catch(fe){}if(CU&&savedPlaces.length){const matchingPlaces=savedPlaces.filter(p=>p.location_area===repArea&&p.notif_on!==false);if(matchingPlaces.length&&CU.email&&!edgeSent){const placeNames=matchingPlaces.map(p=>getPlaceDisplayName(p)).join(", ");const placeHtml=buildEmailHtml({type:repType,area:repArea,street:repName,time,places:placeNames,appUrl:APP_URL});await sendEmail(CU.email,subject,body,placeHtml);emailLog.unshift({subject,to:CU.email+"  (saved place)",time});if(emailLog.length>8)emailLog.pop();toast("Alert sent for your saved place","ok");if(document.getElementById("page-account").classList.contains("active"))renderAccount();}}else if(!edgeSent&&CU&&PR&&PR.location_area===repArea&&PR.notif_on&&CU.email){const userHtml=buildEmailHtml({type:repType,area:repArea,street:repName,time,appUrl:APP_URL});await sendEmail(CU.email,subject,body,userHtml);emailLog.unshift({subject,to:CU.email,time});if(emailLog.length>8)emailLog.pop();toast("Alert sent to your email","ok");if(document.getElementById("page-account").classList.contains("active"))renderAccount();}}catch(e){}}
 
 function openModal(type){mType=type;mSel=null;document.getElementById("shTitle").textContent=type==="out"?"Report Power Outage":"Report Power Restored";document.getElementById("shDesc").textContent=type==="out"?"Search your street or area in Lagos.":"Great news! Tell your community.";const btn=document.getElementById("mBtn");btn.textContent=type==="out"?"Confirm Outage":"Confirm Restored";btn.className="mconfirm "+(type==="out"?"out":"bck");btn.disabled=true;document.getElementById("mSearch").value="";if(PR?.location_id){mSel=LOCS.find(l=>l.id===PR.location_id)||null;if(mSel){btn.disabled=false;btn.textContent=type==="out"?`Report — ${mSel.name}`:`Restored — ${mSel.name}`;}}renderMList(LOCS.slice(0,60));document.getElementById("repOverlay").classList.add("open");setTimeout(()=>{document.getElementById("mSearch").focus();},280);}
 function closeModal(){document.getElementById("repOverlay").classList.remove("open");mType=null;mSel=null;}
@@ -2313,7 +2414,7 @@ function renderAccount(){const el=document.getElementById("authWrap");if(CU&&PR)
 
 const LOGO_IMG_TAG=`<img src="logo.jpg" alt="NEPAWatch" style="width:100%;height:100%;object-fit:cover;border-radius:8px">`;
 
-function renderAuthForm(el,mode){el.innerHTML=`<div class="auth-wrap"><div class="auth-logo"><div class="auth-logo-icon">${LOGO_IMG_TAG}</div><span class="auth-logo-name">NEPA<em>Watch</em></span></div><h2>${mode==="login"?"Welcome back":mode==="forgot"?"Reset password":"Join NEPAWatch"}</h2><p class="auth-sub">${mode==="login"?"Sign in to report outages and get email alerts.":mode==="forgot"?"Enter your email to receive a password reset link.":"Get free real-time power alerts for your Lagos street."}</p><div class="msg err" id="authErr"></div><div class="msg ok" id="authOk"></div>${mode==="register"?`<div class="fld"><label>Your Name</label><input id="inp-name" type="text" placeholder="e.g. Chidi" autocomplete="name"></div>`:""}<div class="fld"><label>Email</label><input id="inp-email" type="email" placeholder="you@example.com" autocomplete="email"></div>${mode!=="forgot"?`<div class="fld"><label>Password</label><input id="inp-pass" type="password" placeholder="Min 6 characters" autocomplete="${mode==="login"?"current-password":"new-password"}"></div>`:""}<button class="auth-btn" id="authBtn" onclick="handleAuth('${mode}')">${mode==="login"?"Sign In":mode==="forgot"?"Send Reset Link":"Create Account"}</button><div class="auth-switch">${mode==="login"?`No account? <a onclick="renderAuthForm(document.getElementById('authWrap'),'register')">Register free</a><br><span style="display:block;margin-top:8px"><a onclick="renderAuthForm(document.getElementById('authWrap'),'forgot')">Forgot password?</a></span>`:mode==="register"?`Have an account? <a onclick="renderAuthForm(document.getElementById('authWrap'),'login')">Sign in</a>`:`Remember it? <a onclick="renderAuthForm(document.getElementById('authWrap'),'login')">Back to sign in</a>`}</div></div>`;setTimeout(()=>{el.querySelectorAll("input").forEach(inp=>inp.addEventListener("keydown",e=>{if(e.key==="Enter")handleAuth(mode);}));document.getElementById("inp-email")?.focus();},80);}
+function renderAuthForm(el,mode){el.innerHTML=`<div class="auth-wrap"><div class="auth-logo"><div class="auth-logo-icon">${LOGO_IMG_TAG}</div><span class="auth-logo-name">NEPA<em>Watch</em></span></div><h2>${mode==="login"?"Welcome back":mode==="forgot"?"Reset password":"Join NEPAWatch"}</h2><p class="auth-sub">${mode==="login"?"Sign in to report outages and get email alerts.":mode==="forgot"?"Enter your email to receive a password reset link.":"Get free real-time power alerts for your Lagos street."}</p><div class="msg err" id="authErr"></div><div class="msg ok" id="authOk"></div>${mode==="register"?`<div class="fld"><label>Your Name</label><input id="inp-name" type="text" placeholder="e.g. Chidi" autocomplete="name"></div>`:""}<div class="fld"><label>Email</label><input id="inp-email" type="email" placeholder="you@example.com" autocomplete="email"></div>${mode!=="forgot"?`<div class="fld"><label>Password</label><input id="inp-pass" type="password" placeholder="Min 6 characters" autocomplete="${mode==="login"?"current-password":"new-password"}"><button type="button" class="pw-eye-btn" onclick="appTogglePw(this)" tabindex="-1"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M1 8C2.5 5 5 3.5 8 3.5C11 3.5 13.5 5 15 8C13.5 11 11 12.5 8 12.5C5 12.5 2.5 11 1 8Z" stroke="currentColor" stroke-width="1.3"/><circle cx="8" cy="8" r="2.2" stroke="currentColor" stroke-width="1.3"/></svg></button></div>`:""}<button class="auth-btn" id="authBtn" onclick="handleAuth('${mode}')">${mode==="login"?"Sign In":mode==="forgot"?"Send Reset Link":"Create Account"}</button><div class="auth-switch">${mode==="login"?`No account? <a onclick="renderAuthForm(document.getElementById('authWrap'),'register')">Register free</a><br><span style="display:block;margin-top:8px"><a onclick="renderAuthForm(document.getElementById('authWrap'),'forgot')">Forgot password?</a></span>`:mode==="register"?`Have an account? <a onclick="renderAuthForm(document.getElementById('authWrap'),'login')">Sign in</a>`:`Remember it? <a onclick="renderAuthForm(document.getElementById('authWrap'),'login')">Back to sign in</a>`}</div></div>`;setTimeout(()=>{el.querySelectorAll("input").forEach(inp=>inp.addEventListener("keydown",e=>{if(e.key==="Enter")handleAuth(mode);}));document.getElementById("inp-email")?.focus();},80);}
 
 async function handleAuth(mode){const errEl=document.getElementById("authErr"),okEl=document.getElementById("authOk"),btn=document.getElementById("authBtn");const email=(document.getElementById("inp-email")?.value||"").trim();const pass=document.getElementById("inp-pass")?.value||"";const name=(document.getElementById("inp-name")?.value||"").trim();errEl.classList.remove("show");okEl.classList.remove("show");if(!email||!email.includes("@")||!email.includes(".")){errEl.textContent="Please enter a valid email address.";errEl.classList.add("show");return;}if(mode!=="forgot"&&pass.length<6){errEl.textContent="Password must be at least 6 characters.";errEl.classList.add("show");return;}if(mode==="register"&&!name){errEl.textContent="Please enter your name.";errEl.classList.add("show");return;}btn.innerHTML=`${mode==="login"?"Signing in":mode==="forgot"?"Sending link":"Creating account"}&nbsp;<span class="spin"></span>`;btn.disabled=true;try{if(mode==="register"){await doRegister(name,email,pass);okEl.textContent="Account created! Check your email to confirm, then sign in.";okEl.classList.add("show");btn.innerHTML="Create Account";btn.disabled=false;setTimeout(()=>renderAuthForm(document.getElementById("authWrap"),"login"),2800);}else if(mode==="forgot"){await sb.auth.resetPasswordForEmail(email,{redirectTo:window.location.origin+window.location.pathname+"?mode=reset"});okEl.textContent="Reset link sent! Check your inbox (and spam folder).";okEl.classList.add("show");btn.innerHTML="Send Reset Link";btn.disabled=false;}else{await doLogin(email,pass);}}catch(e){let msg=e.message||"Something went wrong.";if(msg.toLowerCase().includes("invalid login")||msg.toLowerCase().includes("invalid credentials"))msg="Incorrect email or password. Please try again.";if(msg.toLowerCase().includes("email not confirmed"))msg="Please confirm your email first — check your inbox.";if(msg.toLowerCase().includes("already registered")||msg.toLowerCase().includes("user already registered"))msg="This email is already registered. Please sign in instead.";if(msg==="RATE_LIMIT"||msg.toLowerCase().includes("rate limit"))msg="Too many sign-up attempts. Please wait about 1 hour before trying again.";errEl.textContent=msg;errEl.classList.add("show");btn.innerHTML=mode==="login"?"Sign In":mode==="forgot"?"Send Reset Link":"Create Account";btn.disabled=false;}}
 
@@ -2345,8 +2446,14 @@ function go(page){
 
 function render(){renderStats();renderFeed("liveFeed");renderDiscos();}
 
-let _rtChannel=null,_recentAlerts=new Set();
-function startRealtime(){try{if(_rtChannel){try{sb.removeChannel(_rtChannel);}catch(e){}} _rtChannel=sb.channel("realtime-reports-"+Date.now()).on("postgres_changes",{event:"INSERT",schema:"public",table:"reports"},payload=>{try{const r=payload.new;if(!r||reports.find(x=>String(x.id)===String(r.id)))return;reports.unshift({id:String(r.id),name:String(r.location_name||""),area:String(r.location_area||""),type:String(r.type||""),time:new Date(r.created_at).getTime(),confirms:Number(r.confirms)||1,userId:r.user_id,isAI:r.user_id===AI_USER_ID});if(reports.length>100)reports.pop();render();if(_nearbyAreas.length)renderNearbyDashboard();renderSavedPlacesHome();renderMyPlacesList();if(r.user_id&&r.user_id!==CU?.id&&r.user_id!==AI_USER_ID){const alertKey=r.id+r.type;if(!_recentAlerts.has(alertKey)){_recentAlerts.add(alertKey);setTimeout(()=>_recentAlerts.delete(alertKey),30000);sendAreaAlerts(r.location_name,r.location_area,r.type);}}}catch(e){}}).on("postgres_changes",{event:"UPDATE",schema:"public",table:"reports"},payload=>{try{const r=payload.new;const existing=reports.find(x=>String(x.id)===String(r.id));if(existing){existing.confirms=Number(r.confirms)||1;renderFeed("liveFeed");renderFeed("myFeed",PR?.location_area||null);}}catch(e){}}).subscribe();}catch(e){}}
+let _rtChannel=null,_recentAlerts=new Set(),_rtWatchdog=null;
+function startRealtime(){try{if(_rtChannel){try{sb.removeChannel(_rtChannel);}catch(e){}} _rtChannel=sb.channel("realtime-reports-"+Date.now()).on("postgres_changes",{event:"INSERT",schema:"public",table:"reports"},payload=>{try{const r=payload.new;if(!r||reports.find(x=>String(x.id)===String(r.id)))return;reports.unshift({id:String(r.id),name:String(r.location_name||""),area:String(r.location_area||""),type:String(r.type||""),time:new Date(r.created_at).getTime(),confirms:Number(r.confirms)||1,userId:r.user_id,isAI:r.user_id===AI_USER_ID});if(reports.length>100)reports.pop();render();if(_nearbyAreas.length)renderNearbyDashboard();renderSavedPlacesHome();renderMyPlacesList();if(r.user_id&&r.user_id!==CU?.id&&r.user_id!==AI_USER_ID){const alertKey=r.id+r.type;if(!_recentAlerts.has(alertKey)){_recentAlerts.add(alertKey);setTimeout(()=>_recentAlerts.delete(alertKey),30000);sendAreaAlerts(r.location_name,r.location_area,r.type);}}}catch(e){}}).on("postgres_changes",{event:"UPDATE",schema:"public",table:"reports"},payload=>{try{const r=payload.new;const existing=reports.find(x=>String(x.id)===String(r.id));if(existing){existing.confirms=Number(r.confirms)||1;renderFeed("liveFeed");renderFeed("myFeed",PR?.location_area||null);}}catch(e){}}).subscribe(status=>{
+    // If realtime drops, restart it after 5s
+    if(status==='CHANNEL_ERROR'||status==='TIMED_OUT'){
+      clearTimeout(_rtWatchdog);
+      _rtWatchdog=setTimeout(startRealtime,5000);
+    }
+  });}catch(e){clearTimeout(_rtWatchdog);_rtWatchdog=setTimeout(startRealtime,8000);}}
 
 async function shareApp(){const shareData={title:"NEPAWatch Lagos — Live Power Tracker",text:"Know when light don go or come back in your Lagos area. Real-time crowd-sourced reports + email alerts. Free!",url:APP_URL};if(navigator.share){try{await navigator.share(shareData);}catch(e){if(e.name!=="AbortError"){try{await navigator.clipboard.writeText(APP_URL);toast("Link copied!","ok");}catch(ce){toast(APP_URL,"info");}}}}else{try{await navigator.clipboard.writeText(APP_URL);toast("Link copied!","ok");}catch(e){toast(APP_URL+" — share this link","info");}}}
 
@@ -2380,7 +2487,7 @@ window.addEventListener("load",async()=>{
     go("account");
     setTimeout(()=>{
       const el=document.getElementById("authWrap");
-      el.innerHTML=`<div class="auth-wrap"><div class="auth-logo"><div class="auth-logo-icon" style="background:var(--p)">${LOGO_IMG_TAG}</div><span class="auth-logo-name">NEPA<em>Watch</em></span></div><h2>Set new password</h2><p class="auth-sub">Choose a strong new password for your account.</p><div class="msg err" id="authErr"></div><div class="msg ok" id="authOk"></div><div class="fld"><label>New Password</label><input id="inp-newpass" type="password" placeholder="Min 6 characters" autocomplete="new-password"></div><div class="fld"><label>Confirm Password</label><input id="inp-confpass" type="password" placeholder="Repeat password" autocomplete="new-password"></div><button class="auth-btn" id="authBtn" onclick="doPasswordReset()">Update Password</button></div>`;
+      el.innerHTML=`<div class="auth-wrap"><div class="auth-logo"><div class="auth-logo-icon" style="background:var(--p)">${LOGO_IMG_TAG}</div><span class="auth-logo-name">NEPA<em>Watch</em></span></div><h2>Set new password</h2><p class="auth-sub">Choose a strong new password for your account.</p><div class="msg err" id="authErr"></div><div class="msg ok" id="authOk"></div><div class="fld"><label>New Password</label><input id="inp-newpass" type="password" placeholder="Min 6 characters" autocomplete="new-password"><button type="button" class="pw-eye-btn" onclick="appTogglePw(this)" tabindex="-1"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M1 8C2.5 5 5 3.5 8 3.5C11 3.5 13.5 5 15 8C13.5 11 11 12.5 8 12.5C5 12.5 2.5 11 1 8Z" stroke="currentColor" stroke-width="1.3"/><circle cx="8" cy="8" r="2.2" stroke="currentColor" stroke-width="1.3"/></svg></button></div><div class="fld"><label>Confirm Password</label><input id="inp-confpass" type="password" placeholder="Repeat password" autocomplete="new-password"><button type="button" class="pw-eye-btn" onclick="appTogglePw(this)" tabindex="-1"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M1 8C2.5 5 5 3.5 8 3.5C11 3.5 13.5 5 15 8C13.5 11 11 12.5 8 12.5C5 12.5 2.5 11 1 8Z" stroke="currentColor" stroke-width="1.3"/><circle cx="8" cy="8" r="2.2" stroke="currentColor" stroke-width="1.3"/></svg></button></div><button class="auth-btn" id="authBtn" onclick="doPasswordReset()">Update Password</button></div>`;
     },500);
   }
 });

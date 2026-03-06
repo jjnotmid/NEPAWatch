@@ -23,7 +23,7 @@
   --ov:rgba(0,0,0,.5);
 }
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-html,body{height:100%;overscroll-behavior:none}
+html,body{height:100%;overscroll-behavior-x:none}
 body{font-family:var(--font-body);background:var(--bg);color:var(--ink);overflow-x:hidden;-webkit-font-smoothing:antialiased;transition:background .3s,color .3s}
 button,input,select{font-family:inherit}
 svg{display:block;flex-shrink:0}
@@ -491,3 +491,33 @@ nav{
 .map-info button:hover {
   opacity: 0.9;
 }
+
+/* ===== PULL-TO-REFRESH ===== */
+#ptrIndicator {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 600;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  height: 52px; background: var(--sf);
+  border-bottom: 1px solid var(--bd);
+  font-size: .72rem; font-weight: 600; color: var(--p);
+  transform: translateY(-100%);
+  transition: transform .22s cubic-bezier(.25,.86,.44,1);
+  pointer-events: none;
+}
+#ptrIndicator.ptr-visible { transform: translateY(0); }
+#ptrSpinner {
+  width: 16px; height: 16px; border-radius: 50%;
+  border: 2px solid rgba(0,230,118,.2); border-top-color: var(--p);
+  animation: ptrSpin .55s linear infinite;
+}
+@keyframes ptrSpin { to { transform: rotate(360deg); } }
+
+/* ===== IN-APP PASSWORD TOGGLE ===== */
+.fld { position: relative; }
+.pw-eye-btn {
+  position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+  background: none; border: none; padding: 4px; cursor: pointer;
+  color: var(--ink3); transition: color .15s; display: flex; align-items: center;
+  line-height: 1;
+}
+.pw-eye-btn:hover { color: var(--p); }
+.fld input[type=password], .fld input[type=text] { padding-right: 40px !important; }
