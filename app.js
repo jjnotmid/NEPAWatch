@@ -939,7 +939,14 @@ const LAGOS = {
     "Oshodi Hospital", "Isolo Hospital", "Bolade Hospital", "Ago Palace Hospital",
     "Okota Hospital", "Cele Hospital", "Ilasamaja Hospital", "Ejigbo Hospital"
   ],
-  "Shomolu/Bariga": [
+  "Akoka": [
+    "University of Lagos", "UNILAG", "UNILAG Main Gate", "UNILAG Back Gate",
+    "Unilag Road", "Jibowu Street Akoka", "Iwaya Road", "Abule Ijesha",
+    "Akoka Market", "Commercial Avenue Akoka", "Pedro Road", "Bariga Road",
+    "FCE Akoka", "College of Education Akoka", "Sabo Road Akoka",
+    "Ladipo Kasumu Street", "Akin Obi Street", "Babs Animashaun Road"
+  ],
+    "Shomolu/Bariga": [
     "Shomolu Road", "Bariga Road", "Onigbongbo", "Obanikoro Road",
     "Fadeyi Shomolu", "Pedro Shomolu", "Shomolu", "Bariga",
     "Onigbongbo", "Obanikoro", "Fadeyi", "Pedro",
@@ -1922,6 +1929,13 @@ const AREA_COORDS = {
   "Ojota Bus Terminal":{lat:6.576,lng:3.381},
   "CMS Bus Stop":{lat:6.4538,lng:3.3958},
   "Obalende Bus Stop":{lat:6.4578,lng:3.4004}
+
+  // ── KEY ENTRIES matching LAGOS area keys exactly for geolocation ──
+  "Akoka":{lat:6.5183,lng:3.3855},
+  "Onikan/Lagos Mainland":{lat:6.4560,lng:3.3850},
+  "Ojota/Oregun":{lat:6.5750,lng:3.3800},
+  "Ojo/Alaba":{lat:6.4693,lng:3.1758},
+  "Ibeju-Lekki":{lat:6.4372,lng:3.7239},
 };
 
 function sl(s){return s.toLowerCase().replace(/[^a-z0-9]/g,"-").replace(/-+/g,"-");}
@@ -2188,7 +2202,20 @@ function go(page){
   void pg.offsetWidth;pg.classList.add("page-enter");
   document.getElementById(`nav-${page}`).classList.add("active");
   if(page==="myarea"){renderMyArea();}
-  if(page==="predict"){if(typeof renderPredictPage==='function')renderPredictPage();}
+  if(page==="predict"){
+  if(typeof renderPredictPage==='function'){
+    renderPredictPage();
+  } else {
+    // predict.js not loaded yet — retry after a moment
+    const predPage=document.getElementById('page-predict');
+    if(predPage) predPage.innerHTML='<div class="loading-row"><div class="spin w"></div>Loading predictions...</div>';
+    let attempts=0;
+    const waitPred=setInterval(()=>{
+      if(typeof renderPredictPage==='function'){clearInterval(waitPred);renderPredictPage();}
+      else if(++attempts>20){clearInterval(waitPred);if(predPage)predPage.innerHTML='<div class="loading-row" style="color:var(--rd)">Predictions unavailable — please refresh</div>';}
+    },250);
+  }
+}
   if(page==="community")renderCommunity();
   if(page==="account")renderAccount();
 }
