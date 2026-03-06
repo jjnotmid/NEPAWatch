@@ -186,8 +186,7 @@ const AIReporter = {
 
       if (!error && data) {
         this._replaceLocal(tempId, data, prob);
-        /* Trigger alert pipeline — same as human reports */
-        if (typeof sendAreaAlerts==='function') sendAreaAlerts(locName, area, type);
+        /* Alert is handled by the realtime INSERT listener in app.js */
         /* Refresh predict page AI count if visible */
         const aiBanner = document.querySelector('.pred-ai-sub strong');
         if (aiBanner && typeof reports!=='undefined') {
