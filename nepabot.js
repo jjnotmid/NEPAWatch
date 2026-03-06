@@ -1,65 +1,26 @@
 /* =============================================================
-   NEPAWatch Lagos — nepabot.js  (v2 — Full Data Integration)
+   NEPAWatch Lagos — nepabot.js  (v3 — Fuzzy NLP + Live Data)
    
-   The bot now reads EVERYTHING from the live app:
-   - reports[]         live outage/restoration feed
-   - AREA_BANDS{}      tariff band per area
-   - DISCO[]           zone info
-   - LAGOS{}           streets per area
-   - PR               logged-in user profile + saved location
-   - savedPlaces[]     user's home/work/school
-   - predictOutage()   AI probability engine
-   - PredictHistory    historical outage rates
-   
-   NLP approach:
-   - Intent scoring across 30+ intent categories
-   - Entity extraction: area names, street names, time references
-   - Context memory: last area, last topic, conversation turn
-   - Live data fusion: every answer pulls real numbers
+   Improvements over v2:
+   - Fuzzy string matching (tolerates typos, shorthand, pidgin)
+   - Levenshtein distance for area name matching
+   - Phonetic aliases + abbreviation expansion
+   - Context memory with topic persistence
+   - Real-time DB queries for current status
+   - Case-insensitive, punctuation-tolerant NLP
+   - Proper street/area disambiguation
    ============================================================= */
 
 /* ── SAFE ACCESSORS ────────────────────────────────────────── */
-/* These wrapper functions safely read globals from app.js      */
-/* even if they haven't loaded yet                              */
 const BOT = {
+  reports()    { return (typeof reports !== 'undefined' && Array.isArray(reports)) ? reports : []; },
+  areaBands()  { return (typeof AREA_BANDS !== 'undefined') ? AREA_BANDS : {}; },
+  allAreas()   { return Object.keys(this.areaBands()); },
+  discos()     { return (typeof DISCO !== 'undefined' && Array.isArray(DISCO)) ? DISCO : []; },
+  streets(area){ return (typeof LAGOS !== 'undefined' && LAGOS[area]) ? LAGOS[area] : []; },
+  profile()    { return (typeof PR !== 'undefined') ? PR : null; },
+  savedPlaces(){ return (typeof savedPlaces !== 'undefined' && Array.isArray(savedPlaces)) ? savedPlaces : []; },
 
-  /* Get the live reports array */
-  reports() {
-    return (typeof reports !== 'undefined' && Array.isArray(reports)) ? reports : [];
-  },
-
-  /* Get area → band map */
-  areaBands() {
-    return (typeof AREA_BANDS !== 'undefined') ? AREA_BANDS : {};
-  },
-
-  /* Get all known area names */
-  allAreas() {
-    return Object.keys(this.areaBands());
-  },
-
-  /* Get DISCO array */
-  discos() {
-    return (typeof DISCO !== 'undefined' && Array.isArray(DISCO)) ? DISCO : [];
-  },
-
-  /* Get streets for an area */
-  streets(area) {
-    if (typeof LAGOS !== 'undefined' && LAGOS[area]) return LAGOS[area];
-    return [];
-  },
-
-  /* Get user profile */
-  profile() {
-    return (typeof PR !== 'undefined') ? PR : null;
-  },
-
-  /* Get saved places */
-  savedPlaces() {
-    return (typeof savedPlaces !== 'undefined' && Array.isArray(savedPlaces)) ? savedPlaces : [];
-  },
-
-  /* Get AI prediction for area */
   predict(area) {
     if (typeof predictOutage === 'function') {
       const now = new Date();
@@ -67,31 +28,23 @@ const BOT = {
     }
     return null;
   },
-
-  /* Get predicted outage duration */
   predictDur(area) {
-    if (typeof predictDuration === 'function') {
-      return predictDuration(area, new Date().getHours());
-    }
+    if (typeof predictDuration === 'function') return predictDuration(area, new Date().getHours());
     return null;
   },
-
-  /* Get risk label */
   riskLevel(prob) {
     if (typeof getRiskLevel === 'function') return getRiskLevel(prob);
-    if (prob < 0.25) return { label: 'Low Risk', color: '#00E676' };
-    if (prob < 0.50) return { label: 'Moderate', color: '#FFB300' };
+    if (prob < 0.25) return { label: 'Low Risk',  color: '#00E676' };
+    if (prob < 0.50) return { label: 'Moderate',  color: '#FFB300' };
     if (prob < 0.72) return { label: 'High Risk', color: '#FF7043' };
     return { label: 'Critical', color: '#FF3D57' };
   },
 
-  /* Find the most recent report for an area */
   latestForArea(area) {
+    if (!area) return null;
     const lower = area.toLowerCase();
     return this.reports().find(r => r.area && r.area.toLowerCase().includes(lower)) || null;
   },
-
-  /* Get all reports for area (last 24h) */
   areaReports24h(area) {
     const lower = area.toLowerCase();
     const cutoff = Date.now() - 86400000;
@@ -99,161 +52,291 @@ const BOT = {
       r.area && r.area.toLowerCase().includes(lower) && r.time > cutoff
     );
   },
-
-  /* Count outages vs restorations for area */
   areaStats(area) {
     const reps = this.areaReports24h(area);
     const out = reps.filter(r => r.type === 'out');
     const bck = reps.filter(r => r.type === 'bck');
     return { total: reps.length, outCount: out.length, bckCount: bck.length, reports: reps };
   },
-
-  /* Is a given area currently out based on latest report? */
   isOut(area) {
     const r = this.latestForArea(area);
-    if (!r) return null; // unknown
+    if (!r) return null;
     return r.type === 'out';
   },
-
-  /* How long has it been out? (if out) */
   outDuration(area) {
     const r = this.latestForArea(area);
     if (!r || r.type !== 'out') return null;
     return Date.now() - r.time;
   },
-
-  /* Format duration in ms to readable */
   fmtDuration(ms) {
     const m = Math.floor(ms / 60000);
     if (m < 60) return `${m} minute${m !== 1 ? 's' : ''}`;
-    const h = Math.floor(m / 60);
-    const rem = m % 60;
+    const h = Math.floor(m / 60); const rem = m % 60;
     return rem > 0 ? `${h}h ${rem}m` : `${h} hour${h !== 1 ? 's' : ''}`;
   },
-
-  /* Time ago string */
   ago(ts) {
     const d = Math.floor((Date.now() - ts) / 1000);
     if (d < 60)   return `${d}s ago`;
     if (d < 3600) return `${Math.floor(d / 60)}m ago`;
     return `${Math.floor(d / 3600)}h ago`;
   },
-
-  /* Format hour to "3pm" */
-  fmtH(h) {
-    return `${h % 12 || 12}${h < 12 ? 'am' : 'pm'}`;
-  },
-
-  /* DISCO name for area */
+  fmtH(h) { return `${h % 12 || 12}${h < 12 ? 'am' : 'pm'}`; },
   discoFor(area) {
-    const discos = this.discos();
-    for (const d of discos) {
-      if (d.lgas && d.lgas.some(a => a.toLowerCase().includes(area.toLowerCase()) || area.toLowerCase().includes(a.toLowerCase()))) {
-        return d.name;
-      }
+    for (const d of this.discos()) {
+      if (d.lgas && d.lgas.some(a =>
+        a.toLowerCase().includes((area||'').toLowerCase()) ||
+        (area||'').toLowerCase().includes(a.toLowerCase())
+      )) return d.name;
     }
     return null;
   },
-
-  /* Band info */
   bandInfo(band) {
     const INFO = {
-      A: { hours: '20–24h/day', desc: 'Premium supply', tier: 'best' },
-      B: { hours: '16–20h/day', desc: 'Good supply',    tier: 'good' },
-      C: { hours: '12–16h/day', desc: 'Moderate supply',tier: 'moderate' },
-      D: { hours: '8–12h/day',  desc: 'Unstable supply',tier: 'poor' },
-      E: { hours: '4–8h/day',   desc: 'Poorest supply', tier: 'very poor' },
+      A: { hours: '20–24h/day', desc: 'Premium supply',  tier: 'best'      },
+      B: { hours: '16–20h/day', desc: 'Good supply',     tier: 'good'      },
+      C: { hours: '12–16h/day', desc: 'Moderate supply', tier: 'moderate'  },
+      D: { hours: '8–12h/day',  desc: 'Unstable supply', tier: 'poor'      },
+      E: { hours: '4–8h/day',   desc: 'Poorest supply',  tier: 'very poor' },
     };
     return INFO[band] || null;
   },
-
-  /* Get top N areas currently out */
   areasCurrentlyOut(n = 5) {
     const seen = new Set();
     return this.reports()
       .filter(r => r.type === 'out' && r.area && !seen.has(r.area) && seen.add(r.area))
-      .slice(0, n)
-      .map(r => ({ area: r.area, time: r.time, confirms: r.confirms }));
+      .slice(0, n).map(r => ({ area: r.area, time: r.time, confirms: r.confirms }));
   },
-
-  /* Get top N areas currently restored */
   areasCurrentlyOn(n = 5) {
     const seen = new Set();
     return this.reports()
       .filter(r => r.type === 'bck' && r.area && !seen.has(r.area) && seen.add(r.area))
-      .slice(0, n)
-      .map(r => ({ area: r.area, time: r.time, confirms: r.confirms }));
+      .slice(0, n).map(r => ({ area: r.area, time: r.time, confirms: r.confirms }));
   },
-
-  /* Total unique areas reporting outages right now */
   outageCount() {
     const seen = new Set();
     this.reports().filter(r => r.type === 'out').forEach(r => { if (r.area) seen.add(r.area); });
     return seen.size;
   },
-
-  /* Get the safest areas right now (low AI risk + no outage report) */
   safestAreas(n = 4) {
     return this.allAreas()
-      .map(area => {
-        const pred = this.predict(area);
-        const isOut = this.isOut(area);
-        return { area, prob: pred ? pred.prob : 0.5, isOut };
-      })
-      .filter(a => a.isOut !== true)
-      .sort((a, b) => a.prob - b.prob)
-      .slice(0, n);
+      .map(area => ({ area, prob: (this.predict(area) || { prob: 0.5 }).prob, isOut: this.isOut(area) }))
+      .filter(a => a.isOut !== true).sort((a, b) => a.prob - b.prob).slice(0, n);
   },
-
-  /* Get highest-risk areas */
   riskiestAreas(n = 4) {
     return this.allAreas()
-      .map(area => {
-        const pred = this.predict(area);
-        return { area, prob: pred ? pred.prob : 0.3 };
-      })
-      .sort((a, b) => b.prob - a.prob)
-      .slice(0, n);
+      .map(area => ({ area, prob: (this.predict(area) || { prob: 0.3 }).prob }))
+      .sort((a, b) => b.prob - a.prob).slice(0, n);
   },
-
-  /* User's current area (from profile or saved home place) */
   userArea() {
     const pr = this.profile();
     if (pr && pr.location_area) return pr.location_area;
-    const places = this.savedPlaces();
-    const home = places.find(p => p.type === 'home');
-    if (home) return home.location_area;
-    return null;
+    const home = this.savedPlaces().find(p => p.type === 'home');
+    return home ? home.location_area : null;
   },
 
-  /* Match a raw string to a known area name */
-  matchArea(str) {
-    const lower = str.toLowerCase();
+  /* ── FUZZY AREA MATCHING ── */
+  matchArea(raw) {
+    if (!raw) return null;
+    const input = raw.toLowerCase().replace(/[^a-z0-9\s]/g, '').trim();
     const areas = this.allAreas();
-    // Exact match first
-    let found = areas.find(a => a.toLowerCase() === lower);
+
+    // 1. Exact match
+    let found = areas.find(a => a.toLowerCase() === input);
     if (found) return found;
-    // Partial — longest match wins
+
+    // 2. Alias expansion
+    const alias = BOT_ALIASES[input] || BOT_ALIASES[input.replace(/\s+/g,'')] || null;
+    if (alias) return alias;
+
+    // 3. Check aliases with partial matching
+    for (const [key, val] of Object.entries(BOT_ALIASES)) {
+      if (input.includes(key) || key.includes(input)) return val;
+    }
+
+    // 4. Substring match — area name inside input or input inside area name
     let best = null, bestLen = 0;
     for (const area of areas) {
       const aLow = area.toLowerCase();
-      if (lower.includes(aLow) || aLow.includes(lower)) {
+      if (input.includes(aLow) || aLow.includes(input)) {
         if (aLow.length > bestLen) { best = area; bestLen = aLow.length; }
       }
     }
-    // Also check individual words
-    if (!best) {
-      const words = lower.split(/\s+/);
-      for (const area of areas) {
-        const aLow = area.toLowerCase();
-        if (words.some(w => w.length > 3 && aLow.includes(w))) {
-          if (!best || aLow.length > best.length) best = area;
+    if (best) return best;
+
+    // 5. Word-level partial match
+    const words = input.split(/\s+/).filter(w => w.length > 2);
+    let wordBest = null, wordScore = 0;
+    for (const area of areas) {
+      const aLow = area.toLowerCase();
+      let score = 0;
+      for (const w of words) {
+        if (aLow.includes(w)) score += w.length;
+      }
+      if (score > wordScore) { wordScore = score; wordBest = area; }
+    }
+    if (wordScore > 3) return wordBest;
+
+    // 6. Levenshtein fuzzy match
+    let closestArea = null, closestDist = 99;
+    for (const area of areas) {
+      // Split area name into words, check each word
+      const aWords = area.toLowerCase().split(/[\s\/\-\(\)]+/);
+      const iWords = input.split(/\s+/);
+      for (const aw of aWords) {
+        if (aw.length < 3) continue;
+        for (const iw of iWords) {
+          if (iw.length < 3) continue;
+          const d = levenshtein(aw, iw);
+          const threshold = Math.floor(Math.max(aw.length, iw.length) * 0.4);
+          if (d <= threshold && d < closestDist) {
+            closestDist = d; closestArea = area;
+          }
         }
       }
     }
-    return best || null;
+    return closestArea;
+  },
+
+  /* Also match streets to their area */
+  matchStreetArea(raw) {
+    if (!raw || typeof LAGOS === 'undefined') return null;
+    const input = raw.toLowerCase().replace(/[^a-z0-9\s]/g, '').trim();
+    for (const [area, streets] of Object.entries(LAGOS)) {
+      for (const st of streets) {
+        const stLow = st.toLowerCase();
+        if (stLow.includes(input) || input.includes(stLow.split(' ')[0])) return area;
+        // Fuzzy street match
+        const stWords = stLow.split(/\s+/).filter(w => w.length > 3);
+        const inWords = input.split(/\s+/).filter(w => w.length > 3);
+        for (const sw of stWords) {
+          for (const iw of inWords) {
+            if (levenshtein(sw, iw) <= 2) return area;
+          }
+        }
+      }
+    }
+    return null;
   },
 };
+
+/* ── LEVENSHTEIN DISTANCE ──────────────────────────────────── */
+function levenshtein(a, b) {
+  if (a === b) return 0;
+  if (a.length === 0) return b.length;
+  if (b.length === 0) return a.length;
+  const m = Array.from({ length: a.length + 1 }, (_, i) =>
+    Array.from({ length: b.length + 1 }, (_, j) => i === 0 ? j : j === 0 ? i : 0)
+  );
+  for (let i = 1; i <= a.length; i++) {
+    for (let j = 1; j <= b.length; j++) {
+      m[i][j] = a[i-1] === b[j-1]
+        ? m[i-1][j-1]
+        : 1 + Math.min(m[i-1][j], m[i][j-1], m[i-1][j-1]);
+    }
+  }
+  return m[a.length][b.length];
+}
+
+/* ── COMPREHENSIVE ALIAS MAP ───────────────────────────────── */
+const BOT_ALIASES = {
+  // Victoria Island
+  'vi': 'Victoria Island', 'v.i': 'Victoria Island', 'v i': 'Victoria Island',
+  'victoria island': 'Victoria Island', 'victoria': 'Victoria Island',
+  // Ikoyi
+  'ikoyi': 'Ikoyi', 'banana island': 'Ikoyi', 'banana': 'Ikoyi',
+  'parkview': 'Ikoyi', 'osborne': 'Ikoyi',
+  // Lekki
+  'lekki': 'Lekki Phase 1', 'lekki 1': 'Lekki Phase 1', 'lekki phase 1': 'Lekki Phase 1',
+  'lekki phase1': 'Lekki Phase 1', 'lekki ph1': 'Lekki Phase 1',
+  'lekki 2': 'Lekki Phase 2/Ikota', 'lekki phase 2': 'Lekki Phase 2/Ikota',
+  'ikota': 'Lekki Phase 2/Ikota', 'vgc': 'Lekki Phase 2/Ikota',
+  // Ikeja
+  'ikeja gra': 'Ikeja GRA', 'gra ikeja': 'Ikeja GRA', 'gra': 'Ikeja GRA',
+  'allen': 'Ikeja (Allen/Opebi)', 'opebi': 'Ikeja (Allen/Opebi)',
+  'allen avenue': 'Ikeja (Allen/Opebi)', 'ikeja allen': 'Ikeja (Allen/Opebi)',
+  'computer village': 'Ikeja (Allen/Opebi)', 'alausa': 'Ikeja (Allen/Opebi)',
+  // Maryland
+  'maryland': 'Maryland/Anthony', 'anthony': 'Maryland/Anthony',
+  'anthony village': 'Maryland/Anthony', 'palmgrove': 'Maryland/Anthony',
+  // Surulere
+  'surulere': 'Surulere', 'ojuelegba': 'Surulere', 'bode thomas': 'Surulere',
+  'randle': 'Surulere', 'adeniran': 'Surulere',
+  // Yaba
+  'yaba': 'Yaba', 'unilag': 'Yaba', 'university of lagos': 'Yaba',
+  'akoka': 'Yaba', 'iwaya': 'Yaba', 'sabo': 'Yaba',
+  // Lagos Island
+  'lagos island': 'Lagos Island', 'island': 'Lagos Island', 'balogun': 'Lagos Island',
+  'idumota': 'Lagos Island', 'marina': 'Lagos Island',
+  // Obalende
+  'obalende': 'Obalende/CMS', 'cms': 'Obalende/CMS', 'racecourse': 'Obalende/CMS',
+  'race course': 'Obalende/CMS',
+  // Ajah
+  'ajah': 'Ajah', 'sangotedo': 'Ajah', 'addo': 'Ajah', 'monastery': 'Ajah',
+  'thomas estate': 'Ajah', 'badore': 'Ajah', 'ilaje': 'Ajah',
+  // Chevron
+  'chevron': 'Chevron/Lekki-Epe Expressway', 'osapa': 'Chevron/Lekki-Epe Expressway',
+  'oral estate': 'Chevron/Lekki-Epe Expressway', 'ikate': 'Chevron/Lekki-Epe Expressway',
+  'elegushi': 'Chevron/Lekki-Epe Expressway',
+  // Igbo Efon
+  'igbo efon': 'Igbo Efon/Ilasan', 'ilasan': 'Igbo Efon/Ilasan',
+  'agungi': 'Igbo Efon/Ilasan', 'ologolo': 'Igbo Efon/Ilasan',
+  // Apapa
+  'apapa': 'Apapa', 'apapa gra': 'Apapa', 'kirikiri': 'Apapa',
+  // Festac
+  'festac': 'Festac Town', 'festac town': 'Festac Town',
+  // Amuwo
+  'amuwo': 'Amuwo Odofin', 'amuwo odofin': 'Amuwo Odofin',
+  'apple junction': 'Amuwo Odofin', 'satellite town': 'Amuwo Odofin',
+  // Mushin
+  'mushin': 'Mushin', 'ladipo': 'Mushin', 'idi oro': 'Mushin',
+  // Oshodi
+  'oshodi': 'Oshodi/Isolo', 'isolo': 'Oshodi/Isolo', 'cele': 'Oshodi/Isolo',
+  'okota': 'Oshodi/Isolo',
+  // Agege
+  'agege': 'Agege', 'pen cinema': 'Agege', 'dopemu': 'Agege',
+  'abule egba': 'Agege',
+  // Alimosho
+  'alimosho': 'Alimosho/Ipaja', 'ipaja': 'Alimosho/Ipaja', 'iyana ipaja': 'Alimosho/Ipaja',
+  'idimu': 'Alimosho/Ipaja', 'egbe': 'Alimosho/Ipaja', 'shasha': 'Alimosho/Ipaja',
+  'ayobo': 'Alimosho/Ipaja',
+  // Ojodu
+  'ojodu': 'Ojodu/Omole', 'berger': 'Ojodu/Omole', 'omole': 'Ojodu/Omole',
+  'isheri': 'Ojodu/Omole',
+  // Gbagada
+  'gbagada': 'Gbagada', 'pedro': 'Gbagada', 'ifako': 'Gbagada',
+  // Kosofe/Ketu
+  'ketu': 'Kosofe/Ketu', 'mile 12': 'Kosofe/Ketu', 'kosofe': 'Kosofe/Ketu',
+  'ogudu': 'Kosofe/Ketu', 'ojota': 'Kosofe/Ketu', 'magodo': 'Magodo',
+  // Ikorodu
+  'ikorodu': 'Ikorodu', 'agric': 'Ikorodu', 'benson': 'Ikorodu',
+  // Badagry
+  'badagry': 'Badagry', 'seme': 'Badagry', 'agbara': 'Badagry',
+  // Ojo/Alaba
+  'alaba': 'Ojo/Alaba', 'ojo': 'Ojo/Alaba', 'trade fair': 'Ojo/Alaba',
+  'lasu': 'Ojo/Alaba',
+  // Epe
+  'epe': 'Epe', 'ibeju': 'Ibeju-Lekki', 'ibeju lekki': 'Ibeju-Lekki',
+  // Ogba
+  'ogba': 'Ogba', 'ifako road': 'Ogba',
+  // Shomolu
+  'shomolu': 'Shomolu/Bariga', 'bariga': 'Shomolu/Bariga',
+  // Ilupeju
+  'ilupeju': 'Ilupeju', 'harvey': 'Ilupeju',
+  // Ebute Metta
+  'ebute metta': 'Ebute Metta', 'oyingbo': 'Ebute Metta',
+  // Onikan
+  'onikan': 'Onikan/Lagos Mainland',
+};
+
+/* ── TEXT NORMALIZER ───────────────────────────────────────── */
+function normalizeText(raw) {
+  return raw
+    .toLowerCase()
+    .replace(/[''`]/g, "'")
+    .replace(/[^\w\s']/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
 
 /* ── CONTEXT MEMORY ────────────────────────────────────────── */
 const BotCtx = {
@@ -267,121 +350,156 @@ const BotCtx = {
   },
 };
 
-/* ── INTENT CLASSIFIER ─────────────────────────────────────── */
+/* ── FUZZY INTENT CLASSIFIER ───────────────────────────────── */
 function classifyIntent(msg) {
-  const m = msg.toLowerCase();
+  const m = normalizeText(msg);
   const has = (...words) => words.some(w => m.includes(w));
+  const hasAll = (...words) => words.every(w => m.includes(w));
 
-  if (has('hello','hi ','hey','good morning','good evening','good afternoon','morning','evening','afternoon','yo ','sup ','ello'))
+  // Greetings
+  if (has('hello', 'hi ', 'hey ', 'good morning', 'good evening', 'good afternoon',
+          'morning', 'evening', 'afternoon', 'yo ', 'sup ', 'ello', 'greetings',
+          'howdy', 'what up', 'whatsup'))
     return 'greeting';
-  if (has('thank','thanks','thank you','cheers','helpful','great ','nice one','perfect','awesome'))
+
+  if (has('thank', 'thanks', 'cheers', 'helpful', 'nice one', 'perfect', 'awesome', 'great job', 'well done'))
     return 'thanks';
-  if (has('bye','goodbye','later','cya','take care','see you'))
+
+  if (has('bye', 'goodbye', 'later', 'cya', 'take care', 'see you', 'goodnight', 'good night'))
     return 'bye';
 
-  /* User's own area/places */
-  if (has('my area','my place','my house','my home','my location','my street','where i live','my nepa','my light'))
+  // My area / saved places
+  if (has('my area', 'my place', 'my house', 'my home', 'my location', 'my street',
+          'where i live', 'my nepa', 'my light', 'around me', 'near me', 'my side'))
     return 'my_area';
-  if (has('my work','my office','my job'))
+  if (has('my work', 'my office', 'my job', 'at work'))
     return 'my_work';
-  if (has('my school','my uni','my college'))
+  if (has('my school', 'my uni', 'my college', 'my campus'))
     return 'my_school';
-  if (has('my saved','saved place','all my place'))
+  if (has('my saved', 'saved place', 'all my place', 'my places'))
     return 'my_places';
 
-  /* Status / current situation */
-  if (has('is there light','any light','have light','light dey','current','right now','status','situation','how is','how\'s','what\'s happening','what is happening','still out','still no light','when did','last report'))
+  // Status queries — broad patterns
+  if (has('is there light', 'any light', 'have light', 'light dey', 'get light',
+          'power dey', 'current', 'right now', 'still out', 'still no light',
+          'what happen', 'whats happening', 'situation', 'status', 'how is',
+          'light situation', 'power situation', 'last report', 'any report'))
     return 'area_status';
-  if (has('which area','where is light','where get light','which place','which part'))
+
+  if (has('which area', 'where is light', 'where get light', 'which place get light',
+          'which part', 'where light dey'))
     return 'where_has_light';
-  if (has('how many area','how many report','total','overview','summary','whats going on','what\'s going on','entire lagos','all of lagos','across lagos'))
+
+  if (has('how many area', 'how many report', 'total', 'overview', 'summary',
+          'whats going on', 'entire lagos', 'all of lagos', 'across lagos',
+          'lagos today', 'general situation'))
     return 'lagos_overview';
 
-  /* Predictions */
-  if (has('predict','forecast','when will','when light come','come back','return','probability','chance','likely','risk','what time will','what time'))
+  // Predictions
+  if (has('predict', 'forecast', 'when will', 'when light come', 'come back',
+          'return', 'probability', 'chance', 'likely', 'risk', 'what time will',
+          'when will light', 'when e go come'))
     return 'prediction';
-  if (has('best time','safest time','good time','when to','low risk','when can i','run gen','when generator'))
+
+  if (has('best time', 'safest time', 'good time', 'when to', 'low risk',
+          'when can i', 'run gen', 'when generator', 'when to charge'))
     return 'best_time';
-  if (has('safest area','which area safe','better area','least outage','most stable','reliable area'))
+
+  if (has('safest area', 'which area safe', 'better area', 'least outage',
+          'most stable', 'reliable area', 'where power stable'))
     return 'safest_areas';
-  if (has('worst area','most outage','most cut','bad area','unreliable'))
+
+  if (has('worst area', 'most outage', 'most cut', 'bad area', 'unreliable',
+          'worst for light'))
     return 'riskiest_areas';
 
-  /* Bands */
-  if (has('band','tariff','sbt','supply hour','how many hour','daily supply'))
+  // Band info
+  if (has('band', 'tariff', 'sbt', 'supply hour', 'how many hour', 'daily supply',
+          'how much light', 'hours of light'))
     return 'band_info';
 
-  /* DISCO / contact */
-  if (has('ikeja electric','ie ','ikeja elec'))
-    return 'disco_ikeja';
-  if (has('eko electric','ekedc','eko elec','eko disco'))
-    return 'disco_eko';
-  if (has('which disco','my disco','who supply','electricity company','which company','who manage'))
+  // DISCO / contacts
+  if (has('ikeja electric', 'ie ', 'ikeja elec')) return 'disco_ikeja';
+  if (has('eko electric', 'ekedc', 'eko elec', 'eko disco')) return 'disco_eko';
+  if (has('which disco', 'my disco', 'who supply', 'electricity company',
+          'which company', 'who manage', 'who controls', 'who is in charge'))
     return 'which_disco';
-  if (has('complain','complaint','number','hotline','call','contact','phone','email','twitter','report fault'))
+  if (has('complain', 'complaint', 'number', 'hotline', 'call them', 'contact',
+          'phone', 'email them', 'twitter', 'report fault', 'customer care',
+          'customer service'))
     return 'contact';
 
-  /* Reporting */
-  if (has('how report','how to report','report outage','report light','submit report','how do i report'))
-    return 'how_report';
-  if (has('confirm','same','verify','confirm report'))
-    return 'how_confirm';
-
-  /* Alerts */
-  if (has('alert','notification','email','notify','get notified','inform me','tell me when','set up alert'))
-    return 'alerts';
-
-  /* Why / causes */
-  if (has('why','cause','reason','happen','fault','problem') && has('light','power','outage','nepa','current'))
-    return 'causes';
-
-  /* How long */
-  if (has('how long','duration','how many hour','been out','since when','start'))
+  // Duration
+  if (has('how long', 'duration', 'how many hour', 'been out', 'since when',
+          'when it start', 'how long ago', 'since what time'))
     return 'duration';
 
-  /* History */
-  if (has('histor','last week','yesterday','last time','pattern','usually','always','frequent','often'))
+  // History
+  if (has('histor', 'last week', 'yesterday', 'last time', 'pattern',
+          'usually', 'always', 'frequent', 'often', 'normally'))
     return 'history';
 
-  /* About app */
-  if (has('nepawatch','about','what is this','how does','app work','what can you','who made','built by'))
+  // Reporting
+  if (has('how report', 'how to report', 'report outage', 'report light',
+          'submit report', 'how do i report', 'how do you report'))
+    return 'how_report';
+  if (has('confirm', 'same', 'verify', 'confirm report', 'how confirm'))
+    return 'how_confirm';
+
+  // Alerts
+  if (has('alert', 'notification', 'email', 'notify', 'get notified',
+          'inform me', 'tell me when', 'set up alert', 'email alert'))
+    return 'alerts';
+
+  // Why
+  if (has('why', 'cause', 'reason', 'why light') &&
+      has('light', 'power', 'outage', 'nepa', 'current', 'go'))
+    return 'causes';
+
+  // About
+  if (has('nepawatch', 'about', 'what is this', 'how does this work',
+          'app work', 'what can you', 'who made', 'built by', 'what is nepawatch'))
     return 'about';
 
-  /* Generator / backup */
-  if (has('generator','gen','inverter','solar','fuel','backup','battery'))
+  // Backup / generator
+  if (has('generator', 'gen ', 'inverter', 'solar', 'fuel', 'backup', 'battery', 'UPS'))
     return 'backup';
 
-  /* NEPA history */
-  if (has('what is nepa','what is phcn','nepa stand for','phcn stand','history of nepa'))
+  // NEPA history
+  if (has('what is nepa', 'what is phcn', 'nepa stand', 'phcn stand', 'history of nepa'))
     return 'nepa_history';
 
-  /* Leaderboard */
-  if (has('leaderboard','top reporter','ranking','community','who report most','badge','points'))
+  // Leaderboard
+  if (has('leaderboard', 'top reporter', 'ranking', 'community', 'who report most',
+          'badge', 'points', 'most reports'))
     return 'leaderboard';
 
   return 'unknown';
 }
 
-/* ── AREA EXTRACTOR ────────────────────────────────────────── */
+/* ── ENTITY EXTRACTOR ──────────────────────────────────────── */
 function extractArea(msg) {
-  const lower = msg.toLowerCase();
-  /* First try direct match against all known areas */
-  const direct = BOT.matchArea(lower);
-  if (direct) return direct;
-  /* Try common shorthand */
-  const aliases = {
-    'vi':'Victoria Island','v.i':'Victoria Island','v.i.':'Victoria Island',
-    'lekki':'Lekki Phase 1','lekki 1':'Lekki Phase 1','lekki 2':'Lekki Phase 2/Ikota',
-    'ikeja':'Ikeja GRA','allen':'Ikeja (Allen/Opebi)','opebi':'Ikeja (Allen/Opebi)',
-    'cms':'Obalende/CMS','cms area':'Obalende/CMS',
-    'isale eko':'Lagos Island','island':'Lagos Island',
-    'berger':'Ojodu/Omole','festac':'Festac Town',
-    'mile 12':'Kosofe/Ketu','ketu':'Kosofe/Ketu',
-    'ojuelegba':'Surulere','bode thomas':'Surulere',
-  };
-  for (const [alias, full] of Object.entries(aliases)) {
-    if (lower.includes(alias)) return full;
+  const norm = normalizeText(msg);
+
+  // Try exact/alias match first on the full normalized string
+  let area = BOT.matchArea(norm);
+  if (area) return area;
+
+  // Try each word sequence (3-word, 2-word, 1-word windows)
+  const words = norm.split(/\s+/);
+  for (let len = Math.min(4, words.length); len >= 1; len--) {
+    for (let i = 0; i <= words.length - len; i++) {
+      const phrase = words.slice(i, i + len).join(' ');
+      if (phrase.length < 3) continue;
+      const matched = BOT.matchArea(phrase);
+      if (matched) return matched;
+    }
   }
+
+  // Try matching a street name to get its area
+  const streetArea = BOT.matchStreetArea(norm);
+  if (streetArea) return streetArea;
+
   return null;
 }
 
@@ -397,27 +515,27 @@ function replyAreaStatus(area) {
 
   let status;
   if (!report) {
-    status = `📭 No reports for **${area}** yet — can't confirm current status.`;
+    status = `No crowd reports for **${area}** yet — can't confirm current status.`;
   } else if (report.type === 'out') {
     const dur = BOT.outDuration(area);
     const durStr = dur ? ` for about **${BOT.fmtDuration(dur)}**` : '';
-    status = `🔴 **Power is currently OUT** in ${area}${durStr}.\nReported ${BOT.ago(report.time)} · ${report.confirms} confirmation${report.confirms !== 1 ? 's' : ''}.`;
+    status = `Power is currently **OUT** in ${area}${durStr}.\nReported ${BOT.ago(report.time)} · ${report.confirms} confirmation${report.confirms !== 1 ? 's' : ''}.`;
   } else {
-    status = `🟢 **Power is ON** in ${area}.\nRestored ${BOT.ago(report.time)} · ${report.confirms} confirmation${report.confirms !== 1 ? 's' : ''}.`;
+    status = `Power is **ON** in ${area}.\nRestored ${BOT.ago(report.time)} · ${report.confirms} confirmation${report.confirms !== 1 ? 's' : ''}.`;
   }
 
   let predLine = '';
   if (pred) {
     const risk = BOT.riskLevel(pred.prob);
-    predLine = `\n\n📊 **AI Risk right now:** ${Math.round(pred.prob * 100)}% (${risk.label}) — Band ${band}, target ${bInfo?.hours}`;
+    predLine = `\n\n**AI Risk right now:** ${Math.round(pred.prob * 100)}% (${risk.label}) — Band ${band}, target ${bInfo?.hours}`;
   }
 
   let statsLine = '';
   if (stats.total > 0) {
-    statsLine = `\n📋 **Last 24h:** ${stats.total} report${stats.total !== 1 ? 's' : ''} — ${stats.outCount} outage${stats.outCount !== 1 ? 's' : ''}, ${stats.bckCount} restoration${stats.bckCount !== 1 ? 's' : ''}.`;
+    statsLine = `\n**Last 24h:** ${stats.total} report${stats.total !== 1 ? 's' : ''} — ${stats.outCount} outage${stats.outCount !== 1 ? 's' : ''}, ${stats.bckCount} restoration${stats.bckCount !== 1 ? 's' : ''}.`;
   }
 
-  let discoLine = disco ? `\n🏢 **Managed by:** ${disco}` : '';
+  let discoLine = disco ? `\n**Managed by:** ${disco}` : '';
 
   return `${status}${predLine}${statsLine}${discoLine}`;
 }
@@ -425,7 +543,7 @@ function replyAreaStatus(area) {
 function replyMyArea() {
   const area = BOT.userArea();
   if (!area) {
-    return `I don't know your area yet! 📍\n\nTo let me help you better:\n• Tap **Locate Me** (top right) to auto-detect your area\n• Or go to your **Profile** and set your location\n\nOnce set, I can tell you exactly what's happening on your street!`;
+    return `I don't know your area yet!\n\nTo let me help you better:\n• Tap **Locate Me** (top right) to auto-detect\n• Or go to your **Profile** and set your location\n\nOnce set, I can tell you exactly what's happening near you!`;
   }
   BotCtx.set(area, 'my_area');
   return `Here's what's happening at your location:\n\n` + replyAreaStatus(area);
@@ -433,7 +551,7 @@ function replyMyArea() {
 
 function replyPrediction(area) {
   const pred = BOT.predict(area);
-  if (!pred) return `I couldn't generate a prediction for **${area}** right now. Try the **Predict tab** in the bottom nav for full forecasts!`;
+  if (!pred) return `I couldn't generate a prediction for **${area}** right now. Try the **Predict tab** for full forecasts!`;
 
   const band  = BOT.areaBands()[area] || 'C';
   const bInfo = BOT.bandInfo(band);
@@ -441,7 +559,6 @@ function replyPrediction(area) {
   const dur   = BOT.predictDur(area);
   const now   = new Date();
 
-  /* Best window in next 12 hours */
   let bestH = now.getHours(), bestP = 1;
   for (let i = 0; i < 12; i++) {
     const h = (now.getHours() + i) % 24;
@@ -451,17 +568,17 @@ function replyPrediction(area) {
 
   const isOut = BOT.isOut(area);
   const liveNote = isOut === true
-    ? `⚠️ Power is currently **OUT** in ${area} per latest reports.\n\n`
+    ? `Power is currently **OUT** in ${area} per latest reports.\n\n`
     : isOut === false
-    ? `✅ Power is currently **ON** in ${area} per latest reports.\n\n`
+    ? `Power is currently **ON** in ${area} per latest reports.\n\n`
     : '';
 
-  return `${liveNote}**AI Prediction for ${area}:**\n\n🎯 **Outage chance right now:** ${Math.round(pred.prob * 100)}% — ${risk.label}\n⏱️ **If it cuts:** likely **${dur}h** based on Band ${band} history\n📋 **Band ${band}:** ${bInfo?.hours} target daily supply\n\n💡 **Best window to run appliances:** around **${BOT.fmtH(bestH)}** (lowest risk in next 12h)\n\n_Model confidence: ${pred.confidence}. Check the **Predict tab** for a full 24h hourly chart._`;
+  return `${liveNote}**AI Prediction for ${area}:**\n\n**Outage chance right now:** ${Math.round(pred.prob * 100)}% — ${risk.label}\n**If it cuts:** likely **${dur}h** based on Band ${band} history\n**Band ${band}:** ${bInfo?.hours} target daily supply\n\n**Best window to run appliances:** around **${BOT.fmtH(bestH)}** (lowest risk in next 12h)\n\n_Check the **Predict tab** for a full 24h hourly chart._`;
 }
 
 function replyBestTime(area) {
   if (!area) {
-    return `Tell me which area you want the best time for and I'll calculate it! E.g. "Best time for Surulere" 💡`;
+    return `Tell me which area and I'll calculate the best time! E.g. "Best time for Surulere"`;
   }
   const now = new Date();
   let bestH = -1, bestP = 1;
@@ -471,37 +588,37 @@ function replyBestTime(area) {
     if (p && p.prob < bestP) { bestP = p.prob; bestH = h; }
   }
   const risk = BOT.riskLevel(bestP);
-  return `⏰ **Best time to run appliances in ${area}:**\n\nAround **${BOT.fmtH(bestH)}** — outage risk is only **${Math.round(bestP * 100)}%** (${risk.label}) at that time.\n\n💡 _This is calculated from NERC Band ${BOT.areaBands()[area] || 'C'} data and crowd report patterns. Open the **Predict tab** to see the full 24-hour chart!_`;
+  return `**Best time to run appliances in ${area}:**\n\nAround **${BOT.fmtH(bestH)}** — outage risk is only **${Math.round(bestP * 100)}%** (${risk.label}) at that time.\n\n_Calculated from NERC Band ${BOT.areaBands()[area] || 'C'} data and crowd report patterns. Open the **Predict tab** for the full 24-hour chart!_`;
 }
 
 function replyLagosOverview() {
-  const outAreas  = BOT.areasCurrentlyOut(6);
-  const onAreas   = BOT.areasCurrentlyOn(5);
-  const total     = BOT.reports().length;
-  const outCount  = BOT.outageCount();
-  const pr        = BOT.profile();
+  const outAreas = BOT.areasCurrentlyOut(6);
+  const onAreas  = BOT.areasCurrentlyOn(5);
+  const total    = BOT.reports().length;
+  const outCount = BOT.outageCount();
+  const pr       = BOT.profile();
 
   let out = outAreas.length
-    ? outAreas.map(a => `🔴 **${a.area}** — ${BOT.ago(a.time)}, ${a.confirms} confirm${a.confirms !== 1 ? 's' : ''}`).join('\n')
-    : '🟢 No active outages in the feed right now!';
+    ? outAreas.map(a => `**${a.area}** — ${BOT.ago(a.time)}, ${a.confirms} confirm${a.confirms !== 1 ? 's' : ''}`).join('\n')
+    : 'No active outages in the feed right now!';
 
   let on = onAreas.length
-    ? onAreas.map(a => `🟢 **${a.area}**`).join(' · ')
+    ? onAreas.map(a => `**${a.area}**`).join(' · ')
     : '';
 
   const greeting = pr?.name ? `Here's the current Lagos power situation, ${pr.name.split(' ')[0]}:` : `Here's the current Lagos power situation:`;
 
-  return `${greeting}\n\n⚡ **${outCount} area${outCount !== 1 ? 's' : ''}** currently reporting outages\n📋 **${total} total** reports in the live feed\n\n**Areas currently out:**\n${out}${on ? `\n\n**Power restored in:**\n${on}` : ''}\n\n_Tap the **Home** tab to see the full live feed or filter by area._`;
+  return `${greeting}\n\n**${outCount} area${outCount !== 1 ? 's' : ''}** currently reporting outages\n**${total} total** reports in the live feed\n\n**Areas currently out:**\n${out}${on ? `\n\n**Power restored in:** ${on}` : ''}\n\n_Tap the **Home** tab to see the full live feed._`;
 }
 
 function replySafestAreas() {
   const areas = BOT.safestAreas(5);
-  if (!areas.length) return `I need more prediction data — check the **Predict tab** for area-by-area risk scores!`;
+  if (!areas.length) return `Check the **Predict tab** for area-by-area risk scores!`;
   const list = areas.map((a, i) => {
     const band = BOT.areaBands()[a.area] || 'C';
     return `${i + 1}. **${a.area}** — ${Math.round(a.prob * 100)}% risk · Band ${band}`;
   }).join('\n');
-  return `🟢 **Safest areas in Lagos right now** (lowest outage risk):\n\n${list}\n\nThese areas have the lowest predicted outage probability right now based on NERC band data and crowd reports.`;
+  return `**Safest areas in Lagos right now** (lowest outage risk):\n\n${list}\n\nThese areas have the lowest predicted outage probability right now.`;
 }
 
 function replyRiskiestAreas() {
@@ -510,34 +627,34 @@ function replyRiskiestAreas() {
   const list = areas.map((a, i) => {
     const band = BOT.areaBands()[a.area] || 'C';
     const isOut = BOT.isOut(a.area);
-    const tag = isOut === true ? ' 🔴 *currently out*' : '';
+    const tag = isOut === true ? ' — *currently out*' : '';
     return `${i + 1}. **${a.area}** — ${Math.round(a.prob * 100)}% risk · Band ${band}${tag}`;
   }).join('\n');
-  return `🔴 **Highest-risk areas in Lagos right now:**\n\n${list}\n\nThese areas have the highest predicted outage probability right now. Mostly Band D & E areas.`;
+  return `**Highest-risk areas in Lagos right now:**\n\n${list}\n\nMostly Band D & E areas which get the least supply.`;
 }
 
 function replyBandInfo(area) {
   const band  = BOT.areaBands()[area] || null;
-  if (!band) return `I don't have band data for that area. Tell me a specific Lagos area (e.g. "What band is Surulere?") and I'll look it up!`;
+  if (!band) return `Tell me a specific Lagos area and I'll look up its band! E.g. "What band is Surulere?"`;
   const bInfo = BOT.bandInfo(band);
   const disco = BOT.discoFor(area);
   const pred  = BOT.predict(area);
-  const predLine = pred ? `\n\n📊 **Current AI risk:** ${Math.round(pred.prob * 100)}% — ${BOT.riskLevel(pred.prob).label}` : '';
-  return `**${area}** is on **Band ${band}** (${bInfo?.desc}).\n\n🕐 Daily supply target: **${bInfo?.hours}**\n🏢 DISCO: ${disco || 'unknown'}${predLine}\n\nBand A areas get the best supply (20–24h); Band E the worst (4–8h). Your tariff rate is linked to your band.`;
+  const predLine = pred ? `\n\n**Current AI risk:** ${Math.round(pred.prob * 100)}% — ${BOT.riskLevel(pred.prob).label}` : '';
+  return `**${area}** is on **Band ${band}** (${bInfo?.desc}).\n\n**Daily supply target:** ${bInfo?.hours}\n**DISCO:** ${disco || 'unknown'}${predLine}\n\nBand A = best supply (20–24h). Band E = worst (4–8h). Your tariff is tied to your band.`;
 }
 
 function replyDuration(area) {
   const isOut = BOT.isOut(area);
-  if (isOut === null) return `No recent reports for **${area}** — can't tell how long it's been out. Be the first to report if you're experiencing an outage!`;
-  if (!isOut) return `Power is currently **ON** in **${area}** per the latest report. 🟢`;
+  if (isOut === null) return `No recent reports for **${area}** — can't tell how long it's been out. Be the first to report!`;
+  if (!isOut) return `Power is currently **ON** in **${area}** per the latest report.`;
   const dur = BOT.outDuration(area);
   const report = BOT.latestForArea(area);
   const durStr = dur ? `**${BOT.fmtDuration(dur)}**` : 'unknown duration';
   const predDur = BOT.predictDur(area);
   const remaining = predDur
-    ? `\n\n⏱️ Band ${BOT.areaBands()[area] || 'C'} areas typically see outages of **${predDur}h** in this time slot.`
+    ? `\n\nBand ${BOT.areaBands()[area] || 'C'} areas typically see outages of **${predDur}h** in this time slot.`
     : '';
-  return `🔴 **${area}** has been out for ${durStr}.\n\nOutage reported ${BOT.ago(report.time)} · ${report.confirms} confirmation${report.confirms !== 1 ? 's' : ''}.${remaining}`;
+  return `**${area}** has been out for ${durStr}.\n\nOutage reported ${BOT.ago(report.time)} · ${report.confirms} confirmation${report.confirms !== 1 ? 's' : ''}.${remaining}`;
 }
 
 function replyContact(area) {
@@ -548,9 +665,9 @@ function replyContact(area) {
   };
   if (disco && CONTACTS[disco]) {
     const c = CONTACTS[disco];
-    return `To report a fault or complain about **${area || 'your area'}**, contact **${disco}**:\n\n📞 Hotline: **${c.hotline}**\n📧 Email: ${c.email}\n🌐 Website: ${c.website}\n🐦 Twitter: ${c.twitter}\n\n💡 _Always ask for a **fault reference number** — it helps you track your complaint._`;
+    return `To report a fault in **${area || 'your area'}**, contact **${disco}**:\n\n**Hotline:** ${c.hotline}\n**Email:** ${c.email}\n**Website:** ${c.website}\n**Twitter:** ${c.twitter}\n\n_Always ask for a **fault reference number** to track your complaint._`;
   }
-  return `Lagos has two DISCOs:\n\n🔵 **Ikeja Electric** (mainland)\n📞 0800-453-52-353\n📧 customercare@ikejaelectric.com\n🐦 @ikejaelectric\n\n🟣 **Eko Electric / EKEDC** (Island + south mainland)\n📞 07080601000\n📧 customercare@ekedp.com\n🐦 @ekedc_official\n\n💡 Tell me your area and I'll tell you exactly which one to call!`;
+  return `Lagos has two DISCOs:\n\n**Ikeja Electric** (mainland)\n- 0800-453-52-353\n- customercare@ikejaelectric.com\n- @ikejaelectric\n\n**Eko Electric / EKEDC** (Island + south)\n- 07080601000\n- customercare@ekedp.com\n- @ekedc_official\n\nTell me your area and I'll tell you exactly which one to call!`;
 }
 
 function replyHistory(area) {
@@ -560,92 +677,90 @@ function replyHistory(area) {
   const hist  = (typeof PredictHistory !== 'undefined') ? PredictHistory.getAreaRate(area) : null;
 
   let histLine = hist !== null
-    ? `📈 **Historical outage rate:** ~${Math.round(hist * 100)}% of reports are outages (from NEPAWatch crowd data)`
-    : `📈 **Historical data:** still building — the more people report, the better predictions get`;
+    ? `**Historical outage rate:** ~${Math.round(hist * 100)}% of reports are outages (from NEPAWatch crowd data)`
+    : `**Historical data:** still building — the more people report, the better predictions get`;
 
-  return `**${area}** power history:\n\n📋 **Last 24h:** ${stats.total} report${stats.total !== 1 ? 's' : ''} (${stats.outCount} outage${stats.outCount !== 1 ? 's' : ''}, ${stats.bckCount} restoration${stats.bckCount !== 1 ? 's' : ''})\n${histLine}\n📋 **NERC Band ${band}:** target supply ${BOT.bandInfo(band)?.hours}${pred ? `\n📊 **Current AI risk:** ${Math.round(pred.prob * 100)}%` : ''}`;
+  return `**${area}** power history:\n\n**Last 24h:** ${stats.total} report${stats.total !== 1 ? 's' : ''} (${stats.outCount} outage${stats.outCount !== 1 ? 's' : ''}, ${stats.bckCount} restoration${stats.bckCount !== 1 ? 's' : ''})\n${histLine}\n**NERC Band ${band}:** target supply ${BOT.bandInfo(band)?.hours}${pred ? `\n**Current AI risk:** ${Math.round(pred.prob * 100)}%` : ''}`;
 }
 
 function replyMyPlaces() {
   const places = BOT.savedPlaces();
   if (!places.length) {
-    return `You haven't saved any places yet! 📍\n\nGo to the **My Area tab** → tap **"Add Saved Place"** to save your Home, Work, or School.\n\nOnce saved, I can give you live status and predictions for each one.`;
+    return `You haven't saved any places yet!\n\nGo to the **My Area tab** and tap **Add Place** to save your Home, Work, or School.\n\nOnce saved, I can give you live status and predictions for each one.`;
   }
   const lines = places.map(p => {
-    const label = p.custom_label || { home: 'Home', work: 'Work', school: 'School', custom: 'Place' }[p.type] || 'Place';
-    const area  = p.location_area;
-    const isOut = area ? BOT.isOut(area) : null;
-    const dot   = isOut === true ? '🔴' : isOut === false ? '🟢' : '⚪';
+    const label  = p.custom_label || { home: 'Home', work: 'Work', school: 'School', custom: 'Place' }[p.type] || 'Place';
+    const area   = p.location_area;
+    const isOut  = area ? BOT.isOut(area) : null;
     const status = isOut === true ? 'Power out' : isOut === false ? 'Power on' : 'No reports';
-    const pred  = area ? BOT.predict(area) : null;
-    const risk  = pred ? ` · ${Math.round(pred.prob * 100)}% AI risk` : '';
-    return `${dot} **${label}** — ${p.location_name} (${area})\n   Status: ${status}${risk}`;
+    const pred   = area ? BOT.predict(area) : null;
+    const risk   = pred ? ` · ${Math.round(pred.prob * 100)}% AI risk` : '';
+    return `**${label}** — ${p.location_name} (${area})\nStatus: ${status}${risk}`;
   }).join('\n\n');
-  return `Here are all your saved places:\n\n${lines}\n\n_Tap any place card on the Home page for more details, or ask me "what's the status at my home?" etc._`;
+  return `Here are all your saved places:\n\n${lines}\n\n_Ask me about any specific place for more details!_`;
 }
 
 /* ── MAIN REPLY FUNCTION ───────────────────────────────────── */
 function nepaBotReply(raw) {
-  const msg  = raw.trim();
-  const lower = msg.toLowerCase();
-  if (!msg) return `Go ahead and ask me anything! ⚡`;
+  const msg = raw.trim();
+  if (!msg) return `Go ahead, ask me anything about Lagos power!`;
 
   const intent = classifyIntent(msg);
   const area   = extractArea(msg) || BotCtx.lastArea;
   BotCtx.set(area, intent);
 
-  /* ── GREETING ── */
+  /* GREETING */
   if (intent === 'greeting') {
-    const pr = BOT.profile();
+    const pr   = BOT.profile();
     const name = pr?.name ? `, ${pr.name.split(' ')[0]}` : '';
     const outN = BOT.outageCount();
-    const situationNote = outN > 0
-      ? ` There are currently **${outN} area${outN !== 1 ? 's' : ''}** reporting outages in Lagos.`
+    const note = outN > 0
+      ? ` Right now, **${outN} area${outN !== 1 ? 's' : ''}** are reporting outages across Lagos.`
       : ` Power looks relatively stable across Lagos right now.`;
-    return `Hey${name}! 👋 I'm **NEPAWatch AI** — your Lagos power assistant.${situationNote}\n\nAsk me about any area, current outages, predictions, or how to use the app!`;
+    return `Hey${name}! I'm **NEPAWatch AI** — your Lagos power assistant.${note}\n\nAsk me about any area, predictions, DISCO contacts, or your saved places!`;
   }
 
-  /* ── THANKS ── */
+  /* THANKS */
   if (intent === 'thanks') {
     const replies = [
-      `Happy to help! ⚡ Let me know if anything changes with your power.`,
-      `No problem! 💚 Stay powered, Lagos!`,
-      `Anytime! 🤖 If light goes, you know where to report it 😄`,
+      `Happy to help! Let me know if anything changes with your power.`,
+      `No problem! Stay powered, Lagos!`,
+      `Anytime! If light goes, you know where to report it.`,
       `Glad that helped! Ask me anything else about Lagos power.`,
     ];
     return replies[Math.floor(Math.random() * replies.length)];
   }
 
-  /* ── BYE ── */
-  if (intent === 'bye') return `Take care! 💚 Stay powered and remember to report when light goes — your community depends on it! ⚡`;
+  /* BYE */
+  if (intent === 'bye') return `Take care! Stay powered and remember to report when light goes — your community depends on it!`;
 
-  /* ── MY AREA / LOCATION ── */
+  /* MY AREA */
   if (intent === 'my_area') return replyMyArea();
   if (intent === 'my_work') {
     const place = BOT.savedPlaces().find(p => p.type === 'work');
-    if (!place) return `You haven't saved a Work location yet. Go to **My Area tab** → Add Saved Place → Work.`;
+    if (!place) return `You haven't saved a Work location yet. Go to **My Area tab** → Add Place → Work.`;
     BotCtx.set(place.location_area, 'work');
     return `**Work** (${place.location_name}):\n\n` + replyAreaStatus(place.location_area);
   }
   if (intent === 'my_school') {
     const place = BOT.savedPlaces().find(p => p.type === 'school');
-    if (!place) return `You haven't saved a School location yet. Go to **My Area tab** → Add Saved Place → School.`;
+    if (!place) return `You haven't saved a School location yet. Go to **My Area tab** → Add Place → School.`;
     BotCtx.set(place.location_area, 'school');
     return `**School** (${place.location_name}):\n\n` + replyAreaStatus(place.location_area);
   }
   if (intent === 'my_places') return replyMyPlaces();
 
-  /* ── AREA STATUS ── */
+  /* AREA STATUS */
   if (intent === 'area_status') {
     if (!area) {
       const userArea = BOT.userArea();
       if (userArea) return `Here's the status for your area:\n\n` + replyAreaStatus(userArea);
-      return `Which area would you like to check? E.g. "Is there light in Surulere?" or "Lekki light situation"`;
+      return `Which area do you want to check? E.g. "Is there light in Surulere?" or "Ajah light situation"`;
     }
     return replyAreaStatus(area);
   }
 
-  /* ── PREDICTION ── */
+  /* PREDICTION */
   if (intent === 'prediction') {
     if (!area) {
       const userArea = BOT.userArea();
@@ -655,29 +770,29 @@ function nepaBotReply(raw) {
     return replyPrediction(area);
   }
 
-  /* ── BEST TIME ── */
+  /* BEST TIME */
   if (intent === 'best_time') return replyBestTime(area);
 
-  /* ── OVERVIEW ── */
+  /* OVERVIEW */
   if (intent === 'lagos_overview') return replyLagosOverview();
   if (intent === 'where_has_light') {
     const onAreas = BOT.areasCurrentlyOn(6);
-    if (!onAreas.length) return `No recent restoration reports in the feed yet. Check back soon or be the first to report! 🟢`;
-    const list = onAreas.map(a => `🟢 **${a.area}** — restored ${BOT.ago(a.time)}`).join('\n');
-    return `Areas with power restored recently:\n\n${list}\n\n_This is based on live community reports. Tap **Home** to see the full feed._`;
+    if (!onAreas.length) return `No recent restoration reports in the feed yet. Check back soon!`;
+    const list = onAreas.map(a => `**${a.area}** — restored ${BOT.ago(a.time)}`).join('\n');
+    return `Areas with power restored recently:\n\n${list}\n\n_Based on live community reports. Tap **Home** for the full feed._`;
   }
 
-  /* ── SAFEST / RISKIEST ── */
-  if (intent === 'safest_areas')  return replySafestAreas();
+  /* SAFEST / RISKIEST */
+  if (intent === 'safest_areas')   return replySafestAreas();
   if (intent === 'riskiest_areas') return replyRiskiestAreas();
 
-  /* ── BAND INFO ── */
+  /* BAND INFO */
   if (intent === 'band_info') {
-    if (!area) return `Tell me which area and I'll tell you its NERC tariff band! E.g. "What band is Mushin?"\n\n🟢 **Band A** — 20–24h/day (VI, Ikoyi, Lekki Phase 1)\n🟢 **Band B** — 16–20h/day (Chevron, Magodo)\n🟡 **Band C** — 12–16h/day (Surulere, Yaba)\n🟠 **Band D** — 8–12h/day (Mushin, Oshodi)\n🔴 **Band E** — 4–8h/day (Alimosho, Ikorodu)`;
+    if (!area) return `Tell me which area and I'll look up its NERC band!\n\n**Band A** — 20–24h/day (VI, Ikoyi, Lekki Phase 1)\n**Band B** — 16–20h/day (Chevron, Magodo)\n**Band C** — 12–16h/day (Surulere, Yaba)\n**Band D** — 8–12h/day (Mushin, Oshodi)\n**Band E** — 4–8h/day (Alimosho, Ikorodu)`;
     return replyBandInfo(area);
   }
 
-  /* ── DURATION ── */
+  /* DURATION */
   if (intent === 'duration') {
     if (!area) {
       const userArea = BOT.userArea();
@@ -687,7 +802,7 @@ function nepaBotReply(raw) {
     return replyDuration(area);
   }
 
-  /* ── HISTORY ── */
+  /* HISTORY */
   if (intent === 'history') {
     if (!area) {
       const userArea = BOT.userArea();
@@ -697,71 +812,73 @@ function nepaBotReply(raw) {
     return replyHistory(area);
   }
 
-  /* ── DISCO ── */
-  if (intent === 'disco_ikeja') return `**Ikeja Electric (IE)**\n\n📍 Covers mainland Lagos — Ikeja, Agege, Alimosho, Mushin, Oshodi, Ikorodu, Kosofe, Gbagada, Magodo, Shomolu, Maryland, Ilupeju, Ogba\n📞 Hotline: **0800-453-52-353**\n📧 customercare@ikejaelectric.com\n🌐 ikejaelectric.com\n🐦 @ikejaelectric`;
-  if (intent === 'disco_eko')   return `**Eko Electricity Distribution Company (EKEDC)**\n\n📍 Covers Lagos Island, VI, Ikoyi, Lekki, Surulere, Yaba, Festac, Apapa, Badagry, Epe, Obalende, Amuwo Odofin, Ajah\n📞 Hotline: **07080601000**\n📧 customercare@ekedp.com\n🌐 ekedp.com\n🐦 @ekedc_official`;
+  /* DISCO */
+  if (intent === 'disco_ikeja') return `**Ikeja Electric (IE)**\n\nCovers mainland Lagos — Ikeja, Agege, Alimosho, Mushin, Oshodi, Ikorodu, Kosofe, Gbagada, Magodo, Shomolu, Maryland, Ilupeju, Ogba\n**Hotline:** 0800-453-52-353\n**Email:** customercare@ikejaelectric.com\n**Web:** ikejaelectric.com\n**Twitter:** @ikejaelectric`;
+  if (intent === 'disco_eko')   return `**Eko Electricity Distribution Company (EKEDC)**\n\nCovers Lagos Island, VI, Ikoyi, Lekki, Surulere, Yaba, Festac, Apapa, Badagry, Epe, Obalende, Amuwo Odofin, Ajah\n**Hotline:** 07080601000\n**Email:** customercare@ekedp.com\n**Web:** ekedp.com\n**Twitter:** @ekedc_official`;
   if (intent === 'which_disco') {
-    if (!area) return `Tell me your area and I'll confirm which DISCO covers you! Lagos has two:\n\n🔵 **Ikeja Electric** — most of the mainland\n🟣 **Eko Electric (EKEDC)** — the Island corridor and south mainland`;
+    if (!area) return `Tell me your area and I'll confirm which DISCO covers you!\n\n**Ikeja Electric** — most of the mainland\n**Eko Electric (EKEDC)** — the Island corridor and south mainland`;
     const disco = BOT.discoFor(area);
     return disco
-      ? `**${area}** is managed by **${disco}**. 🏢`
+      ? `**${area}** is managed by **${disco}**.`
       : `I couldn't confirm the DISCO for that area. For mainland areas it's usually Ikeja Electric; for Island/south it's Eko Electric.`;
   }
   if (intent === 'contact') return replyContact(area);
 
-  /* ── HOW TO REPORT ── */
-  if (intent === 'how_report') return `To report an outage on NEPAWatch:\n\n1️⃣ Tap **"Light Don Go"** on the Home page\n2️⃣ Search your street or estate\n3️⃣ Select it and confirm\n\nYour report hits the live feed **instantly**. Everyone in your area sees it. The AI also learns from it for future predictions! 🙌`;
+  /* HOW TO USE */
+  if (intent === 'how_report') return `To report an outage on NEPAWatch:\n\n1. Tap **"Light Don Go"** on the Home page\n2. Search your street or estate\n3. Select it and confirm\n\nYour report hits the live feed **instantly** — everyone in your area sees it!`;
+  if (intent === 'how_confirm') return `When you see a report that matches your situation, tap the **"Same"** button on it.\n\nEach confirmation boosts the report's credibility. Reports with **10+ confirmations** are treated as highly reliable by the system.`;
 
-  /* ── HOW TO CONFIRM ── */
-  if (intent === 'how_confirm') return `When you see a report that matches your situation, tap the **"Same"** button on it.\n\nEach confirmation boosts the report's credibility. Reports with **10+ confirmations** are treated as highly reliable by the system and trigger stronger alerts. 🙌`;
-
-  /* ── ALERTS ── */
+  /* ALERTS */
   if (intent === 'alerts') {
     const pr = BOT.profile();
-    if (pr && !pr.notif_on) return `Your email alerts are currently **OFF**! 📧\n\nTo turn them on:\n1️⃣ Go to **Account tab**\n2️⃣ Toggle **Email Alerts** to ON\n\nYou'll get instant emails when power changes near **${pr.location_label || pr.location_name || 'your area'}**.`;
-    if (pr && pr.notif_on) return `Your email alerts are already **ON** and pointing to **${pr.email}**. 📧✅\n\nYou'll get an email within seconds of any outage or restoration near your saved locations.`;
-    return `To get free email alerts:\n1️⃣ Create a free account (Account tab)\n2️⃣ Set your location\n3️⃣ Make sure **Email Alerts** is ON in your profile\n\nAlerts fire within seconds of any report near you. 📧`;
+    if (pr && !pr.notif_on) return `Your email alerts are currently **OFF**!\n\nTo turn them on:\n1. Go to **Account tab**\n2. Toggle **Email Alerts** to ON\n\nYou'll get instant emails when power changes near **${pr.location_label || pr.location_name || 'your area'}**.`;
+    if (pr && pr.notif_on) return `Your email alerts are already **ON** and pointing to **${pr.email}**.\n\nYou'll get an email within seconds of any outage or restoration near your saved locations.`;
+    return `To get free email alerts:\n1. Create a free account (Account tab)\n2. Set your location\n3. Make sure **Email Alerts** is ON\n\nAlerts fire within seconds of any report near you.`;
   }
 
-  /* ── CAUSES ── */
-  if (intent === 'causes') return `Power outages in Lagos happen for several reasons:\n\n⚡ **Load shedding** — ~60% of outages. NERC orders cuts when generation can't meet demand.\n🔧 **Equipment faults** — transformers exploding, cables cut, fallen poles.\n🌩️ **Weather** — heavy rain, flooding and lightning knock out lines.\n🏗️ **Vandalism / theft** — cable theft is rampant in some areas.\n🔌 **TCN grid failures** — transmission issues upstream of your DISCO.\n📋 **Scheduled maintenance** — DISCOs are supposed to give 24h notice but often don't.`;
+  /* CAUSES */
+  if (intent === 'causes') return `Power outages in Lagos happen for several reasons:\n\n**Load shedding** — ~60% of outages. NERC orders cuts when generation can't meet demand.\n**Equipment faults** — transformers blowing, cables cut, fallen poles.\n**Weather** — heavy rain and flooding knock out lines.\n**Vandalism / theft** — cable theft is common in some areas.\n**TCN grid failures** — transmission issues upstream of your DISCO.\n**Scheduled maintenance** — DISCOs are supposed to give 24h notice but often don't.`;
 
-  /* ── BACKUP POWER ── */
-  if (intent === 'backup') return `Backup power options for Lagos:\n\n⛽ **Petrol generator** — most common, loud and expensive to run\n🔋 **Inverter + battery bank** — quiet, great for lights, fans, phones\n☀️ **Solar + battery** — best long-term value, especially in Band D/E areas\n🔌 **Power banks** — for devices only\n\n_With Band E areas like Alimosho and Ikorodu getting only 4–8h/day, solar-inverter setups often pay off within 2–3 years._`;
+  /* BACKUP */
+  if (intent === 'backup') return `Backup power options for Lagos:\n\n**Petrol generator** — most common, loud and expensive to run\n**Inverter + battery bank** — quiet, great for lights, fans, devices\n**Solar + battery** — best long-term value in Band D/E areas\n**Power banks** — for devices only\n\n_With Band E areas getting only 4–8h/day, solar-inverter setups often pay off within 2–3 years._`;
 
-  /* ── NEPA HISTORY ── */
-  if (intent === 'nepa_history') return `**NEPA** (National Electric Power Authority) was Nigeria's national power monopoly — dissolved in 2005.\n\n**PHCN** (Power Holding Company of Nigeria) replaced it and was then **privatised in 2013** into 11 distribution companies (DISCOs).\n\nIn Lagos that means:\n🔵 **Ikeja Electric** — mainland\n🟣 **Eko Electric (EKEDC)** — Island & south\n\n"NEPA" stuck as Naija slang forever though — that's why we're called NEPAWatch! ⚡😄`;
+  /* NEPA HISTORY */
+  if (intent === 'nepa_history') return `**NEPA** (National Electric Power Authority) was Nigeria's national power monopoly — dissolved in 2005.\n\n**PHCN** (Power Holding Company of Nigeria) replaced it, then was **privatised in 2013** into 11 distribution companies (DISCOs).\n\nIn Lagos that means:\n**Ikeja Electric** — mainland\n**Eko Electric (EKEDC)** — Island & south\n\n"NEPA" stuck as Naija slang forever — that's why we're called NEPAWatch!`;
 
-  /* ── LEADERBOARD ── */
-  if (intent === 'leaderboard') return `The **Community tab** shows the top Lagos reporters this week! 🏆\n\n🥇 Gold — #1 most reports\n🥈 Silver — #2\n🥉 Bronze — #3\n\n**NEPAWatch AI** also appears on the leaderboard when it auto-files reports. Every report you make helps thousands of people — and the more you report, the smarter the AI gets! 💚`;
+  /* LEADERBOARD */
+  if (intent === 'leaderboard') return `The **Community tab** shows top Lagos reporters this week!\n\nGold = #1 most reports | Silver = #2 | Bronze = #3\n\n**NEPAWatch AI** also appears on the leaderboard when it auto-files reports. Every report helps thousands of people — and makes the AI smarter!`;
 
-  /* ── ABOUT ── */
+  /* ABOUT */
   if (intent === 'about') {
     const total = BOT.reports().length;
-    return `**NEPAWatch Lagos** is a free, crowd-sourced power outage tracker for Lagos.\n\n📊 **${total} reports** in the live feed right now\n🏙️ Covers **${BOT.allAreas().length}** Lagos areas\n🤖 AI auto-reporter predicts and files reports automatically\n📧 Free email alerts — yours the second power changes near you\n🏆 Community leaderboard rewards top reporters\n\nWe built it because Lagos deserves real-time electricity visibility. No ads, no fees, forever free. 💚`;
+    return `**NEPAWatch Lagos** is a free, crowd-sourced power outage tracker for Lagos.\n\n**${total} reports** in the live feed right now\n**${BOT.allAreas().length}** Lagos areas covered\n**AI auto-reporter** predicts and files reports automatically\n**Free email alerts** — the second power changes near you\n**Community leaderboard** rewards top reporters\n\nBuilt because Lagos deserves real-time electricity visibility. No ads, no fees, forever free.`;
   }
 
-  /* ── AREA MENTIONED BUT NO CLEAR INTENT ── */
+  /* AREA MENTIONED BUT NO CLEAR INTENT */
   if (area && intent === 'unknown') {
     BotCtx.set(area, 'area_status');
     return replyAreaStatus(area);
   }
 
-  /* ── CONTEXT FOLLOW-UP (no area mentioned, referring to last area) ── */
-  if (!area && BotCtx.lastArea && (lower.includes('there') || lower.includes('it') || lower.includes('same area') || lower.includes('that area'))) {
+  /* CONTEXT FOLLOW-UP */
+  const norm = normalizeText(msg);
+  if (!area && BotCtx.lastArea &&
+    (norm.includes('there') || norm.includes(' it') || norm.includes('same area') ||
+     norm.includes('that area') || norm.includes('still') || norm.includes('what about'))) {
     return replyAreaStatus(BotCtx.lastArea);
   }
 
-  /* ── FALLBACK ── */
+  /* FALLBACK — helpful and contextual */
   const userArea = BOT.userArea();
-  const situationLine = BOT.outageCount() > 0
-    ? `⚡ Right now, **${BOT.outageCount()} area${BOT.outageCount() !== 1 ? 's' : ''}** in Lagos are reporting outages.`
-    : `⚡ Power looks relatively stable across Lagos right now.`;
+  const outN = BOT.outageCount();
+  const situation = outN > 0
+    ? `Right now, **${outN} area${outN !== 1 ? 's' : ''}** in Lagos are reporting outages.`
+    : `Power looks relatively stable across Lagos right now.`;
 
-  return `${situationLine}\n\nI can help you with:\n• **"Is there light in [area]?"** — live status\n• **"How long has [area] been out?"** — outage duration\n• **"When will light come back in [area]?"** — AI prediction\n• **"What's happening in Lagos?"** — full overview\n• **"My area"** — status for your saved location\n• **"Safest areas right now"** — where power is stable\n• **"Ikeja Electric number"** — DISCO contacts\n\nJust ask! 💬`;
+  return `${situation}\n\nI can help you with:\n• **"Is there light in [area]?"** — live status\n• **"How long has [area] been out?"** — outage duration\n• **"When will light return in [area]?"** — AI prediction\n• **"What band is [area]?"** — supply band info\n• **"Safest areas right now"** — where power is stable\n• **"Ikeja Electric number"** — DISCO contacts\n• **"My area"** — your saved location\n\nJust ask!`;
 }
 
-/* ── SUGGESTIONS (context-aware) ────────────────────────────── */
+/* ── SUGGESTIONS ────────────────────────────────────────────── */
 function getBotSuggestions() {
   const area = BotCtx.lastArea || BOT.userArea();
   const base = [
@@ -790,9 +907,7 @@ function getBotSuggestions() {
   return base;
 }
 
-/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-   CHAT UI — floating bubble, window, messages
-   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+/* ── CHAT UI ────────────────────────────────────────────────── */
 const NepaBot = {
   _open: false,
   _booted: false,
@@ -942,19 +1057,17 @@ const NepaBot = {
   },
 
   _buildDOM() {
-    /* Notification */
     const notif = document.createElement('div');
     notif.id = 'botNotif';
     notif.innerHTML = `<button class="bn-close" onclick="NepaBot.closeNotif()">✕</button>
-      <span>👋 Ask <strong>NEPAWatch AI</strong> about light in your area!</span>`;
+      <span>Ask <strong>NEPAWatch AI</strong> about light in your area!</span>`;
     document.body.appendChild(notif);
 
-    /* Chat window */
     const win = document.createElement('div');
     win.id = 'botWin';
     win.innerHTML = `
       <div class="bw-header">
-        <div class="bw-av">🤖</div>
+        <div class="bw-av">⚡</div>
         <div style="flex:1">
           <div class="bw-name">NEPAWatch AI</div>
           <div class="bw-status"><div class="bw-pip"></div>Live data · Always ready</div>
@@ -963,7 +1076,7 @@ const NepaBot = {
       <div class="bw-msgs" id="botMsgs"></div>
       <div class="bw-sugs" id="botSugs"></div>
       <div class="bw-inp-row">
-        <input class="bw-inp" id="botInp" placeholder="Ask about light in any area…" autocomplete="off" maxlength="200">
+        <input class="bw-inp" id="botInp" placeholder="Ask about any area…" autocomplete="off" maxlength="200">
         <button class="bw-send" onclick="NepaBot.send()">
           <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
             <path d="M12.5 7L1.5 1.5L4 7L1.5 12.5L12.5 7Z" fill="currentColor"/>
@@ -972,10 +1085,9 @@ const NepaBot = {
       </div>`;
     document.body.appendChild(win);
 
-    /* Bubble */
     const bubble = document.createElement('button');
     bubble.id = 'nepaBotBubble';
-    bubble.setAttribute('aria-label','Chat with NEPAWatch AI');
+    bubble.setAttribute('aria-label', 'Chat with NEPAWatch AI');
     bubble.innerHTML = `
       <div class="bbl-ico" id="bblOpen">
         <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
@@ -1005,7 +1117,7 @@ const NepaBot = {
     const el = document.getElementById('botSugs');
     if (!el) return;
     el.innerHTML = getBotSuggestions()
-      .map(s => `<button class="bw-sug" onclick="NepaBot.sendText('${s.replace(/'/g,"\\'")}')">${s}</button>`)
+      .map(s => `<button class="bw-sug" onclick="NepaBot.sendText('${s.replace(/'/g, "\\'")}')">${s}</button>`)
       .join('');
   },
 
@@ -1017,11 +1129,8 @@ const NepaBot = {
     }
   },
 
-  closeNotif() {
-    document.getElementById('botNotif')?.classList.remove('show');
-  },
-
-  toggle() { this._open ? this.close() : this.open(); },
+  closeNotif() { document.getElementById('botNotif')?.classList.remove('show'); },
+  toggle()     { this._open ? this.close() : this.open(); },
 
   open() {
     this._open = true;
@@ -1043,30 +1152,28 @@ const NepaBot = {
   },
 
   _welcome() {
-    const pr      = BOT.profile();
-    const name    = pr?.name ? `, ${pr.name.split(' ')[0]}` : '';
-    const outN    = BOT.outageCount();
-    const total   = BOT.reports().length;
+    const pr       = BOT.profile();
+    const name     = pr?.name ? `, ${pr.name.split(' ')[0]}` : '';
+    const outN     = BOT.outageCount();
+    const total    = BOT.reports().length;
     const userArea = BOT.userArea();
 
     let situation = outN > 0
       ? `Right now, **${outN} area${outN !== 1 ? 's' : ''}** in Lagos are reporting outages.`
-      : total > 0
-      ? `Power looks relatively stable across Lagos right now.`
-      : `Loading live data…`;
+      : total > 0 ? `Power looks relatively stable across Lagos right now.` : `Loading live data…`;
 
     let personalNote = userArea
       ? (() => {
           const isOut = BOT.isOut(userArea);
           return isOut === true
-            ? `\n\n⚠️ Your area **${userArea}** is currently reporting a power outage.`
+            ? `\n\nYour area **${userArea}** is currently reporting a power outage.`
             : isOut === false
-            ? `\n\n✅ Power is on in your area **${userArea}** per the latest reports.`
+            ? `\n\nPower is on in your area **${userArea}** per the latest reports.`
             : `\n\nI can check live status for your area **${userArea}** — just ask!`;
         })()
       : '';
 
-    this._addBot(`Hey${name}! 👋 I'm **NEPAWatch AI** — powered by the live app data.\n\n${situation}${personalNote}\n\nAsk me about any Lagos area, predictions, outage causes, DISCO contacts, or your saved places!`);
+    this._addBot(`Hey${name}! I'm **NEPAWatch AI** — your Lagos power assistant.\n\n${situation}${personalNote}\n\nAsk me about any area, outage predictions, DISCO contacts, or your saved places!`);
   },
 
   sendText(text) {
@@ -1081,7 +1188,7 @@ const NepaBot = {
     if (!text) return;
     inp.value = '';
     this._addUser(text);
-    const delay = Math.min(500 + text.length * 15, 1400);
+    const delay = Math.min(500 + text.length * 12, 1400);
     this._showTyping();
     clearTimeout(this._typingTimer);
     this._typingTimer = setTimeout(() => {
@@ -1094,13 +1201,13 @@ const NepaBot = {
 
   _addUser(text) {
     const pr = BOT.profile();
-    const av = pr?.name ? pr.name[0].toUpperCase() : '👤';
+    const av = pr?.name ? pr.name[0].toUpperCase() : '?';
     this._appendMsg('user', this._esc(text), av);
   },
 
   _addBot(text) {
     this._msgCount++;
-    this._appendMsg('bot', this._fmt(text), '🤖');
+    this._appendMsg('bot', this._fmt(text), '⚡');
   },
 
   _appendMsg(role, html, av) {
@@ -1119,7 +1226,7 @@ const NepaBot = {
     if (!el || document.getElementById('botTyping')) return;
     const div = document.createElement('div');
     div.id = 'botTyping'; div.className = 'bm bm-typing';
-    div.innerHTML = `<div class="bm-av">🤖</div><div class="bm-bubble"><div class="bt-dot"></div><div class="bt-dot"></div><div class="bt-dot"></div></div>`;
+    div.innerHTML = `<div class="bm-av">⚡</div><div class="bm-bubble"><div class="bt-dot"></div><div class="bt-dot"></div><div class="bt-dot"></div></div>`;
     el.appendChild(div);
     el.scrollTop = el.scrollHeight;
   },
