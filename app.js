@@ -2016,7 +2016,7 @@ const AREA_COORDS = {
   "Wharf Road": { lat: 6.4520, lng: 3.3650 },
   "Willoughby": { lat: 6.4950, lng: 3.3730 },
   "YABATECH": { lat: 6.5090, lng: 3.3730 },
-  "Zion": { lat: 6.5040, lng: // ===== UNIVERSITY OF LAGOS (UNILAG) – ACCURATE COORDINATES =====
+ // ===== UNIVERSITY OF LAGOS (UNILAG) – ACCURATE COORDINATES =====
 // HOSTELS
 "UNILAG New Hall (Eni Njoku)": { lat: 6.5186, lng: 3.3897 },
 "UNILAG New Hall (Fagunwa)": { lat: 6.5187, lng: 3.3899 },
@@ -2100,7 +2100,7 @@ const AREA_COORDS = {
 "UNILAG Lagoon Front": { lat: 6.5155, lng: 3.3890 },
 "UNILAG Gate (Main)": { lat: 6.5180, lng: 3.3860 },
 "UNILAG Gate (Second)": { lat: 6.5190, lng: 3.3880 },
-"UNILAG Bus Stop (Abule)": { lat: 6.5195, lng: 3.3875 }
+"UNILAG Bus Stop (Abule)": { lat: 6.5195, lng: 3.3875 },
 // ===== LAGOS STATE UNIVERSITY (LASU) OJO =====
 // Faculties
 "LASU Faculty of Arts": { lat: 6.4665, lng: 3.1985 },
