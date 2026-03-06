@@ -1,0 +1,1279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<title>NEPAWatch Lagos — Know When Light Don Go</title>
+<meta name="description" content="Real-time crowd-sourced power outage tracker for Lagos. Know when light don go or come back in your area. Free email alerts for your street.">
+<meta property="og:title" content="NEPAWatch Lagos — Know When Light Don Go">
+<meta property="og:description" content="Real-time power outage tracker for Lagos. Free email alerts for your street.">
+<meta property="og:image" content="https://nepawatch.app/logo2.jpg">
+<meta property="og:url" content="https://nepawatch.app">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#00E676">
+<link rel="icon" type="image/jpeg" href="logo.jpg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<style>
+/* ━━━ RESET ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html{scroll-behavior:smooth;font-size:16px;}
+:root{
+  --g:#00E676;
+  --g-dim:rgba(0,230,118,.12);
+  --g-glow:rgba(0,230,118,.25);
+  --rd:#FF3D57;
+  --am:#FFB300;
+  --bg:#080A08;
+  --bg1:#0C0F0C;
+  --bg2:#111411;
+  --sf:#161916;
+  --bd:rgba(255,255,255,.07);
+  --bd2:rgba(0,230,118,.15);
+  --ink:#EEF4EE;
+  --ink2:#8FA88F;
+  --ink3:#4A624A;
+  --font-d:'Bebas Neue',sans-serif;
+  --font-b:'DM Sans',sans-serif;
+  --font-m:'DM Mono',monospace;
+  --radius:14px;
+}
+body{background:var(--bg);color:var(--ink);font-family:var(--font-b);overflow-x:hidden;line-height:1.6;}
+a{text-decoration:none;color:inherit;}
+button{font-family:var(--font-b);cursor:pointer;}
+img{max-width:100%;display:block;}
+
+/* ━━━ GRAIN ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+body::after{
+  content:'';position:fixed;inset:0;pointer-events:none;z-index:9999;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E");
+  opacity:.03;
+}
+
+/* ━━━ TICKER ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.ticker{
+  position:fixed;top:0;left:0;right:0;z-index:200;
+  height:26px;
+  background:rgba(8,10,8,.9);
+  border-bottom:1px solid var(--bd);
+  backdrop-filter:blur(12px);
+  display:flex;align-items:center;overflow:hidden;
+}
+.ticker-label{
+  font-family:var(--font-m);font-size:.55rem;font-weight:500;
+  letter-spacing:.14em;color:var(--g);
+  padding:0 12px;height:100%;display:flex;align-items:center;
+  background:var(--g-dim);border-right:1px solid var(--bd2);
+  white-space:nowrap;flex-shrink:0;text-transform:uppercase;
+}
+.ticker-scroll{overflow:hidden;flex:1;}
+.ticker-track{
+  display:flex;gap:0;
+  animation:scroll-left 40s linear infinite;
+  width:max-content;
+}
+.ticker-track:hover{animation-play-state:paused;}
+.ticker-item{
+  display:flex;align-items:center;gap:7px;
+  font-family:var(--font-m);font-size:.58rem;color:var(--ink2);
+  padding:0 20px;height:26px;white-space:nowrap;
+  border-right:1px solid var(--bd);
+}
+.t-dot{width:5px;height:5px;border-radius:50%;flex-shrink:0;}
+.t-dot.out{background:var(--rd);box-shadow:0 0 4px var(--rd);}
+.t-dot.bck{background:var(--g);box-shadow:0 0 4px var(--g);}
+@keyframes scroll-left{0%{transform:translateX(0);}100%{transform:translateX(-50%);}}
+
+/* ━━━ NAV ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+nav{
+  position:fixed;top:26px;left:0;right:0;z-index:100;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:14px 20px;
+  background:linear-gradient(rgba(8,10,8,.85),transparent);
+  backdrop-filter:blur(0);
+  transition:background .3s,backdrop-filter .3s;
+}
+nav.scrolled{
+  background:rgba(8,10,8,.92);
+  backdrop-filter:blur(16px);
+  border-bottom:1px solid var(--bd);
+}
+.nav-logo{display:flex;align-items:center;gap:10px;}
+.nav-logo-mark{
+  width:30px;height:30px;border-radius:8px;
+  overflow:hidden;border:1px solid var(--bd);flex-shrink:0;
+}
+.nav-logo-mark img{width:100%;height:100%;object-fit:cover;}
+.nav-wordmark{
+  font-family:var(--font-d);font-size:1.45rem;
+  letter-spacing:.05em;color:var(--ink);line-height:1;
+}
+.nav-wordmark em{color:var(--g);font-style:normal;}
+.nav-actions{display:flex;gap:8px;}
+.btn-nav-ghost{
+  font-size:.75rem;font-weight:600;color:var(--ink2);
+  background:none;border:1px solid var(--bd);
+  border-radius:8px;padding:7px 16px;
+  transition:all .18s;letter-spacing:.02em;
+}
+.btn-nav-ghost:hover{color:var(--ink);border-color:var(--ink3);}
+.btn-nav-solid{
+  font-size:.75rem;font-weight:700;color:#080A08;
+  background:var(--g);border:none;
+  border-radius:8px;padding:7px 16px;
+  transition:all .18s;letter-spacing:.02em;
+  box-shadow:0 0 16px var(--g-glow);
+}
+.btn-nav-solid:hover{background:#00ff7f;box-shadow:0 0 24px rgba(0,255,127,.4);transform:translateY(-1px);}
+
+/* ━━━ HERO ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.hero{
+  min-height:100svh;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  padding:110px 20px 60px;
+  position:relative;text-align:center;overflow:hidden;
+}
+/* Animated city grid bg */
+.hero-grid{
+  position:absolute;inset:0;
+  background-image:
+    linear-gradient(rgba(0,230,118,.035) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(0,230,118,.035) 1px,transparent 1px);
+  background-size:48px 48px;
+  mask-image:radial-gradient(ellipse 90% 85% at 50% 50%,black 0%,transparent 100%);
+  animation:grid-drift 18s ease infinite alternate;
+}
+@keyframes grid-drift{0%{background-position:0 0;}100%{background-position:48px 48px;}}
+/* Radial glow */
+.hero-glow{
+  position:absolute;
+  width:700px;height:500px;
+  background:radial-gradient(ellipse,rgba(0,230,118,.08) 0%,transparent 70%);
+  top:50%;left:50%;transform:translate(-50%,-60%);
+  pointer-events:none;
+  animation:glow-breathe 5s ease infinite alternate;
+}
+@keyframes glow-breathe{0%{opacity:.7;transform:translate(-50%,-60%) scale(1);}100%{opacity:1;transform:translate(-50%,-60%) scale(1.12);}}
+
+.hero-eyebrow{
+  display:inline-flex;align-items:center;gap:8px;
+  font-family:var(--font-m);font-size:.6rem;letter-spacing:.16em;
+  color:var(--g);text-transform:uppercase;
+  border:1px solid var(--bd2);border-radius:99px;
+  padding:5px 14px;background:var(--g-dim);
+  margin-bottom:24px;
+  animation:rise .7s ease .1s both;position:relative;z-index:1;
+}
+.live-pip{
+  width:6px;height:6px;border-radius:50%;background:var(--g);
+  animation:pip 2s ease infinite;
+}
+@keyframes pip{0%,100%{box-shadow:0 0 0 0 rgba(0,230,118,.6);}50%{box-shadow:0 0 0 6px rgba(0,230,118,0);}}
+
+.hero-h{
+  font-family:var(--font-d);
+  font-size:clamp(4rem,15vw,9.5rem);
+  line-height:.92;letter-spacing:.025em;
+  position:relative;z-index:1;
+  animation:rise .7s ease .18s both;
+  margin-bottom:8px;
+}
+.hero-h .line-green{color:var(--g);display:block;text-shadow:0 0 60px rgba(0,230,118,.3);}
+.hero-h .line-outline{
+  display:block;
+  color:transparent;
+  -webkit-text-stroke:1px rgba(238,244,238,.2);
+}
+.hero-sub{
+  font-size:clamp(.95rem,2.5vw,1.18rem);
+  color:var(--ink2);max-width:440px;line-height:1.7;
+  margin:20px auto 40px;
+  animation:rise .7s ease .28s both;position:relative;z-index:1;
+}
+.hero-ctas{
+  display:flex;gap:12px;justify-content:center;flex-wrap:wrap;
+  animation:rise .7s ease .38s both;position:relative;z-index:1;
+}
+.btn-hero{
+  font-size:1rem;font-weight:700;
+  padding:15px 32px;border-radius:12px;border:none;
+  transition:all .2s;letter-spacing:.01em;
+}
+.btn-hero.solid{
+  color:#080A08;background:var(--g);
+  box-shadow:0 0 32px var(--g-glow),0 4px 24px rgba(0,0,0,.5);
+}
+.btn-hero.solid:hover{background:#00ff7f;transform:translateY(-2px);box-shadow:0 0 48px rgba(0,255,127,.4),0 8px 32px rgba(0,0,0,.4);}
+.btn-hero.ghost{
+  color:var(--ink);background:rgba(255,255,255,.04);
+  border:1px solid var(--bd);
+}
+.btn-hero.ghost:hover{background:rgba(255,255,255,.08);border-color:var(--ink3);}
+
+/* Hero stats */
+.hero-stats{
+  display:flex;gap:0;margin-top:64px;
+  border:1px solid var(--bd);border-radius:var(--radius);
+  background:rgba(255,255,255,.02);backdrop-filter:blur(8px);
+  overflow:hidden;
+  animation:rise .7s ease .5s both;position:relative;z-index:1;
+}
+.hstat{
+  padding:18px 28px;text-align:center;border-right:1px solid var(--bd);
+  flex:1;min-width:0;
+}
+.hstat:last-child{border-right:none;}
+.hstat-n{
+  font-family:var(--font-d);font-size:2.2rem;letter-spacing:.04em;
+  color:var(--g);line-height:1;
+  text-shadow:0 0 20px rgba(0,230,118,.3);
+}
+.hstat-l{font-size:.6rem;color:var(--ink3);text-transform:uppercase;letter-spacing:.1em;margin-top:4px;font-weight:600;}
+
+@keyframes rise{from{opacity:0;transform:translateY(22px);}to{opacity:1;transform:none;}}
+
+/* ━━━ SECTION BASE ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.section{padding:90px 20px;max-width:1000px;margin:0 auto;}
+.sec-eyebrow{
+  font-family:var(--font-m);font-size:.6rem;letter-spacing:.16em;
+  color:var(--g);text-transform:uppercase;
+  display:inline-flex;align-items:center;gap:8px;margin-bottom:14px;
+}
+.sec-eyebrow::before{content:'';width:24px;height:1px;background:var(--g);flex-shrink:0;}
+.sec-title{
+  font-family:var(--font-d);
+  font-size:clamp(2.4rem,7vw,4.2rem);
+  letter-spacing:.02em;line-height:.95;color:var(--ink);
+  margin-bottom:16px;
+}
+.sec-title span{color:var(--g);}
+.sec-sub{font-size:.95rem;color:var(--ink2);max-width:520px;line-height:1.7;}
+
+/* Scroll reveal */
+.reveal{opacity:0;transform:translateY(32px);transition:opacity .65s ease,transform .65s ease;}
+.reveal.in{opacity:1;transform:none;}
+
+/* ━━━ LIVE STATUS SECTION ━━━━━━━━━━━━━━━━━━━━━━━━ */
+.status-section{
+  padding:80px 0;
+  background:linear-gradient(to bottom,var(--bg),var(--bg1),var(--bg));
+  border-top:1px solid var(--bd);border-bottom:1px solid var(--bd);
+  overflow:hidden;
+}
+.status-inner{max-width:1000px;margin:0 auto;padding:0 20px;}
+.status-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(160px,1fr));
+  gap:8px;margin-top:36px;
+}
+.area-card{
+  background:var(--sf);border:1px solid var(--bd);
+  border-radius:10px;padding:12px 14px;
+  display:flex;flex-direction:column;gap:6px;
+  transition:border-color .2s,transform .2s;
+  cursor:default;
+}
+.area-card:hover{border-color:var(--bd2);transform:translateY(-2px);}
+.area-card.out{border-color:rgba(255,61,87,.2);}
+.area-card.on{border-color:rgba(0,230,118,.15);}
+.ac-dot{width:7px;height:7px;border-radius:50%;}
+.ac-dot.out{background:var(--rd);box-shadow:0 0 6px rgba(255,61,87,.5);}
+.ac-dot.on{background:var(--g);box-shadow:0 0 6px rgba(0,230,118,.4);}
+.ac-dot.unk{background:var(--ink3);}
+.ac-name{font-size:.72rem;font-weight:600;color:var(--ink);line-height:1.3;}
+.ac-status{font-size:.6rem;color:var(--ink3);font-family:var(--font-m);}
+.ac-status.out{color:var(--rd);}
+.ac-status.on{color:var(--g);}
+
+/* ━━━ FEATURES ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.features-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(260px,1fr));
+  gap:16px;margin-top:48px;
+}
+.feat-card{
+  background:var(--sf);border:1px solid var(--bd);
+  border-radius:var(--radius);padding:24px;
+  transition:border-color .2s,transform .2s;
+  position:relative;overflow:hidden;
+}
+.feat-card::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:1px;
+  background:linear-gradient(90deg,transparent,var(--g-glow),transparent);
+  opacity:0;transition:opacity .3s;
+}
+.feat-card:hover{border-color:var(--bd2);transform:translateY(-3px);}
+.feat-card:hover::before{opacity:1;}
+.feat-ico{
+  width:42px;height:42px;border-radius:10px;
+  background:var(--g-dim);border:1px solid var(--bd2);
+  display:flex;align-items:center;justify-content:center;
+  font-size:1.2rem;margin-bottom:16px;
+}
+.feat-title{font-size:.9rem;font-weight:700;color:var(--ink);margin-bottom:8px;}
+.feat-desc{font-size:.78rem;color:var(--ink2);line-height:1.65;}
+.feat-tag{
+  display:inline-block;margin-top:12px;
+  font-size:.58rem;font-weight:700;letter-spacing:.08em;
+  text-transform:uppercase;color:var(--g);
+  font-family:var(--font-m);
+}
+
+/* ━━━ HOW IT WORKS ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.steps{display:flex;flex-direction:column;gap:0;margin-top:48px;position:relative;}
+.steps::before{
+  content:'';position:absolute;left:22px;top:22px;bottom:22px;
+  width:1px;background:linear-gradient(to bottom,var(--bd2),var(--bd),transparent);
+}
+.step{
+  display:flex;gap:20px;align-items:flex-start;
+  padding:0 0 36px 0;position:relative;
+}
+.step:last-child{padding-bottom:0;}
+.step-num{
+  width:44px;height:44px;border-radius:50%;flex-shrink:0;
+  background:var(--bg2);border:1px solid var(--bd2);
+  display:flex;align-items:center;justify-content:center;
+  font-family:var(--font-d);font-size:1.2rem;color:var(--g);
+  position:relative;z-index:1;
+}
+.step-body{}
+.step-title{font-size:.9rem;font-weight:700;color:var(--ink);margin-bottom:6px;padding-top:10px;}
+.step-desc{font-size:.78rem;color:var(--ink2);line-height:1.65;}
+
+/* ━━━ AI SECTION ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.ai-section{
+  padding:80px 20px;
+  background:var(--bg1);
+  border-top:1px solid var(--bd);border-bottom:1px solid var(--bd);
+}
+.ai-inner{max-width:1000px;margin:0 auto;}
+.ai-card{
+  background:var(--sf);border:1px solid var(--bd2);
+  border-radius:20px;padding:32px;
+  display:grid;grid-template-columns:1fr 1fr;gap:32px;
+  align-items:center;
+  box-shadow:0 0 60px rgba(0,230,118,.06);
+  position:relative;overflow:hidden;
+}
+.ai-card::before{
+  content:'';position:absolute;top:-1px;left:10%;right:10%;height:1px;
+  background:linear-gradient(90deg,transparent,var(--g),transparent);
+}
+.ai-label{
+  font-family:var(--font-m);font-size:.58rem;letter-spacing:.16em;
+  color:var(--g);text-transform:uppercase;margin-bottom:12px;
+  display:flex;align-items:center;gap:8px;
+}
+.ai-label-dot{
+  width:6px;height:6px;border-radius:50%;background:var(--g);
+  animation:pip 2s ease infinite;
+}
+.ai-title{font-family:var(--font-d);font-size:clamp(2rem,5vw,3rem);letter-spacing:.02em;line-height:.95;color:var(--ink);margin-bottom:14px;}
+.ai-title span{color:var(--g);}
+.ai-desc{font-size:.82rem;color:var(--ink2);line-height:1.7;margin-bottom:20px;}
+.ai-features{display:flex;flex-direction:column;gap:10px;}
+.ai-feat{display:flex;align-items:flex-start;gap:10px;font-size:.78rem;}
+.ai-feat-ico{
+  width:26px;height:26px;border-radius:6px;flex-shrink:0;
+  background:var(--g-dim);display:flex;align-items:center;justify-content:center;
+  font-size:.8rem;
+}
+.ai-feat-txt{color:var(--ink2);line-height:1.5;padding-top:3px;}
+.ai-feat-txt strong{color:var(--ink);font-weight:600;}
+
+/* AI Prediction mockup */
+.ai-mockup{
+  background:var(--bg2);border:1px solid var(--bd);
+  border-radius:14px;padding:18px;
+}
+.aim-header{display:flex;align-items:center;gap:10px;margin-bottom:16px;}
+.aim-avatar{
+  width:32px;height:32px;border-radius:50%;
+  background:linear-gradient(135deg,var(--g),#00BFA5);
+  display:flex;align-items:center;justify-content:center;font-size:.9rem;
+}
+.aim-name{font-size:.75rem;font-weight:700;color:var(--ink);}
+.aim-online{font-size:.58rem;color:var(--g);display:flex;align-items:center;gap:4px;}
+.aim-online::before{content:'';width:4px;height:4px;border-radius:50%;background:var(--g);display:inline-block;}
+.aim-areas{display:flex;flex-direction:column;gap:6px;}
+.aim-row{
+  display:flex;align-items:center;gap:8px;
+  padding:8px 10px;background:var(--sf);
+  border-radius:8px;border:1px solid var(--bd);
+}
+.aim-row-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0;}
+.aim-row-dot.high{background:var(--rd);}
+.aim-row-dot.med{background:var(--am);}
+.aim-row-dot.low{background:var(--g);}
+.aim-area-name{font-size:.7rem;font-weight:600;color:var(--ink);flex:1;}
+.aim-prob{font-family:var(--font-m);font-size:.62rem;color:var(--ink3);}
+.aim-prob span{font-weight:600;}
+.aim-prob span.high{color:var(--rd);}
+.aim-prob span.med{color:var(--am);}
+.aim-prob span.low{color:var(--g);}
+.aim-bar{height:3px;border-radius:2px;margin-top:2px;}
+
+/* ━━━ TESTIMONIALS / AREAS SERVED ━━━━━━━━━━━━━━━━ */
+.areas-strip{
+  padding:60px 20px;
+  overflow:hidden;
+  border-top:1px solid var(--bd);
+}
+.areas-strip-inner{max-width:1000px;margin:0 auto;}
+.areas-scroll-wrap{overflow:hidden;margin-top:28px;position:relative;}
+.areas-scroll-wrap::before,.areas-scroll-wrap::after{
+  content:'';position:absolute;top:0;bottom:0;width:60px;z-index:2;pointer-events:none;
+}
+.areas-scroll-wrap::before{left:0;background:linear-gradient(90deg,var(--bg),transparent);}
+.areas-scroll-wrap::after{right:0;background:linear-gradient(-90deg,var(--bg),transparent);}
+.areas-track{
+  display:flex;gap:10px;
+  animation:scroll-left 28s linear infinite;
+  width:max-content;
+}
+.area-pill{
+  display:flex;align-items:center;gap:6px;
+  border:1px solid var(--bd);border-radius:99px;
+  padding:7px 14px;white-space:nowrap;
+  background:var(--sf);
+  font-size:.7rem;font-weight:600;color:var(--ink2);
+  flex-shrink:0;
+}
+.area-pill-dot{width:5px;height:5px;border-radius:50%;background:var(--g);}
+
+/* ━━━ CTA SECTION ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.cta-section{
+  padding:100px 20px;text-align:center;
+  position:relative;overflow:hidden;
+}
+.cta-glow{
+  position:absolute;
+  width:600px;height:400px;
+  background:radial-gradient(ellipse,rgba(0,230,118,.09) 0%,transparent 70%);
+  top:50%;left:50%;transform:translate(-50%,-50%);pointer-events:none;
+}
+.cta-inner{position:relative;z-index:1;max-width:600px;margin:0 auto;}
+.cta-title{
+  font-family:var(--font-d);
+  font-size:clamp(3rem,9vw,5.5rem);
+  letter-spacing:.02em;line-height:.95;
+  margin-bottom:20px;color:var(--ink);
+}
+.cta-title span{color:var(--g);}
+.cta-sub{font-size:1rem;color:var(--ink2);line-height:1.7;margin-bottom:40px;}
+.cta-btns{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;}
+
+/* ━━━ FOOTER ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+footer{
+  padding:40px 20px;
+  border-top:1px solid var(--bd);
+  display:flex;align-items:center;justify-content:space-between;
+  flex-wrap:wrap;gap:16px;max-width:1000px;margin:0 auto;
+}
+.footer-logo{display:flex;align-items:center;gap:8px;}
+.footer-logo-icon{width:24px;height:24px;border-radius:6px;overflow:hidden;}
+.footer-logo-icon img{width:100%;height:100%;object-fit:cover;}
+.footer-wordmark{font-family:var(--font-d);font-size:1.1rem;letter-spacing:.05em;}
+.footer-wordmark em{color:var(--g);font-style:normal;}
+.footer-copy{font-size:.65rem;color:var(--ink3);}
+.footer-links{display:flex;gap:16px;}
+.footer-links a{font-size:.7rem;color:var(--ink3);transition:color .15s;}
+.footer-links a:hover{color:var(--g);}
+
+/* ━━━ AUTH MODAL ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.auth-overlay{
+  position:fixed;inset:0;z-index:1000;
+  background:rgba(0,0,0,.7);backdrop-filter:blur(8px);
+  display:flex;align-items:flex-end;justify-content:center;
+  opacity:0;pointer-events:none;
+  transition:opacity .25s;
+}
+.auth-overlay.open{opacity:1;pointer-events:auto;}
+.auth-sheet{
+  width:100%;max-width:480px;
+  background:var(--bg1);
+  border:1px solid var(--bd);
+  border-radius:22px 22px 0 0;
+  padding:0 0 env(safe-area-inset-bottom,0);
+  transform:translateY(32px);
+  transition:transform .3s cubic-bezier(.32,.72,0,1);
+  max-height:92svh;overflow-y:auto;
+}
+.auth-overlay.open .auth-sheet{transform:translateY(0);}
+.auth-handle{
+  width:36px;height:4px;border-radius:2px;
+  background:var(--bd);margin:12px auto 0;
+}
+.auth-body{padding:24px 24px 32px;}
+.auth-logo-row{display:flex;align-items:center;gap:10px;margin-bottom:22px;}
+.auth-logo-icon{
+  width:36px;height:36px;border-radius:9px;overflow:hidden;
+  border:1px solid var(--bd);flex-shrink:0;
+}
+.auth-logo-icon img{width:100%;height:100%;object-fit:cover;}
+.auth-wordmark{font-family:var(--font-d);font-size:1.5rem;letter-spacing:.04em;color:var(--ink);}
+.auth-wordmark em{color:var(--g);font-style:normal;}
+.auth-title{font-size:1.25rem;font-weight:700;color:var(--ink);margin-bottom:6px;}
+.auth-sub{font-size:.78rem;color:var(--ink2);margin-bottom:24px;line-height:1.6;}
+.auth-tabs{
+  display:flex;background:var(--sf);border-radius:10px;
+  padding:3px;margin-bottom:22px;gap:2px;
+  border:1px solid var(--bd);
+}
+.auth-tab{
+  flex:1;font-size:.78rem;font-weight:600;
+  background:none;border:none;padding:9px;
+  border-radius:8px;color:var(--ink2);
+  transition:all .18s;
+}
+.auth-tab.active{background:var(--g);color:#080A08;}
+.auth-field{margin-bottom:14px;}
+.auth-label{font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--ink3);display:block;margin-bottom:6px;}
+.auth-input{
+  width:100%;background:var(--sf);border:1px solid var(--bd);
+  border-radius:10px;padding:11px 14px;
+  font-size:.85rem;color:var(--ink);font-family:var(--font-b);outline:none;
+  transition:border-color .2s,box-shadow .2s;
+}
+.auth-input::placeholder{color:var(--ink3);}
+.auth-input:focus{border-color:var(--g);box-shadow:0 0 0 3px rgba(0,230,118,.1);}
+.auth-msg{
+  padding:10px 12px;border-radius:8px;font-size:.74rem;
+  margin-bottom:14px;display:none;line-height:1.5;
+}
+.auth-msg.err{background:rgba(255,61,87,.1);border:1px solid rgba(255,61,87,.2);color:#FF6B7A;display:block;}
+.auth-msg.ok{background:rgba(0,230,118,.1);border:1px solid rgba(0,230,118,.2);color:var(--g);display:block;}
+.auth-btn-main{
+  width:100%;font-size:.9rem;font-weight:700;
+  color:#080A08;background:var(--g);border:none;
+  border-radius:12px;padding:14px;
+  transition:all .18s;
+  box-shadow:0 0 20px var(--g-glow);
+  display:flex;align-items:center;justify-content:center;gap:8px;
+}
+.auth-btn-main:hover{background:#00ff7f;box-shadow:0 0 32px rgba(0,255,127,.35);}
+.auth-divider{
+  text-align:center;font-size:.65rem;color:var(--ink3);
+  margin:14px 0;position:relative;
+}
+.auth-divider::before,.auth-divider::after{
+  content:'';position:absolute;top:50%;width:calc(50% - 20px);height:1px;background:var(--bd);
+}
+.auth-divider::before{left:0;}
+.auth-divider::after{right:0;}
+.auth-forgot{text-align:center;margin-top:12px;}
+.auth-forgot a{font-size:.7rem;color:var(--ink3);transition:color .15s;}
+.auth-forgot a:hover{color:var(--g);}
+.auth-close-btn{
+  position:absolute;top:16px;right:16px;
+  width:32px;height:32px;border-radius:50%;
+  background:var(--sf);border:1px solid var(--bd);
+  display:flex;align-items:center;justify-content:center;
+  font-size:.8rem;color:var(--ink2);cursor:pointer;
+  transition:all .15s;
+}
+.auth-close-btn:hover{background:var(--bd);color:var(--ink);}
+.spin{
+  width:14px;height:14px;border-radius:50%;
+  border:2px solid rgba(0,0,0,.2);
+  border-top-color:#080A08;
+  animation:spin .6s linear infinite;
+  display:inline-block;
+}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+/* ━━━ MOBILE ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+@media(max-width:640px){
+  .hero-stats{flex-direction:column;border-radius:var(--radius);}
+  .hstat{border-right:none;border-bottom:1px solid var(--bd);padding:14px 20px;}
+  .hstat:last-child{border-bottom:none;}
+  .ai-card{grid-template-columns:1fr;}
+  nav{padding:10px 16px;}
+  .btn-nav-ghost{display:none;}
+  .btn-nav-solid{padding:7px 14px;}
+  .features-grid{grid-template-columns:1fr 1fr;}
+  footer{flex-direction:column;align-items:flex-start;gap:12px;}
+  .status-grid{grid-template-columns:repeat(auto-fill,minmax(140px,1fr));}
+}
+@media(max-width:400px){
+  .features-grid{grid-template-columns:1fr;}
+}
+</style>
+</head>
+<body>
+
+<!-- ── TICKER ──────────────────────────────────── -->
+<div class="ticker">
+  <div class="ticker-label">⚡ Live Lagos</div>
+  <div class="ticker-scroll">
+    <div class="ticker-track" id="tickerTrack">
+      <!-- Filled by JS -->
+    </div>
+  </div>
+</div>
+
+<!-- ── NAV ─────────────────────────────────────── -->
+<nav id="mainNav">
+  <div class="nav-logo">
+    <div class="nav-logo-mark"><img src="logo.jpg" alt="NEPAWatch"></div>
+    <div class="nav-wordmark">NEPA<em>Watch</em></div>
+  </div>
+  <div class="nav-actions">
+    <button class="btn-nav-ghost" onclick="openAuth('login')">Sign In</button>
+    <button class="btn-nav-solid" onclick="openAuth('register')">Get Started Free</button>
+  </div>
+</nav>
+
+<!-- ── HERO ─────────────────────────────────────── -->
+<section class="hero" id="hero">
+  <div class="hero-grid"></div>
+  <div class="hero-glow"></div>
+
+  <div class="hero-eyebrow">
+    <div class="live-pip"></div>
+    Live outage tracking · Lagos, Nigeria
+  </div>
+
+  <h1 class="hero-h">
+    <span class="line-green">Know When</span>
+    <span>Light Don</span>
+    <span class="line-outline">Go.</span>
+  </h1>
+
+  <p class="hero-sub">
+    Real-time crowd-sourced power outage reports for every area in Lagos. Free email alerts the second things change on your street.
+  </p>
+
+  <div class="hero-ctas">
+    <button class="btn-hero solid" onclick="openAuth('register')">Start Tracking Free</button>
+    <button class="btn-hero ghost" onclick="document.getElementById('features').scrollIntoView({behavior:'smooth'})">See How It Works</button>
+  </div>
+
+  <div class="hero-stats reveal" id="heroStats">
+    <div class="hstat">
+      <div class="hstat-n" id="statAreas">35+</div>
+      <div class="hstat-l">Lagos Areas</div>
+    </div>
+    <div class="hstat">
+      <div class="hstat-n" id="statReports">—</div>
+      <div class="hstat-l">Reports Today</div>
+    </div>
+    <div class="hstat">
+      <div class="hstat-n" id="statUsers">—</div>
+      <div class="hstat-l">Active Watchers</div>
+    </div>
+    <div class="hstat">
+      <div class="hstat-n">Free</div>
+      <div class="hstat-l">Always & Forever</div>
+    </div>
+  </div>
+</section>
+
+<!-- ── LIVE STATUS ──────────────────────────────── -->
+<div class="status-section reveal">
+  <div class="status-inner">
+    <div class="sec-eyebrow">Real-time status</div>
+    <div class="sec-title">Lagos Power <span>Right Now</span></div>
+    <div class="sec-sub">Live data from the NEPAWatch community — updated the moment anyone reports.</div>
+    <div class="status-grid" id="statusGrid">
+      <!-- Filled by JS -->
+    </div>
+  </div>
+</div>
+
+<!-- ── FEATURES ─────────────────────────────────── -->
+<section class="section reveal" id="features">
+  <div class="sec-eyebrow">What you get</div>
+  <div class="sec-title">Everything You Need to <span>Stay Informed</span></div>
+  <div class="features-grid">
+    <div class="feat-card reveal">
+      <div class="feat-ico">⚡</div>
+      <div class="feat-title">Live Outage Reports</div>
+      <div class="feat-desc">See real-time reports from other Lagosians the moment power goes out or comes back — street by street, area by area.</div>
+      <div class="feat-tag">→ Crowd-sourced</div>
+    </div>
+    <div class="feat-card reveal">
+      <div class="feat-ico">📧</div>
+      <div class="feat-title">Instant Email Alerts</div>
+      <div class="feat-desc">Get a free email within seconds of any power change near your home, work, or school. Never be caught off guard again.</div>
+      <div class="feat-tag">→ Zero delay</div>
+    </div>
+    <div class="feat-card reveal">
+      <div class="feat-ico">🤖</div>
+      <div class="feat-title">AI Auto-Reporter</div>
+      <div class="feat-desc">NEPAWatch AI predicts outages using NERC band data and files reports automatically when probability exceeds 72%. Reports even when no one else has.</div>
+      <div class="feat-tag">→ Always watching</div>
+    </div>
+    <div class="feat-card reveal">
+      <div class="feat-ico">📊</div>
+      <div class="feat-title">AI Outage Forecasts</div>
+      <div class="feat-desc">24-hour hourly predictions and weekly risk scores for every Lagos area — powered by tariff band data and crowd history. Totally free.</div>
+      <div class="feat-tag">→ Plan your day</div>
+    </div>
+    <div class="feat-card reveal">
+      <div class="feat-ico">📍</div>
+      <div class="feat-title">Saved Places</div>
+      <div class="feat-desc">Track power status for your Home, Work, School and any custom location all at once. Get tailored alerts for each place separately.</div>
+      <div class="feat-tag">→ Multi-location</div>
+    </div>
+    <div class="feat-card reveal">
+      <div class="feat-ico">🏆</div>
+      <div class="feat-title">Community Leaderboard</div>
+      <div class="feat-desc">Top reporters in Lagos are ranked weekly. The more you report, the more your community benefits — and the higher you climb.</div>
+      <div class="feat-tag">→ Earn your rank</div>
+    </div>
+  </div>
+</section>
+
+<!-- ── HOW IT WORKS ─────────────────────────────── -->
+<div class="status-section reveal">
+  <div class="status-inner">
+    <div class="sec-eyebrow">How it works</div>
+    <div class="sec-title">Three Steps to <span>Never Missing</span> a Power Change</div>
+    <div class="steps">
+      <div class="step reveal">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <div class="step-title">Create your free account</div>
+          <div class="step-desc">Sign up in under 30 seconds. No credit card, no subscription. Just your name and email — that's it.</div>
+        </div>
+      </div>
+      <div class="step reveal">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <div class="step-title">Set your location</div>
+          <div class="step-desc">Tap "Locate Me" or search your street. Save your Home, Work, and School for multi-location tracking. We never share your location.</div>
+        </div>
+      </div>
+      <div class="step reveal">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <div class="step-title">Report and receive alerts</div>
+          <div class="step-desc">When light goes — report it. When light comes — report it. The community stays informed and you get instant alerts for your saved places.</div>
+        </div>
+      </div>
+    </div>
+    <div style="margin-top:36px">
+      <button class="btn-hero solid" onclick="openAuth('register')">Create Free Account →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── AI SECTION ───────────────────────────────── -->
+<section class="ai-section reveal">
+  <div class="ai-inner">
+    <div class="ai-card">
+      <div>
+        <div class="ai-label"><div class="ai-label-dot"></div>NEPAWatch AI</div>
+        <div class="ai-title">Power <span>Predictions</span> for Every Area</div>
+        <div class="ai-desc">Our built-in AI model analyses NERC tariff band data, hourly demand patterns, and crowd report history to predict when your area is likely to lose power — hours in advance.</div>
+        <div class="ai-features">
+          <div class="ai-feat">
+            <div class="ai-feat-ico">📊</div>
+            <div class="ai-feat-txt"><strong>24-hour hourly forecast</strong> — see risk % for every hour of the day</div>
+          </div>
+          <div class="ai-feat">
+            <div class="ai-feat-ico">📅</div>
+            <div class="ai-feat-txt"><strong>Weekly risk calendar</strong> — plan ahead across the whole week</div>
+          </div>
+          <div class="ai-feat">
+            <div class="ai-feat-ico">🔔</div>
+            <div class="ai-feat-txt"><strong>Auto-files reports</strong> — AI reports on your behalf when it detects a likely outage</div>
+          </div>
+          <div class="ai-feat">
+            <div class="ai-feat-ico">🆓</div>
+            <div class="ai-feat-txt"><strong>Completely free</strong> — no subscriptions, no API costs, runs in your browser</div>
+          </div>
+        </div>
+      </div>
+      <div class="ai-mockup">
+        <div class="aim-header">
+          <div class="aim-avatar">🤖</div>
+          <div>
+            <div class="aim-name">NEPAWatch AI</div>
+            <div class="aim-online">Active now</div>
+          </div>
+        </div>
+        <div class="aim-areas">
+          <div style="font-size:.58rem;color:var(--ink3);font-family:var(--font-m);letter-spacing:.1em;text-transform:uppercase;margin-bottom:4px;">Current outage risk</div>
+          <div class="aim-row">
+            <div class="aim-row-dot high"></div>
+            <div class="aim-area-name">Alimosho / Ipaja</div>
+            <div class="aim-prob"><span class="high">84%</span></div>
+          </div>
+          <div class="aim-row">
+            <div class="aim-row-dot high"></div>
+            <div class="aim-area-name">Mushin</div>
+            <div class="aim-prob"><span class="high">76%</span></div>
+          </div>
+          <div class="aim-row">
+            <div class="aim-row-dot med"></div>
+            <div class="aim-area-name">Surulere</div>
+            <div class="aim-prob"><span class="med">51%</span></div>
+          </div>
+          <div class="aim-row">
+            <div class="aim-row-dot med"></div>
+            <div class="aim-area-name">Yaba</div>
+            <div class="aim-prob"><span class="med">44%</span></div>
+          </div>
+          <div class="aim-row">
+            <div class="aim-row-dot low"></div>
+            <div class="aim-area-name">Lekki Phase 1</div>
+            <div class="aim-prob"><span class="low">18%</span></div>
+          </div>
+          <div class="aim-row">
+            <div class="aim-row-dot low"></div>
+            <div class="aim-area-name">Victoria Island</div>
+            <div class="aim-prob"><span class="low">12%</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── AREAS SERVED ─────────────────────────────── -->
+<div class="areas-strip reveal">
+  <div class="areas-strip-inner">
+    <div class="sec-eyebrow">Coverage</div>
+    <div class="sec-title" style="font-size:clamp(1.8rem,5vw,2.8rem)">Covering All of <span>Lagos</span></div>
+  </div>
+  <div class="areas-scroll-wrap" style="margin-top:28px;">
+    <div class="areas-track" id="areasTrack"></div>
+  </div>
+</div>
+
+<!-- ── FINAL CTA ─────────────────────────────────── -->
+<section class="cta-section reveal">
+  <div class="cta-glow"></div>
+  <div class="cta-inner">
+    <div class="cta-title">Lagos Deserves <span>Better.</span></div>
+    <p class="cta-sub">Join thousands of Lagosians tracking power together. Free, forever. No tricks.</p>
+    <div class="cta-btns">
+      <button class="btn-hero solid" style="font-size:.95rem;padding:14px 32px" onclick="openAuth('register')">Create Free Account</button>
+      <button class="btn-hero ghost" style="font-size:.95rem;padding:14px 28px" onclick="openAuth('login')">Sign In</button>
+    </div>
+  </div>
+</section>
+
+<!-- ── FOOTER ────────────────────────────────────── -->
+<footer>
+  <div class="footer-logo">
+    <div class="footer-logo-icon"><img src="logo.jpg" alt=""></div>
+    <div class="footer-wordmark">NEPA<em>Watch</em> Lagos</div>
+  </div>
+  <div class="footer-copy">© 2025 NEPAWatch Lagos. Free, always.</div>
+  <div class="footer-links">
+    <a href="#">Privacy</a>
+    <a href="#">Terms</a>
+    <a href="mailto:hello@nepawatch.app">Contact</a>
+  </div>
+</footer>
+
+<!-- ━━━ AUTH MODAL ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+<div class="auth-overlay" id="authOverlay" onclick="handleOverlayClick(event)">
+  <div class="auth-sheet" id="authSheet">
+    <div class="auth-handle"></div>
+    <div style="position:relative">
+      <button class="auth-close-btn" onclick="closeAuth()">✕</button>
+    </div>
+    <div class="auth-body">
+      <div class="auth-logo-row">
+        <div class="auth-logo-icon"><img src="logo.jpg" alt="NEPAWatch"></div>
+        <div class="auth-wordmark">NEPA<em>Watch</em></div>
+      </div>
+
+      <!-- Tab switcher -->
+      <div class="auth-tabs">
+        <button class="auth-tab active" id="tabRegister" onclick="switchAuthTab('register')">Create Account</button>
+        <button class="auth-tab" id="tabLogin" onclick="switchAuthTab('login')">Sign In</button>
+      </div>
+
+      <div class="auth-msg" id="authErr"></div>
+      <div class="auth-msg" id="authOk"></div>
+
+      <!-- Register form -->
+      <div id="formRegister">
+        <div class="auth-field">
+          <label class="auth-label">Your Name</label>
+          <input class="auth-input" id="regName" type="text" placeholder="e.g. Chidi Okafor" autocomplete="name">
+        </div>
+        <div class="auth-field">
+          <label class="auth-label">Email Address</label>
+          <input class="auth-input" id="regEmail" type="email" placeholder="you@example.com" autocomplete="email">
+        </div>
+        <div class="auth-field">
+          <label class="auth-label">Password</label>
+          <input class="auth-input" id="regPass" type="password" placeholder="Min 6 characters" autocomplete="new-password">
+        </div>
+        <button class="auth-btn-main" id="regBtn" onclick="doRegister()">
+          Create Free Account
+        </button>
+        <div style="font-size:.67rem;color:var(--ink3);text-align:center;margin-top:10px;line-height:1.6;">
+          By creating an account you agree to our Terms. We'll never spam you — only alerts you ask for.
+        </div>
+      </div>
+
+      <!-- Login form -->
+      <div id="formLogin" style="display:none">
+        <div class="auth-field">
+          <label class="auth-label">Email Address</label>
+          <input class="auth-input" id="loginEmail" type="email" placeholder="you@example.com" autocomplete="email">
+        </div>
+        <div class="auth-field">
+          <label class="auth-label">Password</label>
+          <input class="auth-input" id="loginPass" type="password" placeholder="Your password" autocomplete="current-password">
+        </div>
+        <button class="auth-btn-main" id="loginBtn" onclick="doLogin()">
+          Sign In
+        </button>
+        <div class="auth-forgot">
+          <a onclick="switchAuthTab('forgot')">Forgot your password?</a>
+        </div>
+      </div>
+
+      <!-- Forgot form -->
+      <div id="formForgot" style="display:none">
+        <div style="font-size:.82rem;color:var(--ink2);margin-bottom:16px;line-height:1.6;">
+          Enter your email and we'll send you a link to reset your password.
+        </div>
+        <div class="auth-field">
+          <label class="auth-label">Email Address</label>
+          <input class="auth-input" id="forgotEmail" type="email" placeholder="you@example.com" autocomplete="email">
+        </div>
+        <button class="auth-btn-main" id="forgotBtn" onclick="doForgot()">
+          Send Reset Link
+        </button>
+        <div class="auth-forgot" style="margin-top:12px;">
+          <a onclick="switchAuthTab('login')">← Back to sign in</a>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+/* ━━━ SUPABASE ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+const SUPA_URL  = 'https://djurokbkkqrmpafcxlez.supabase.co';
+const SUPA_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRqdXJva2Jra3FybXBhZmN4bGV6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI1NzE5OTUsImV4cCI6MjA4ODE0Nzk5NX0.ZLOtWFB7qy_J0mitjb_pcZ88wxmRjMe-3OdbQCRL8xE';
+const APP_URL   = 'index.html'; /* Change to your main app URL */
+const sb = supabase.createClient(SUPA_URL, SUPA_ANON);
+
+/* ━━━ AREAS DATA ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+const ALL_AREAS = [
+  "Victoria Island","Ikoyi","Lekki Phase 1","Ikeja GRA","Lekki Phase 2/Ikota",
+  "Chevron/Lekki-Epe Expressway","Igbo Efon/Ilasan","Magodo","Ojodu/Omole","Gbagada",
+  "Maryland/Anthony","Kosofe/Ketu","Surulere","Yaba","Ilupeju",
+  "Shomolu/Bariga","Ojota/Oregun","Ebute Metta","Ogba",
+  "Agege","Mushin","Oshodi/Isolo","Festac Town","Amuwo Odofin",
+  "Lagos Island","Obalende/CMS","Apapa","Onikan/Lagos Mainland","Ajah",
+  "Alimosho/Ipaja","Ikorodu","Badagry","Ojo/Alaba","Ibeju-Lekki","Epe",
+];
+
+/* ━━━ TICKER ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+const TICKER_DATA = [
+  {area:"Alimosho/Ipaja",type:"out",time:"2m ago"},
+  {area:"Lekki Phase 1",type:"bck",time:"4m ago"},
+  {area:"Surulere",type:"out",time:"7m ago"},
+  {area:"Ikeja GRA",type:"bck",time:"9m ago"},
+  {area:"Mushin",type:"out",time:"14m ago"},
+  {area:"Victoria Island",type:"bck",time:"18m ago"},
+  {area:"Yaba",type:"out",time:"22m ago"},
+  {area:"Gbagada",type:"bck",time:"28m ago"},
+  {area:"Ikorodu",type:"out",time:"31m ago"},
+  {area:"Ajah",type:"bck",time:"36m ago"},
+  {area:"Agege",type:"out",time:"40m ago"},
+  {area:"Maryland/Anthony",type:"bck",time:"45m ago"},
+];
+
+function buildTicker(liveReports) {
+  const items = liveReports.length
+    ? liveReports.slice(0,12).map(r => ({
+        area: r.location_area || r.area,
+        type: r.type,
+        time: timeAgo(new Date(r.created_at || r.time).getTime()),
+      }))
+    : TICKER_DATA;
+
+  const html = items.map(i =>
+    `<div class="ticker-item">
+      <div class="t-dot ${i.type}"></div>
+      ${i.type==='out'?'Power out':'Restored'} · <strong>${i.area}</strong> · ${i.time}
+    </div>`
+  ).join('');
+  /* Duplicate for seamless loop */
+  document.getElementById('tickerTrack').innerHTML = html + html;
+}
+
+/* ━━━ STATUS GRID ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+function buildStatusGrid(reports) {
+  const statusMap = {};
+  reports.forEach(r => {
+    const area = r.location_area || r.area;
+    if (!statusMap[area]) statusMap[area] = r;
+  });
+
+  const html = ALL_AREAS.map(area => {
+    const rep = statusMap[area];
+    const status = rep ? rep.type : 'unk';
+    const label = status === 'out' ? 'Power out' : status === 'bck' ? 'Power on' : 'No reports';
+    const t = rep ? timeAgo(new Date(rep.created_at || rep.time).getTime()) : '';
+    return `<div class="area-card ${status==='out'?'out':status==='bck'?'on':''}">
+      <div style="display:flex;align-items:center;gap:7px">
+        <div class="ac-dot ${status==='out'?'out':status==='bck'?'on':'unk'}"></div>
+        <div class="ac-name">${area}</div>
+      </div>
+      <div class="ac-status ${status==='out'?'out':status==='bck'?'on':''}">${label}${t?' · '+t:''}</div>
+    </div>`;
+  }).join('');
+  document.getElementById('statusGrid').innerHTML = html;
+}
+
+/* ━━━ AREAS STRIP ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+function buildAreasStrip() {
+  const html = [...ALL_AREAS, ...ALL_AREAS].map(a =>
+    `<div class="area-pill"><div class="area-pill-dot"></div>${a}</div>`
+  ).join('');
+  document.getElementById('areasTrack').innerHTML = html;
+}
+
+/* ━━━ LIVE DATA LOAD ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+async function loadLiveData() {
+  try {
+    const { data: reports } = await sb
+      .from('reports')
+      .select('location_area,type,created_at,confirms')
+      .order('created_at', { ascending: false })
+      .limit(150);
+
+    if (reports && reports.length) {
+      buildTicker(reports);
+      buildStatusGrid(reports);
+
+      /* Stats */
+      const today = new Date(); today.setHours(0,0,0,0);
+      const todayCount = reports.filter(r => new Date(r.created_at) >= today).length;
+      document.getElementById('statReports').textContent = todayCount || '—';
+    } else {
+      buildTicker([]);
+      buildStatusGrid([]);
+    }
+  } catch(e) {
+    buildTicker([]);
+    buildStatusGrid([]);
+  }
+
+  /* User count */
+  try {
+    const { count } = await sb.from('profiles').select('id', { count: 'exact', head: true });
+    if (count && count > 0) document.getElementById('statUsers').textContent = count.toLocaleString();
+  } catch(e) {}
+}
+
+/* ━━━ UTILS ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+function timeAgo(ts) {
+  const d = Math.floor((Date.now() - ts) / 1000);
+  if (d < 60) return `${d}s ago`;
+  if (d < 3600) return `${Math.floor(d/60)}m ago`;
+  if (d < 86400) return `${Math.floor(d/3600)}h ago`;
+  return `${Math.floor(d/86400)}d ago`;
+}
+
+/* ━━━ SCROLL EFFECTS ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+const nav = document.getElementById('mainNav');
+window.addEventListener('scroll', () => {
+  nav.classList.toggle('scrolled', window.scrollY > 40);
+}, { passive: true });
+
+const revealObs = new IntersectionObserver((entries) => {
+  entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('in'); revealObs.unobserve(e.target); } });
+}, { threshold: 0.1 });
+document.querySelectorAll('.reveal').forEach(el => revealObs.observe(el));
+
+/* ━━━ AUTH MODAL ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+let _authMode = 'register';
+
+function openAuth(mode = 'register') {
+  switchAuthTab(mode);
+  document.getElementById('authOverlay').classList.add('open');
+  setTimeout(() => {
+    const first = document.querySelector(`#form${capitalize(mode)} .auth-input`);
+    if (first) first.focus();
+  }, 320);
+}
+
+function closeAuth() {
+  document.getElementById('authOverlay').classList.remove('open');
+  clearAuthMsgs();
+}
+
+function handleOverlayClick(e) {
+  if (e.target === document.getElementById('authOverlay')) closeAuth();
+}
+
+function capitalize(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
+
+function switchAuthTab(mode) {
+  _authMode = mode;
+  ['register','login','forgot'].forEach(m => {
+    document.getElementById(`form${capitalize(m)}`).style.display = m === mode ? 'block' : 'none';
+    const tab = document.getElementById(`tab${capitalize(m)}`);
+    if (tab) tab.classList.toggle('active', m === mode);
+  });
+  clearAuthMsgs();
+  /* Focus first input */
+  setTimeout(() => {
+    const first = document.querySelector(`#form${capitalize(mode)} .auth-input`);
+    if (first) first.focus();
+  }, 50);
+}
+
+function clearAuthMsgs() {
+  const err = document.getElementById('authErr');
+  const ok  = document.getElementById('authOk');
+  err.className = 'auth-msg';
+  ok.className  = 'auth-msg';
+  err.textContent = '';
+  ok.textContent  = '';
+}
+
+function showErr(msg) {
+  const el = document.getElementById('authErr');
+  el.textContent = msg; el.className = 'auth-msg err';
+  document.getElementById('authOk').className = 'auth-msg';
+}
+function showOk(msg) {
+  const el = document.getElementById('authOk');
+  el.textContent = msg; el.className = 'auth-msg ok';
+  document.getElementById('authErr').className = 'auth-msg';
+}
+
+function setBtnLoading(id, loading, label) {
+  const btn = document.getElementById(id);
+  btn.disabled = loading;
+  btn.innerHTML = loading ? `${label} <span class="spin"></span>` : label;
+}
+
+/* Enter key handlers */
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeAuth();
+  if (e.key === 'Enter') {
+    if (_authMode === 'register') doRegister();
+    else if (_authMode === 'login') doLogin();
+    else if (_authMode === 'forgot') doForgot();
+  }
+});
+
+async function doRegister() {
+  const name  = document.getElementById('regName').value.trim();
+  const email = document.getElementById('regEmail').value.trim();
+  const pass  = document.getElementById('regPass').value;
+  clearAuthMsgs();
+  if (!name)  { showErr('Please enter your name.'); return; }
+  if (!email || !email.includes('@')) { showErr('Please enter a valid email.'); return; }
+  if (pass.length < 6) { showErr('Password must be at least 6 characters.'); return; }
+
+  setBtnLoading('regBtn', true, 'Creating account…');
+  try {
+    const { data, error } = await sb.auth.signUp({
+      email, password: pass,
+      options: { data: { name }, emailRedirectTo: window.location.origin + '/' + APP_URL },
+    });
+    if (error) {
+      const msg = error.message?.toLowerCase();
+      if (msg?.includes('rate limit') || msg?.includes('over_email_send_rate_limit'))
+        throw new Error('Too many attempts. Please wait a moment and try again.');
+      if (msg?.includes('already registered'))
+        throw new Error('This email is already registered. Please sign in instead.');
+      throw new Error(error.message);
+    }
+    if (data?.user?.id) {
+      await sb.from('profiles').upsert({ id: data.user.id, email, name, notif_on: true }, { onConflict: 'id' });
+    }
+    if (data?.session) {
+      /* Logged in immediately — go to app */
+      showOk('Account created! Redirecting to the app…');
+      setTimeout(() => { window.location.href = APP_URL; }, 1200);
+    } else {
+      showOk('Account created! Check your email to confirm, then sign in.');
+      setBtnLoading('regBtn', false, 'Create Free Account');
+    }
+  } catch(e) {
+    showErr(e.message || 'Something went wrong. Please try again.');
+    setBtnLoading('regBtn', false, 'Create Free Account');
+  }
+}
+
+async function doLogin() {
+  const email = document.getElementById('loginEmail').value.trim();
+  const pass  = document.getElementById('loginPass').value;
+  clearAuthMsgs();
+  if (!email || !email.includes('@')) { showErr('Please enter a valid email.'); return; }
+  if (!pass) { showErr('Please enter your password.'); return; }
+
+  setBtnLoading('loginBtn', true, 'Signing in…');
+  try {
+    const { data, error } = await sb.auth.signInWithPassword({ email, password: pass });
+    if (error) {
+      if (error.message?.toLowerCase().includes('invalid'))
+        throw new Error('Incorrect email or password. Please try again.');
+      if (error.message?.toLowerCase().includes('not confirmed'))
+        throw new Error('Please confirm your email first — check your inbox.');
+      throw new Error(error.message);
+    }
+    if (data?.session) {
+      showOk('Welcome back! Redirecting…');
+      setTimeout(() => { window.location.href = APP_URL; }, 900);
+    }
+  } catch(e) {
+    showErr(e.message || 'Sign in failed. Please try again.');
+    setBtnLoading('loginBtn', false, 'Sign In');
+  }
+}
+
+async function doForgot() {
+  const email = document.getElementById('forgotEmail').value.trim();
+  clearAuthMsgs();
+  if (!email || !email.includes('@')) { showErr('Please enter a valid email.'); return; }
+
+  setBtnLoading('forgotBtn', true, 'Sending link…');
+  try {
+    const { error } = await sb.auth.resetPasswordForEmail(email, {
+      redirectTo: window.location.origin + '/' + APP_URL + '?mode=reset',
+    });
+    if (error) throw new Error(error.message);
+    showOk('Reset link sent! Check your inbox (and spam folder).');
+  } catch(e) {
+    showErr(e.message || 'Could not send reset link. Try again.');
+  }
+  setBtnLoading('forgotBtn', false, 'Send Reset Link');
+}
+
+/* ━━━ CHECK IF ALREADY LOGGED IN ━━━━━━━━━━━━━━━━━ */
+async function checkSession() {
+  try {
+    const { data: { session } } = await sb.auth.getSession();
+    if (session) {
+      /* Already logged in — go straight to app */
+      window.location.href = APP_URL;
+    }
+  } catch(e) {}
+}
+
+/* ━━━ INIT ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+(async function init() {
+  await checkSession();
+  buildAreasStrip();
+  buildTicker([]);
+  buildStatusGrid([]);
+  /* Load live data async */
+  loadLiveData();
+})();
+</script>
+</body>
+</html>
