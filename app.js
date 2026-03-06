@@ -1137,9 +1137,10 @@ function toast(msg,cls="ok"){const t=document.getElementById("toast");const ico=
    SESSION FIX — robust auth initialization
    Restores session from localStorage on page load/refresh
    ══════════════════════════════════════════════════════════ */
+let _authInitDone = false;
+
 async function initAuth(){
   try{
-    /* First try to get existing session from storage */
     const{data:{session},error}=await sb.auth.getSession();
     if(error)console.warn("getSession error:",error.message);
     CU=session?.user||null;
@@ -1149,10 +1150,13 @@ async function initAuth(){
   }catch(e){
     console.warn("initAuth error:",e);
   }
+  _authInitDone = true;
   updateBanner();
 
-  /* Listen for future auth changes */
   sb.auth.onAuthStateChange(async(event,session)=>{
+    /* Ignore SIGNED_OUT events that fire during initial load race */
+    if(!_authInitDone && event==="SIGNED_OUT") return;
+
     const prevUser=CU;
     CU=session?.user||null;
     if(CU){
@@ -1164,7 +1168,6 @@ async function initAuth(){
       savedPlaces=[];
       document.getElementById("locTag").classList.remove("on");
     }
-    /* Only re-render if user state actually changed */
     if((!prevUser&&CU)||(prevUser&&!CU)){
       updateBanner();
       renderAccount();
@@ -1172,7 +1175,6 @@ async function initAuth(){
     }
   });
 }
-
 async function loadProfile(){if(!CU)return;try{const{data,error}=await sb.from("profiles").select("*").eq("id",CU.id).single();if(!error&&data){PR=data;if(PR.location_id){document.getElementById("locTag").classList.add("on");document.getElementById("locLabel").textContent=PR.location_label||PR.location_name||"";}}else if(error&&error.code==="PGRST116"){const name=CU.user_metadata?.name||CU.email.split("@")[0];await sb.from("profiles").upsert({id:CU.id,email:CU.email,name,notif_on:true},{onConflict:"id"});PR={id:CU.id,email:CU.email,name,notif_on:true,location_id:null};}}catch(e){console.warn("loadProfile error:",e);}}
 
 async function doRegister(name,email,pass){const{data,error}=await sb.auth.signUp({email,password:pass,options:{data:{name},emailRedirectTo:window.location.origin+window.location.pathname+"?mode=reset"}});if(error){if(error.message?.toLowerCase().includes("rate limit")||error.message?.toLowerCase().includes("over_email_send_rate_limit"))throw new Error("RATE_LIMIT");throw new Error(error.message);}if(data.user){await sb.from("profiles").upsert({id:data.user.id,email,name,notif_on:true},{onConflict:"id"});}if(data.session){CU=data.user;await loadProfile();renderAccount();updateBanner();toast(`Welcome, ${name}!`,"ok");}sendEmail(email,"Welcome to NEPAWatch Lagos",`Hi ${name},\n\nWelcome to NEPAWatch Lagos!\n\nYou will receive real-time email alerts whenever power goes out or is restored near your street.\n\nOpen the app and set your location to activate alerts.\n\nStay powered,\nNEPAWatch Lagos`);return data;}
