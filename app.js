@@ -8,7 +8,7 @@
    3. renderCommunity() leaderboard — shows NEPAWatch AI entry
    4. window.load  — calls AIReporter.loadHistory() + AIReporter.start()
    ========================================================= */
-try { window.BroadcastChannel = undefined; } catch (e) {}
+
 
 const SUPA_URL = 'https://djurokbkkqrmpafcxlez.supabase.co';
 const SUPA_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRqdXJva2Jra3FybXBhZmN4bGV6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI1NzE5OTUsImV4cCI6MjA4ODE0Nzk5NX0.ZLOtWFB7qy_J0mitjb_pcZ88wxmRjMe-3OdbQCRL8xE';
