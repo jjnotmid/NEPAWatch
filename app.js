@@ -2580,17 +2580,34 @@ window.addEventListener("load",async()=>{
   document.getElementById("repOverlay").addEventListener("click",e=>{if(e.target===document.getElementById("repOverlay"))closeModal();});
   document.getElementById("placeOverlay").addEventListener("click",e=>{if(e.target===document.getElementById("placeOverlay"))closePlaceModal();});
 
-  // Exchange the recovery token from the URL hash into a real Supabase session
-  // MUST happen before initAuth so updateUser() has an active session to work with
+  // Check for recovery token BEFORE getSessionFromUrl clears the hash
+  const urlParams=new URLSearchParams(window.location.search);
   const hashParams=new URLSearchParams(window.location.hash.replace("#",""));
+  let isReset=(urlParams.get("mode")==="reset")||(hashParams.get("type")==="recovery");
+
+  // Exchange the recovery token — this clears the hash as a side effect
   if(hashParams.get("type")==="recovery"){
-    try{await sb.auth.getSessionFromUrl({storeSession:true});}catch(e){}
+    try{
+      const{data}=await sb.auth.getSessionFromUrl({storeSession:true});
+      // Double-confirm it's a recovery session
+      if(data?.session)isReset=true;
+    }catch(e){}
   }
 
-  const urlParams=new URLSearchParams(window.location.search);
-  const hashParams2=new URLSearchParams(window.location.hash.replace("#",""));
-  const isReset=(urlParams.get("mode")==="reset")||(hashParams2.get("type")==="recovery");
+  // If this is a password reset, show the form immediately and skip normal boot
+  if(isReset){
+    window.history.replaceState({},document.title,window.location.pathname);
+    await Promise.all([loadReports(),loadCustomLocations()]);
+    startPolling();
+    go("account");
+    setTimeout(()=>{
+      const el=document.getElementById("authWrap");
+      el.innerHTML=`<div class="auth-wrap"><div class="auth-logo"><div class="auth-logo-icon" style="background:var(--p)">${LOGO_IMG_TAG}</div><span class="auth-logo-name">NEPA<em>Watch</em></span></div><h2>Set new password</h2><p class="auth-sub">Choose a strong new password for your account.</p><div class="msg err" id="authErr"></div><div class="msg ok" id="authOk"></div><div class="fld"><label>New Password</label><input id="inp-newpass" type="password" placeholder="Min 6 characters" autocomplete="new-password"><button type="button" class="pw-eye-btn" onclick="appTogglePw(this)" tabindex="-1"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M1 8C2.5 5 5 3.5 8 3.5C11 3.5 13.5 5 15 8C13.5 11 11 12.5 8 12.5C5 12.5 2.5 11 1 8Z" stroke="currentColor" stroke-width="1.3"/><circle cx="8" cy="8" r="2.2" stroke="currentColor" stroke-width="1.3"/></svg></button></div><div class="fld"><label>Confirm Password</label><input id="inp-confpass" type="password" placeholder="Repeat password" autocomplete="new-password"><button type="button" class="pw-eye-btn" onclick="appTogglePw(this)" tabindex="-1"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M1 8C2.5 5 5 3.5 8 3.5C11 3.5 13.5 5 15 8C13.5 11 11 12.5 8 12.5C5 12.5 2.5 11 1 8Z" stroke="currentColor" stroke-width="1.3"/><circle cx="8" cy="8" r="2.2" stroke="currentColor" stroke-width="1.3"/></svg></button></div><button class="auth-btn" id="authBtn" onclick="doPasswordReset()">Update Password</button></div>`;
+    },500);
+    return; // skip normal boot
+  }
 
+  // ── Normal boot ──
   await initAuth();
   await Promise.all([loadReports(),loadCustomLocations()]);
   if(CU)loadSavedPlaces();
@@ -2599,21 +2616,9 @@ window.addEventListener("load",async()=>{
   startRealtime();
   startPolling();
   renderMyArea();
-
-  /* ── AI Reporter startup ── */
   if(typeof AIReporter!=='undefined'){
     await AIReporter.loadHistory();
     AIReporter.start();
-  }
-
-  if(isReset){
-    // Clear the hash NOW so refreshing the page doesn't re-show this form
-    window.history.replaceState({},document.title,window.location.pathname);
-    go("account");
-    setTimeout(()=>{
-      const el=document.getElementById("authWrap");
-      el.innerHTML=`<div class="auth-wrap"><div class="auth-logo"><div class="auth-logo-icon" style="background:var(--p)">${LOGO_IMG_TAG}</div><span class="auth-logo-name">NEPA<em>Watch</em></span></div><h2>Set new password</h2><p class="auth-sub">Choose a strong new password for your account.</p><div class="msg err" id="authErr"></div><div class="msg ok" id="authOk"></div><div class="fld"><label>New Password</label><input id="inp-newpass" type="password" placeholder="Min 6 characters" autocomplete="new-password"><button type="button" class="pw-eye-btn" onclick="appTogglePw(this)" tabindex="-1"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M1 8C2.5 5 5 3.5 8 3.5C11 3.5 13.5 5 15 8C13.5 11 11 12.5 8 12.5C5 12.5 2.5 11 1 8Z" stroke="currentColor" stroke-width="1.3"/><circle cx="8" cy="8" r="2.2" stroke="currentColor" stroke-width="1.3"/></svg></button></div><div class="fld"><label>Confirm Password</label><input id="inp-confpass" type="password" placeholder="Repeat password" autocomplete="new-password"><button type="button" class="pw-eye-btn" onclick="appTogglePw(this)" tabindex="-1"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M1 8C2.5 5 5 3.5 8 3.5C11 3.5 13.5 5 15 8C13.5 11 11 12.5 8 12.5C5 12.5 2.5 11 1 8Z" stroke="currentColor" stroke-width="1.3"/><circle cx="8" cy="8" r="2.2" stroke="currentColor" stroke-width="1.3"/></svg></button></div><button class="auth-btn" id="authBtn" onclick="doPasswordReset()">Update Password</button></div>`;
-    },500);
   }
 });
 
