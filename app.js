@@ -2033,8 +2033,7 @@ const AREA_COORDS = {
   // ── AKOKA / UNILAG ───────────────────────────────────────────────
   "Akoka":{lat:6.5183,lng:3.3855},
   "UNILAG":{lat:6.5183,lng:3.3855},
-  "UNILAG Main Gate":{lat:6.5150,lng:3.3896},
-  "UNILAG Back Gate":{lat:6.5210,lng:3.3820},
+  // UNILAG Main/Back Gate removed — "UNILAG" entry covers these coords
   "FCE Akoka":{lat:6.5209,lng:3.3812},
   "Iwaya":{lat:6.5250,lng:3.3880},
   "Makoko":{lat:6.5041,lng:3.3816},
@@ -2083,7 +2082,7 @@ function buildBaseLocs(){
 }
 buildBaseLocs();
 
-let reports=[],filterArea="",mType=null,mSel=null,CU=null,PR=null,emailLog=[];
+let reports=[],filterArea="",feedFilter="today",mType=null,mSel=null,CU=null,PR=null,emailLog=[];
 const _alertCooldowns={};
 const ALERT_COOLDOWN_MS=5*60*1000;
 let savedPlaces=[];
@@ -2121,34 +2120,25 @@ function initTheme(){let saved;try{saved=localStorage.getItem("nw-theme");}catch
 function toast(msg,cls="ok"){const t=document.getElementById("toast");const ico={ok:IC.ok,err:IC.err,info:IC.inf}[cls]||"";t.innerHTML=ico+`<span>${msg}</span>`;t.className=`toast ${cls} show`;clearTimeout(t._tid);t._tid=setTimeout(()=>t.className="toast",cls==="err"?7000:3600);}
 
 async function initAuth(){
-  // Exchange hash token if present (handles email confirmation + password recovery links)
-  try{
-    if(window.location.hash&&window.location.hash.includes("access_token")){
-      await sb.auth.getSessionFromUrl({storeSession:true}).catch(()=>{});
-    }
-  }catch(e){}
   try{const{data:{session}}=await sb.auth.getSession();CU=session?.user||null;if(CU)await loadProfile();}catch(e){}
   updateBanner();
   sb.auth.onAuthStateChange(async(event,session)=>{
-    CU=session?.user||null;
     if(event==="PASSWORD_RECOVERY"){
-      // User clicked the reset link — show password reset form
+      // User arrived via reset link — show the set-new-password form
       go("account");
-      setTimeout(()=>showPasswordResetForm(),300);
+      setTimeout(()=>{
+        const el=document.getElementById("authWrap");
+        if(el)el.innerHTML=_resetFormHTML();
+      },300);
       return;
     }
+    CU=session?.user||null;
     if(CU){if(event==="SIGNED_IN"||event==="USER_UPDATED"||!PR){await loadProfile();}}
     else{PR=null;document.getElementById("locTag").classList.remove("on");}
     updateBanner();renderAccount();if(CU)loadSavedPlaces();
   });
 }
-
-function showPasswordResetForm(){
-  const el=document.getElementById("authWrap");
-  if(!el)return;
-  el.innerHTML=`<div class="auth-wrap"><div class="auth-logo"><div class="auth-logo-icon" style="background:var(--p)">${LOGO_IMG_TAG}</div><span class="auth-logo-name">NEPA<em>Watch</em></span></div><h2>Set new password</h2><p class="auth-sub">Choose a strong new password for your account.</p><div class="msg err" id="authErr"></div><div class="msg ok" id="authOk"></div><div class="fld"><label>New Password</label><input id="inp-newpass" type="password" placeholder="Min 6 characters" autocomplete="new-password"><button type="button" class="pw-eye-btn" onclick="appTogglePw(this)" tabindex="-1"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M1 8C2.5 5 5 3.5 8 3.5C11 3.5 13.5 5 15 8C13.5 11 11 12.5 8 12.5C5 12.5 2.5 11 1 8Z" stroke="currentColor" stroke-width="1.3"/><circle cx="8" cy="8" r="2.2" stroke="currentColor" stroke-width="1.3"/></svg></button></div><div class="fld"><label>Confirm Password</label><input id="inp-confpass" type="password" placeholder="Repeat password" autocomplete="new-password"><button type="button" class="pw-eye-btn" onclick="appTogglePw(this)" tabindex="-1"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M1 8C2.5 5 5 3.5 8 3.5C11 3.5 13.5 5 15 8C13.5 11 11 12.5 8 12.5C5 12.5 2.5 11 1 8Z" stroke="currentColor" stroke-width="1.3"/><circle cx="8" cy="8" r="2.2" stroke="currentColor" stroke-width="1.3"/></svg></button></div><button class="auth-btn" id="authBtn" onclick="doPasswordReset()">Update Password</button></div>`;
-  setTimeout(()=>document.getElementById("inp-newpass")?.focus(),80);
-}
+function _resetFormHTML(){return`<div class="auth-wrap"><div class="auth-logo"><div class="auth-logo-icon" style="background:var(--p)">${LOGO_IMG_TAG}</div><span class="auth-logo-name">NEPA<em>Watch</em></span></div><h2>Set new password</h2><p class="auth-sub">Choose a strong new password for your account.</p><div class="msg err" id="authErr"></div><div class="msg ok" id="authOk"></div><div class="fld"><label>New Password</label><input id="inp-newpass" type="password" placeholder="Min 6 characters" autocomplete="new-password"><button type="button" class="pw-eye-btn" onclick="appTogglePw(this)" tabindex="-1"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M1 8C2.5 5 5 3.5 8 3.5C11 3.5 13.5 5 15 8C13.5 11 11 12.5 8 12.5C5 12.5 2.5 11 1 8Z" stroke="currentColor" stroke-width="1.3"/><circle cx="8" cy="8" r="2.2" stroke="currentColor" stroke-width="1.3"/></svg></button></div><div class="fld"><label>Confirm Password</label><input id="inp-confpass" type="password" placeholder="Repeat password" autocomplete="new-password"><button type="button" class="pw-eye-btn" onclick="appTogglePw(this)" tabindex="-1"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M1 8C2.5 5 5 3.5 8 3.5C11 3.5 13.5 5 15 8C13.5 11 11 12.5 8 12.5C5 12.5 2.5 11 1 8Z" stroke="currentColor" stroke-width="1.3"/><circle cx="8" cy="8" r="2.2" stroke="currentColor" stroke-width="1.3"/></svg></button></div><button class="auth-btn" id="authBtn" onclick="doPasswordReset()">Update Password</button></div>`;}
 
 async function loadProfile(){if(!CU)return;try{const{data,error}=await sb.from("profiles").select("*").eq("id",CU.id).single();if(!error&&data){PR=data;if(PR.location_id){document.getElementById("locTag").classList.add("on");document.getElementById("locLabel").textContent=PR.location_label||PR.location_name;}}else if(error&&error.code==="PGRST116"){const name=CU.user_metadata?.name||CU.email.split("@")[0];await sb.from("profiles").upsert({id:CU.id,email:CU.email,name,notif_on:true},{onConflict:"id"});PR={id:CU.id,email:CU.email,name,notif_on:true,location_id:null};}}catch(e){}}
 
@@ -2251,34 +2241,31 @@ async function toggleNotif(){if(!CU||!PR)return;const next=!PR.notif_on;try{awai
 async function loadCustomLocations(){try{const{data,error}=await sb.from("custom_locations").select("*").order("created_at",{ascending:true});if(!error&&data&&data.length){data.forEach(loc=>{if(!LOCS.find(l=>l.id===loc.id)){LOCS.unshift({id:loc.id,name:loc.street_name,area:loc.area_name,street:loc.street_name,label:`${loc.street_name} — ${loc.area_name}`,custom:true});}});buildFilter();}}catch(e){}}
 async function submitCustomLocation(street,area){if(!CU)return null;try{const{data,error}=await sb.from("custom_locations").insert({street_name:street,area_name:area}).select().single();if(error)throw error;const newLoc={id:data.id,name:street,area,street,label:`${street} — ${area}`,custom:true};if(!LOCS.find(l=>l.id===data.id))LOCS.unshift(newLoc);toast(`"${data.street_name}" added for everyone!`,"ok");return newLoc;}catch(e){toast(e.message||"Could not add location","err");return null;}}
 
-async function loadReports(){try{
-  const todayMidnight=new Date();todayMidnight.setHours(0,0,0,0);
-  const [{data:todayData,error:e1},{data:recentData,error:e2}]=await Promise.all([
-    sb.from("reports").select("id,user_id,location_name,location_area,type,confirms,created_at").gte("created_at",todayMidnight.toISOString()).order("created_at",{ascending:false}).limit(500),
-    sb.from("reports").select("id,user_id,location_name,location_area,type,confirms,created_at").order("created_at",{ascending:false}).limit(100)
-  ]);
-  if(e1&&e2)throw e1;
-  const mapRow=r=>({id:r.id,name:r.location_name,area:r.location_area,type:r.type,time:new Date(r.created_at).getTime(),confirms:r.confirms||1,userId:r.user_id,isAI:r.user_id===AI_USER_ID});
-  const todayRows=(todayData||[]).map(mapRow);
-  const recentRows=(recentData||[]).map(mapRow);
-  const seen=new Set();const merged=[];
-  [...todayRows,...recentRows].forEach(r=>{if(!seen.has(r.id)){seen.add(r.id);merged.push(r);}});
-  merged.sort((a,b)=>b.time-a.time);
-  const pending=reports.filter(r=>String(r.id).startsWith("local-")||String(r.id).startsWith("ai-"));
-  reports=[...pending,...merged];
-}catch(e){if(reports.length===0)seedFallback();}render();if(_nearbyAreas.length)renderNearbyDashboard();}
+async function loadReports(){
+  try{
+    const todayStart=new Date();todayStart.setHours(0,0,0,0);
+    const[{data:recentData,error:e1},{data:todayData,error:e2}]=await Promise.all([
+      sb.from("reports").select("id,user_id,location_name,location_area,type,confirms,created_at").order("created_at",{ascending:false}).limit(100),
+      sb.from("reports").select("id,user_id,location_name,location_area,type,confirms,created_at").gte("created_at",todayStart.toISOString()).order("created_at",{ascending:false}).limit(500)
+    ]);
+    if(e1&&e2)throw e1;
+    const mapRow=r=>({id:r.id,name:r.location_name,area:r.location_area,type:r.type,time:new Date(r.created_at).getTime(),confirms:r.confirms||1,userId:r.user_id,isAI:r.user_id===AI_USER_ID});
+    const seen=new Set();const merged=[];
+    [...(todayData||[]).map(mapRow),...(recentData||[]).map(mapRow)].forEach(r=>{if(!seen.has(r.id)){seen.add(r.id);merged.push(r);}});
+    merged.sort((a,b)=>b.time-a.time);
+    const pending=reports.filter(r=>String(r.id).startsWith("local-")||String(r.id).startsWith("ai-"));
+    reports=[...pending,...merged];
+  }catch(e){if(reports.length===0)seedFallback();}
+  render();if(_nearbyAreas.length)renderNearbyDashboard();
+}
 
 async function pollReports(){try{const{data,error}=await sb.from("reports").select("id,user_id,location_name,location_area,type,confirms,created_at").order("created_at",{ascending:false}).limit(100);if(error||!data)return;const dbReports=data.map(r=>({id:r.id,name:r.location_name,area:r.location_area,type:r.type,time:new Date(r.created_at).getTime(),confirms:r.confirms||1,userId:r.user_id,isAI:r.user_id===AI_USER_ID}));const pending=reports.filter(r=>String(r.id).startsWith("local-")||String(r.id).startsWith("ai-"));const newList=[...pending,...dbReports];const oldIds=reports.filter(r=>!String(r.id).startsWith("local-")&&!String(r.id).startsWith("ai-")).map(r=>r.id+r.confirms).join(",");const newIds=dbReports.map(r=>r.id+r.confirms).join(",");if(oldIds!==newIds){reports=newList;render();if(_nearbyAreas.length)renderNearbyDashboard();renderSavedPlacesHome();renderMyPlacesList();}}catch(e){}}
 
 function startPolling(){
   if(_pollTimer)clearInterval(_pollTimer);
-  // Poll every 5s for near-real-time feel even if WebSocket drops
   _pollTimer=setInterval(pollReports,5000);
-  // Also reload full data every 60s to catch any missed updates
   if(window._fullSyncTimer)clearInterval(window._fullSyncTimer);
-  window._fullSyncTimer=setInterval(()=>{
-    loadReports().catch(()=>{});
-  },60000);
+  window._fullSyncTimer=setInterval(()=>{loadReports().catch(()=>{});},60000);
 }
 
 async function pushReport(loc,type){if(!CU){toast("Sign in to submit a report","info");go("account");return;}const tid="local-"+Date.now();reports.unshift({id:tid,name:loc.name,area:loc.area,type,time:Date.now(),confirms:1});if(reports.length>100)reports.pop();render();try{const{data,error}=await sb.from("reports").insert({user_id:CU.id,location_name:loc.name,location_area:loc.area,type,confirms:1}).select().single();if(error){const idx=reports.findIndex(r=>r.id===tid);if(idx!==-1)reports.splice(idx,1);render();toast(`Could not save report: ${error.message}`,"err");return;}const idx=reports.findIndex(r=>r.id===tid);if(idx!==-1)reports[idx]={id:data.id,name:data.location_name,area:data.location_area,type:data.type,time:new Date(data.created_at).getTime(),confirms:data.confirms||1,userId:data.user_id};render();toast(type==="out"?`Outage reported — ${loc.name}`:`Power restored — ${loc.name}`,type==="out"?"err":"ok");if(PR&&!PR.location_id)await saveLocation(loc);await sendAreaAlerts(loc.name,loc.area,type);setTimeout(loadReports,2000);}catch(e){const idx=reports.findIndex(r=>r.id===tid);if(idx!==-1)reports.splice(idx,1);render();toast("Could not save report — check your connection","err");}}
@@ -2417,14 +2404,13 @@ function openModal(type){mType=type;mSel=null;document.getElementById("shTitle")
 function closeModal(){document.getElementById("repOverlay").classList.remove("open");mType=null;mSel=null;}
 function filterList(){const q=document.getElementById("mSearch").value.trim().toLowerCase();if(!q){renderMList(LOCS.slice(0,60));return;}renderMList(LOCS.filter(l=>l.label.toLowerCase().includes(q)).slice(0,50));}
 function renderMList(locs){const el=document.getElementById("mList");if(!locs.length){el.innerHTML=`<div class="mopt" style="color:var(--ink3);cursor:default;justify-content:center;padding:18px">No results found</div>`;return;}el.innerHTML=locs.map(l=>`<div class="mopt ${mSel?.id===l.id?"sel":""}" onclick="selectLoc('${l.id}')"><span>${l.name}</span><span class="mopt-sub">${l.street?l.area:"Area"}</span></div>`).join("");}
-function normalizeLocName(name){
-  if(!name)return name;
-  if(/unilag main gate/i.test(name))return"UNILAG";
-  if(/university of lagos main gate/i.test(name))return"UNILAG";
-  return name;
+function _normName(n){
+  if(!n)return n;
+  if(/unilag\s+main\s+gate/i.test(n)||/university of lagos main gate/i.test(n))return"UNILAG";
+  return n;
 }
 function selectLoc(id){mSel=LOCS.find(l=>l.id===id);
-  if(mSel&&mSel.name)mSel={...mSel,name:normalizeLocName(mSel.name)};const q=document.getElementById("mSearch").value.trim().toLowerCase();renderMList(q?LOCS.filter(l=>l.label.toLowerCase().includes(q)).slice(0,50):LOCS.slice(0,60));const btn=document.getElementById("mBtn");if(mSel){btn.disabled=false;btn.textContent=mType==="out"?`Report — ${mSel.name}`:`Restored — ${mSel.name}`;}}
+  if(mSel)mSel={...mSel,name:_normName(mSel.name),label:_normName(mSel.name)+(mSel.area?" — "+mSel.area:"")};const q=document.getElementById("mSearch").value.trim().toLowerCase();renderMList(q?LOCS.filter(l=>l.label.toLowerCase().includes(q)).slice(0,50):LOCS.slice(0,60));const btn=document.getElementById("mBtn");if(mSel){btn.disabled=false;btn.textContent=mType==="out"?`Report — ${mSel.name}`:`Restored — ${mSel.name}`;}}
 async function submitReport(){if(!mSel){toast("Please select a location","info");return;}const loc=mSel,type=mType;closeModal();await pushReport(loc,type);}
 
 function buildFilter(){const sel=document.getElementById("areaFilter");if(!sel)return;const areas=new Set();LOCS.forEach(l=>areas.add(l.area));sel.innerHTML=`<option value="">All Lagos areas</option>`;[...areas].sort().forEach(a=>{const o=document.createElement("option");o.value=a;o.textContent=a;sel.appendChild(o);});}
@@ -2442,12 +2428,22 @@ function renderStats(){const today=todayReports();const out=new Set(),bck=new Se
 function animateNum(id,target){const el=document.getElementById(id);const current=parseInt(el.textContent)||0;if(current===target){el.textContent=target;return;}let start=null;const dur=400;const step=ts=>{if(!start)start=ts;const p=Math.min((ts-start)/dur,1);el.textContent=Math.round(current+(target-current)*p);if(p<1)requestAnimationFrame(step);};requestAnimationFrame(step);}
 
 /* ━━━ PATCH 1: renderFeed — AI badge on AI-generated reports + hide own confirm button ━━━ */
+function setFeedFilter(f){
+  feedFilter=f;
+  document.getElementById("ftToday").classList.toggle("active",f==="today");
+  document.getElementById("ftAll").classList.toggle("active",f==="all");
+  renderFeed("liveFeed");
+}
 function renderFeed(id="liveFeed", aF=null){
   const el=document.getElementById(id);if(!el)return;
   const fa=aF!==null?aF:(id==="liveFeed"?filterArea:null);
-  const data=fa?reports.filter(r=>r.area===fa):reports;
-  if(!data.length){el.innerHTML=`<div class="empty"><div class="empty-ico">${IC.bck}</div><p>${fa?`No reports for ${fa} yet.`:"No reports yet — be the first to report!"}</p></div>`;return;}
-  el.innerHTML=data.slice(0,16).map((r,i)=>{
+  let data=fa?reports.filter(r=>r.area===fa):reports;
+  if(id==="liveFeed"&&feedFilter==="today"){
+    const midnight=new Date();midnight.setHours(0,0,0,0);
+    data=data.filter(r=>r.time>=midnight.getTime());
+  }
+  if(!data.length){el.innerHTML=`<div class="empty"><div class="empty-ico">${IC.bck}</div><p>${id==="liveFeed"&&feedFilter==="today"?"No reports today yet — be the first!":fa?`No reports for ${fa} yet.`:"No reports yet — be the first to report!"}</p></div>`;return;}
+  el.innerHTML=data.slice(0,40).map((r,i)=>{
     const isAI=r.isAI||r.userId===AI_USER_ID;
     const aiBadge=isAI?`<div class="fc-ai-badge">${IC.ai}&nbsp;NEPAWatch AI</div>`:'';
     // Hide "Same" button if this report belongs to the current user
@@ -2535,7 +2531,7 @@ const LOGO_IMG_TAG=`<img src="logo.jpg" alt="NEPAWatch" style="width:100%;height
 
 function renderAuthForm(el,mode){el.innerHTML=`<div class="auth-wrap"><div class="auth-logo"><div class="auth-logo-icon">${LOGO_IMG_TAG}</div><span class="auth-logo-name">NEPA<em>Watch</em></span></div><h2>${mode==="login"?"Welcome back":mode==="forgot"?"Reset password":"Join NEPAWatch"}</h2><p class="auth-sub">${mode==="login"?"Sign in to report outages and get email alerts.":mode==="forgot"?"Enter your email to receive a password reset link.":"Get free real-time power alerts for your Lagos street."}</p><div class="msg err" id="authErr"></div><div class="msg ok" id="authOk"></div>${mode==="register"?`<div class="fld"><label>Your Name</label><input id="inp-name" type="text" placeholder="e.g. Chidi" autocomplete="name"></div>`:""}<div class="fld"><label>Email</label><input id="inp-email" type="email" placeholder="you@example.com" autocomplete="email"></div>${mode!=="forgot"?`<div class="fld"><label>Password</label><input id="inp-pass" type="password" placeholder="Min 6 characters" autocomplete="${mode==="login"?"current-password":"new-password"}"><button type="button" class="pw-eye-btn" onclick="appTogglePw(this)" tabindex="-1"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M1 8C2.5 5 5 3.5 8 3.5C11 3.5 13.5 5 15 8C13.5 11 11 12.5 8 12.5C5 12.5 2.5 11 1 8Z" stroke="currentColor" stroke-width="1.3"/><circle cx="8" cy="8" r="2.2" stroke="currentColor" stroke-width="1.3"/></svg></button></div>`:""}<button class="auth-btn" id="authBtn" onclick="handleAuth('${mode}')">${mode==="login"?"Sign In":mode==="forgot"?"Send Reset Link":"Create Account"}</button><div class="auth-switch">${mode==="login"?`No account? <a onclick="renderAuthForm(document.getElementById('authWrap'),'register')">Register free</a><br><span style="display:block;margin-top:8px"><a onclick="renderAuthForm(document.getElementById('authWrap'),'forgot')">Forgot password?</a></span>`:mode==="register"?`Have an account? <a onclick="renderAuthForm(document.getElementById('authWrap'),'login')">Sign in</a>`:`Remember it? <a onclick="renderAuthForm(document.getElementById('authWrap'),'login')">Back to sign in</a>`}</div></div>`;setTimeout(()=>{el.querySelectorAll("input").forEach(inp=>inp.addEventListener("keydown",e=>{if(e.key==="Enter")handleAuth(mode);}));document.getElementById("inp-email")?.focus();},80);}
 
-async function handleAuth(mode){const errEl=document.getElementById("authErr"),okEl=document.getElementById("authOk"),btn=document.getElementById("authBtn");const email=(document.getElementById("inp-email")?.value||"").trim();const pass=document.getElementById("inp-pass")?.value||"";const name=(document.getElementById("inp-name")?.value||"").trim();errEl.classList.remove("show");okEl.classList.remove("show");if(!email||!email.includes("@")||!email.includes(".")){errEl.textContent="Please enter a valid email address.";errEl.classList.add("show");return;}if(mode!=="forgot"&&pass.length<6){errEl.textContent="Password must be at least 6 characters.";errEl.classList.add("show");return;}if(mode==="register"&&!name){errEl.textContent="Please enter your name.";errEl.classList.add("show");return;}btn.innerHTML=`${mode==="login"?"Signing in":mode==="forgot"?"Sending link":"Creating account"}&nbsp;<span class="spin"></span>`;btn.disabled=true;try{if(mode==="register"){await doRegister(name,email,pass);okEl.textContent="Account created! Check your email to confirm, then sign in.";okEl.classList.add("show");btn.innerHTML="Create Account";btn.disabled=false;setTimeout(()=>renderAuthForm(document.getElementById("authWrap"),"login"),2800);}else if(mode==="forgot"){await sb.auth.resetPasswordForEmail(email,{redirectTo:window.location.origin+window.location.pathname+"?mode=reset"});okEl.textContent="Reset link sent! Check your inbox (and spam folder).";okEl.classList.add("show");btn.innerHTML="Send Reset Link";btn.disabled=false;}else{await doLogin(email,pass);}}catch(e){let msg=e.message||"Something went wrong.";if(msg.toLowerCase().includes("invalid login")||msg.toLowerCase().includes("invalid credentials"))msg="Incorrect email or password. Please try again.";if(msg.toLowerCase().includes("email not confirmed"))msg="Please confirm your email first — check your inbox.";if(msg.toLowerCase().includes("already registered")||msg.toLowerCase().includes("user already registered"))msg="This email is already registered. Please sign in instead.";if(msg==="RATE_LIMIT"||msg.toLowerCase().includes("rate limit"))msg="Too many sign-up attempts. Please wait about 1 hour before trying again.";errEl.textContent=msg;errEl.classList.add("show");btn.innerHTML=mode==="login"?"Sign In":mode==="forgot"?"Send Reset Link":"Create Account";btn.disabled=false;}}
+async function handleAuth(mode){const errEl=document.getElementById("authErr"),okEl=document.getElementById("authOk"),btn=document.getElementById("authBtn");const email=(document.getElementById("inp-email")?.value||"").trim();const pass=document.getElementById("inp-pass")?.value||"";const name=(document.getElementById("inp-name")?.value||"").trim();errEl.classList.remove("show");okEl.classList.remove("show");if(!email||!email.includes("@")||!email.includes(".")){errEl.textContent="Please enter a valid email address.";errEl.classList.add("show");return;}if(mode!=="forgot"&&pass.length<6){errEl.textContent="Password must be at least 6 characters.";errEl.classList.add("show");return;}if(mode==="register"&&!name){errEl.textContent="Please enter your name.";errEl.classList.add("show");return;}btn.innerHTML=`${mode==="login"?"Signing in":mode==="forgot"?"Sending link":"Creating account"}&nbsp;<span class="spin"></span>`;btn.disabled=true;try{if(mode==="register"){await doRegister(name,email,pass);okEl.textContent="Account created! Check your email to confirm, then sign in.";okEl.classList.add("show");btn.innerHTML="Create Account";btn.disabled=false;setTimeout(()=>renderAuthForm(document.getElementById("authWrap"),"login"),2800);}else if(mode==="forgot"){await sb.auth.resetPasswordForEmail(email,{redirectTo:APP_URL+"?mode=reset"});okEl.textContent="Reset link sent! Check your inbox (and spam folder).";okEl.classList.add("show");btn.innerHTML="Send Reset Link";btn.disabled=false;}else{await doLogin(email,pass);}}catch(e){let msg=e.message||"Something went wrong.";if(msg.toLowerCase().includes("invalid login")||msg.toLowerCase().includes("invalid credentials"))msg="Incorrect email or password. Please try again.";if(msg.toLowerCase().includes("email not confirmed"))msg="Please confirm your email first — check your inbox.";if(msg.toLowerCase().includes("already registered")||msg.toLowerCase().includes("user already registered"))msg="This email is already registered. Please sign in instead.";if(msg==="RATE_LIMIT"||msg.toLowerCase().includes("rate limit"))msg="Too many sign-up attempts. Please wait about 1 hour before trying again.";errEl.textContent=msg;errEl.classList.add("show");btn.innerHTML=mode==="login"?"Sign In":mode==="forgot"?"Send Reset Link":"Create Account";btn.disabled=false;}}
 
 function renderProfile(el){const locText=PR.location_label||PR.location_name||"Not set";const notifOn=PR.notif_on!==false;const savedCount=savedPlaces.length;el.innerHTML=`<div class="ph"><h2>Account</h2><p>Manage your alerts and locations</p></div><div class="profile-card"><div class="pc-top"><div class="pc-av">${(PR.name||"?")[0].toUpperCase()}</div><div><div class="pc-name">${PR.name||"User"}</div><div class="pc-email">${PR.email||CU.email}</div></div></div><div class="pc-row"><div class="pc-rl-wrap"><div class="pc-ico"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1A3 3 0 0 0 4 4C4 7.5 7 12 7 12S10 7.5 10 4A3 3 0 0 0 7 1z" stroke="currentColor" stroke-width="1.3"/><circle cx="7" cy="4" r="1.2" fill="currentColor"/></svg></div><div><div class="pc-rl">Watching area</div><div class="pc-rs">${locText}</div></div></div>${PR.location_id?`<button onclick="clearLoc()" style="font-size:.65rem;font-weight:600;color:var(--ink3);background:none;border:1px solid var(--bd);border-radius:6px;padding:4px 9px;cursor:pointer">Clear</button>`:""}</div><div class="pc-row"><div class="pc-rl-wrap"><div class="pc-ico"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M1.5 7L7 1.5L12.5 7V12.5H9V9H5V12.5H1.5V7Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg></div><div><div class="pc-rl">Saved Places</div><div class="pc-rs">${savedCount} place${savedCount!==1?"s":""} saved</div></div></div><button onclick="go('myarea')" style="font-size:.65rem;font-weight:600;color:var(--p);background:var(--pp);border:1px solid var(--pb);border-radius:6px;padding:4px 9px;cursor:pointer">Manage</button></div><div class="pc-row"><div class="pc-rl-wrap"><div class="pc-ico"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="1" y="2.5" width="12" height="9" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M1 5L7 8.5L13 5" stroke="currentColor" stroke-width="1.3"/></svg></div><div><div class="pc-rl">Email Alerts</div><div class="pc-rs">${notifOn?"On — receiving alerts":"Off — tap to enable"}</div></div></div><button class="toggle ${notifOn?"on":""}" id="notifToggle" onclick="toggleNotif()"></button></div><div class="pc-row"><div class="pc-rl-wrap"><div class="pc-ico"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="5" r="3" stroke="currentColor" stroke-width="1.3"/><path d="M1.5 13c0-3 2.5-4.5 5.5-4.5s5.5 1.5 5.5 4.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></div><div><div class="pc-rl">Alert address</div><div class="pc-rs">${CU.email}</div></div></div></div>${emailLog.length?`<div class="email-log"><div class="email-log-hd">Recent Alerts Sent</div>${emailLog.map(e=>`<div class="ei"><div class="ei-s">${e.subject}</div><div class="ei-m">${e.to} &middot; ${e.time}</div></div>`).join("")}</div>`:""}<button class="logout-btn" onclick="doLogout()">Sign Out</button></div>`;}
 
@@ -2602,11 +2598,12 @@ window.addEventListener("load",async()=>{
     AIReporter.start();
   }
 
-  // Password reset: handled via PASSWORD_RECOVERY auth event in initAuth
-  // Fallback: if URL params indicate reset and no auth event fires
   if(isReset){
     go("account");
-    setTimeout(()=>showPasswordResetForm(),600);
+    setTimeout(()=>{
+      const el=document.getElementById("authWrap");
+      el.innerHTML=`<div class="auth-wrap"><div class="auth-logo"><div class="auth-logo-icon" style="background:var(--p)">${LOGO_IMG_TAG}</div><span class="auth-logo-name">NEPA<em>Watch</em></span></div><h2>Set new password</h2><p class="auth-sub">Choose a strong new password for your account.</p><div class="msg err" id="authErr"></div><div class="msg ok" id="authOk"></div><div class="fld"><label>New Password</label><input id="inp-newpass" type="password" placeholder="Min 6 characters" autocomplete="new-password"><button type="button" class="pw-eye-btn" onclick="appTogglePw(this)" tabindex="-1"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M1 8C2.5 5 5 3.5 8 3.5C11 3.5 13.5 5 15 8C13.5 11 11 12.5 8 12.5C5 12.5 2.5 11 1 8Z" stroke="currentColor" stroke-width="1.3"/><circle cx="8" cy="8" r="2.2" stroke="currentColor" stroke-width="1.3"/></svg></button></div><div class="fld"><label>Confirm Password</label><input id="inp-confpass" type="password" placeholder="Repeat password" autocomplete="new-password"><button type="button" class="pw-eye-btn" onclick="appTogglePw(this)" tabindex="-1"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M1 8C2.5 5 5 3.5 8 3.5C11 3.5 13.5 5 15 8C13.5 11 11 12.5 8 12.5C5 12.5 2.5 11 1 8Z" stroke="currentColor" stroke-width="1.3"/><circle cx="8" cy="8" r="2.2" stroke="currentColor" stroke-width="1.3"/></svg></button></div><button class="auth-btn" id="authBtn" onclick="doPasswordReset()">Update Password</button></div>`;
+    },500);
   }
 });
 
