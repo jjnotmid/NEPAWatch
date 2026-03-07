@@ -2631,7 +2631,7 @@ async function doPasswordReset(){
       if(typeof AIReporter!=="undefined"){await AIReporter.loadHistory();AIReporter.start();}
       go("account");
       renderAuthForm(document.getElementById("authWrap"),"login");
-    },2200);
+    },3500);
   };
   try{
     const{error}=await sb.auth.updateUser({password:np});
