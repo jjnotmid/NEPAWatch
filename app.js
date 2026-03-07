@@ -2082,7 +2082,7 @@ function buildBaseLocs(){
 }
 buildBaseLocs();
 
-let reports=[],filterArea="",feedFilter="today",mType=null,mSel=null,CU=null,PR=null,emailLog=[];
+let reports=[],filterArea="",feedFilter="today",mType=null,mSel=null,CU=null,PR=null,emailLog=[],_inResetFlow=false;
 const _alertCooldowns={};
 const ALERT_COOLDOWN_MS=5*60*1000;
 let savedPlaces=[];
@@ -2123,16 +2123,7 @@ async function initAuth(){
   try{const{data:{session}}=await sb.auth.getSession();CU=session?.user||null;if(CU)await loadProfile();}catch(e){}
   updateBanner();
   sb.auth.onAuthStateChange(async(event,session)=>{
-    if(event==="PASSWORD_RECOVERY"){
-      // Clear the hash so refresh doesn't re-trigger this
-      window.history.replaceState({},document.title,window.location.pathname);
-      go("account");
-      setTimeout(()=>{
-        const el=document.getElementById("authWrap");
-        if(el)el.innerHTML=_resetFormHTML();
-      },300);
-      return;
-    }
+    if(_inResetFlow)return; // never interfere with the reset form
     CU=session?.user||null;
     if(CU){if(event==="SIGNED_IN"||event==="USER_UPDATED"||!PR){await loadProfile();}}
     else{PR=null;document.getElementById("locTag").classList.remove("on");}
@@ -2580,23 +2571,18 @@ window.addEventListener("load",async()=>{
   document.getElementById("repOverlay").addEventListener("click",e=>{if(e.target===document.getElementById("repOverlay"))closeModal();});
   document.getElementById("placeOverlay").addEventListener("click",e=>{if(e.target===document.getElementById("placeOverlay"))closePlaceModal();});
 
-  // Check for recovery token BEFORE getSessionFromUrl clears the hash
+  // Detect recovery token BEFORE getSessionFromUrl clears the hash
   const urlParams=new URLSearchParams(window.location.search);
   const hashParams=new URLSearchParams(window.location.hash.replace("#",""));
-  let isReset=(urlParams.get("mode")==="reset")||(hashParams.get("type")==="recovery");
+  const isReset=(urlParams.get("mode")==="reset")||(hashParams.get("type")==="recovery");
 
-  // Exchange the recovery token — this clears the hash as a side effect
-  if(hashParams.get("type")==="recovery"){
-    try{
-      const{data}=await sb.auth.getSessionFromUrl({storeSession:true});
-      // Double-confirm it's a recovery session
-      if(data?.session)isReset=true;
-    }catch(e){}
-  }
-
-  // If this is a password reset, show the form immediately and skip normal boot
   if(isReset){
+    _inResetFlow=true; // block onAuthStateChange from interfering
+    // Exchange the token so we have a session for updateUser()
+    try{await sb.auth.getSessionFromUrl({storeSession:true});}catch(e){}
+    // Clean URL immediately
     window.history.replaceState({},document.title,window.location.pathname);
+    // Light boot — just enough for the app to be usable behind the form
     await Promise.all([loadReports(),loadCustomLocations()]);
     startPolling();
     go("account");
@@ -2631,12 +2617,21 @@ async function doPasswordReset(){
   if(np!==cp){errEl.textContent="Passwords do not match.";errEl.classList.add("show");return;}
   btn.innerHTML='Updating&nbsp;<span class="spin"></span>';btn.disabled=true;
   const _doSuccess=async()=>{
-    window.history.replaceState({},document.title,window.location.pathname);
+    // Sign out the recovery session cleanly
     await sb.auth.signOut().catch(()=>{});
     CU=null;PR=null;
+    // Show success message
     const el=document.getElementById("authWrap");
-    if(el)el.innerHTML='<div class="auth-wrap"><div class="msg ok show" style="margin-bottom:24px"><strong>Password updated!</strong> Please sign in with your new password.</div></div>';
-    setTimeout(()=>{go("account");renderAuthForm(document.getElementById("authWrap"),"login");},2200);
+    if(el)el.innerHTML='<div class="auth-wrap"><div class="msg ok show" style="margin-bottom:24px"><strong>✓ Password updated!</strong><br>Please sign in with your new password.</div></div>';
+    // After 2s: clear reset flag, do full proper boot, show login form
+    setTimeout(async()=>{
+      _inResetFlow=false;
+      await initAuth();
+      loadUserCount();updateBanner();startRealtime();renderMyArea();
+      if(typeof AIReporter!=="undefined"){await AIReporter.loadHistory();AIReporter.start();}
+      go("account");
+      renderAuthForm(document.getElementById("authWrap"),"login");
+    },2200);
   };
   try{
     const{error}=await sb.auth.updateUser({password:np});
