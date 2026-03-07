@@ -2031,7 +2031,6 @@ const AREA_COORDS = {
   "Lagos-Ibadan Expressway":{lat:6.6500,lng:3.3700},
 
   // ── AKOKA / UNILAG ───────────────────────────────────────────────
-  "Akoka":{lat:6.5183,lng:3.3855},
   "UNILAG":{lat:6.5183,lng:3.3855},
   // UNILAG Main/Back Gate removed — "UNILAG" entry covers these coords
   "FCE Akoka":{lat:6.5209,lng:3.3812},
