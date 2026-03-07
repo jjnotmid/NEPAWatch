@@ -891,6 +891,7 @@ const LAGOS = {
     "Masha Hospital", "Randle Hospital", "Akerele Hospital", "Lawanson Hospital"
   ],
   "Yaba": [
+    "University of Lagos", "UNILAG", "UNILAG Main Gate", "UNILAG Back Gate", "Unilag Road",
     "Herbert Macaulay Way", "Akoka Road", "Iwaya Road", "Sabo Road Yaba",
     "Jibowu Yaba", "Tejuosho Road", "University of Lagos Road", "Makoko Road",
     "Yaba", "Herbert Macaulay", "Akoka", "Iwaya", "Sabo",
@@ -1707,8 +1708,7 @@ const LAGOS = {
   ],
 
   "Akoka": [
-    "University of Lagos", "UNILAG", "UNILAG Main Gate", "UNILAG Back Gate",
-    "Unilag Road", "Jibowu Street Akoka", "Iwaya Road", "Abule Ijesha",
+    "Jibowu Street Akoka", "Iwaya Road", "Abule Ijesha",
     "Akoka Market", "FCE Akoka", "College of Education Akoka",
     "Sabo Road Akoka", "Pedro Road", "Babs Animashaun Road"
   ],
@@ -2120,7 +2120,35 @@ function initTheme(){let saved;try{saved=localStorage.getItem("nw-theme");}catch
 
 function toast(msg,cls="ok"){const t=document.getElementById("toast");const ico={ok:IC.ok,err:IC.err,info:IC.inf}[cls]||"";t.innerHTML=ico+`<span>${msg}</span>`;t.className=`toast ${cls} show`;clearTimeout(t._tid);t._tid=setTimeout(()=>t.className="toast",cls==="err"?7000:3600);}
 
-async function initAuth(){try{const{data:{session}}=await sb.auth.getSession();CU=session?.user||null;if(CU)await loadProfile();}catch(e){}updateBanner();sb.auth.onAuthStateChange(async(event,session)=>{CU=session?.user||null;if(CU){if(event==="SIGNED_IN"||event==="USER_UPDATED"||!PR){await loadProfile();}}else{PR=null;document.getElementById("locTag").classList.remove("on");}updateBanner();renderAccount();if(CU)loadSavedPlaces();});}
+async function initAuth(){
+  // Exchange hash token if present (handles email confirmation + password recovery links)
+  try{
+    if(window.location.hash&&window.location.hash.includes("access_token")){
+      await sb.auth.getSessionFromUrl({storeSession:true}).catch(()=>{});
+    }
+  }catch(e){}
+  try{const{data:{session}}=await sb.auth.getSession();CU=session?.user||null;if(CU)await loadProfile();}catch(e){}
+  updateBanner();
+  sb.auth.onAuthStateChange(async(event,session)=>{
+    CU=session?.user||null;
+    if(event==="PASSWORD_RECOVERY"){
+      // User clicked the reset link — show password reset form
+      go("account");
+      setTimeout(()=>showPasswordResetForm(),300);
+      return;
+    }
+    if(CU){if(event==="SIGNED_IN"||event==="USER_UPDATED"||!PR){await loadProfile();}}
+    else{PR=null;document.getElementById("locTag").classList.remove("on");}
+    updateBanner();renderAccount();if(CU)loadSavedPlaces();
+  });
+}
+
+function showPasswordResetForm(){
+  const el=document.getElementById("authWrap");
+  if(!el)return;
+  el.innerHTML=`<div class="auth-wrap"><div class="auth-logo"><div class="auth-logo-icon" style="background:var(--p)">${LOGO_IMG_TAG}</div><span class="auth-logo-name">NEPA<em>Watch</em></span></div><h2>Set new password</h2><p class="auth-sub">Choose a strong new password for your account.</p><div class="msg err" id="authErr"></div><div class="msg ok" id="authOk"></div><div class="fld"><label>New Password</label><input id="inp-newpass" type="password" placeholder="Min 6 characters" autocomplete="new-password"><button type="button" class="pw-eye-btn" onclick="appTogglePw(this)" tabindex="-1"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M1 8C2.5 5 5 3.5 8 3.5C11 3.5 13.5 5 15 8C13.5 11 11 12.5 8 12.5C5 12.5 2.5 11 1 8Z" stroke="currentColor" stroke-width="1.3"/><circle cx="8" cy="8" r="2.2" stroke="currentColor" stroke-width="1.3"/></svg></button></div><div class="fld"><label>Confirm Password</label><input id="inp-confpass" type="password" placeholder="Repeat password" autocomplete="new-password"><button type="button" class="pw-eye-btn" onclick="appTogglePw(this)" tabindex="-1"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M1 8C2.5 5 5 3.5 8 3.5C11 3.5 13.5 5 15 8C13.5 11 11 12.5 8 12.5C5 12.5 2.5 11 1 8Z" stroke="currentColor" stroke-width="1.3"/><circle cx="8" cy="8" r="2.2" stroke="currentColor" stroke-width="1.3"/></svg></button></div><button class="auth-btn" id="authBtn" onclick="doPasswordReset()">Update Password</button></div>`;
+  setTimeout(()=>document.getElementById("inp-newpass")?.focus(),80);
+}
 
 async function loadProfile(){if(!CU)return;try{const{data,error}=await sb.from("profiles").select("*").eq("id",CU.id).single();if(!error&&data){PR=data;if(PR.location_id){document.getElementById("locTag").classList.add("on");document.getElementById("locLabel").textContent=PR.location_label||PR.location_name;}}else if(error&&error.code==="PGRST116"){const name=CU.user_metadata?.name||CU.email.split("@")[0];await sb.from("profiles").upsert({id:CU.id,email:CU.email,name,notif_on:true},{onConflict:"id"});PR={id:CU.id,email:CU.email,name,notif_on:true,location_id:null};}}catch(e){}}
 
@@ -2223,7 +2251,22 @@ async function toggleNotif(){if(!CU||!PR)return;const next=!PR.notif_on;try{awai
 async function loadCustomLocations(){try{const{data,error}=await sb.from("custom_locations").select("*").order("created_at",{ascending:true});if(!error&&data&&data.length){data.forEach(loc=>{if(!LOCS.find(l=>l.id===loc.id)){LOCS.unshift({id:loc.id,name:loc.street_name,area:loc.area_name,street:loc.street_name,label:`${loc.street_name} — ${loc.area_name}`,custom:true});}});buildFilter();}}catch(e){}}
 async function submitCustomLocation(street,area){if(!CU)return null;try{const{data,error}=await sb.from("custom_locations").insert({street_name:street,area_name:area}).select().single();if(error)throw error;const newLoc={id:data.id,name:street,area,street,label:`${street} — ${area}`,custom:true};if(!LOCS.find(l=>l.id===data.id))LOCS.unshift(newLoc);toast(`"${data.street_name}" added for everyone!`,"ok");return newLoc;}catch(e){toast(e.message||"Could not add location","err");return null;}}
 
-async function loadReports(){try{const{data,error}=await sb.from("reports").select("id,user_id,location_name,location_area,type,confirms,created_at").order("created_at",{ascending:false}).limit(100);if(error)throw error;if(!data||data.length===0){reports=[];}else{const dbReports=data.map(r=>({id:r.id,name:r.location_name,area:r.location_area,type:r.type,time:new Date(r.created_at).getTime(),confirms:r.confirms||1,userId:r.user_id,isAI:r.user_id===AI_USER_ID}));const pending=reports.filter(r=>String(r.id).startsWith("local-")||String(r.id).startsWith("ai-"));reports=[...pending,...dbReports];}}catch(e){if(reports.length===0)seedFallback();}render();if(_nearbyAreas.length)renderNearbyDashboard();}
+async function loadReports(){try{
+  const todayMidnight=new Date();todayMidnight.setHours(0,0,0,0);
+  const [{data:todayData,error:e1},{data:recentData,error:e2}]=await Promise.all([
+    sb.from("reports").select("id,user_id,location_name,location_area,type,confirms,created_at").gte("created_at",todayMidnight.toISOString()).order("created_at",{ascending:false}).limit(500),
+    sb.from("reports").select("id,user_id,location_name,location_area,type,confirms,created_at").order("created_at",{ascending:false}).limit(100)
+  ]);
+  if(e1&&e2)throw e1;
+  const mapRow=r=>({id:r.id,name:r.location_name,area:r.location_area,type:r.type,time:new Date(r.created_at).getTime(),confirms:r.confirms||1,userId:r.user_id,isAI:r.user_id===AI_USER_ID});
+  const todayRows=(todayData||[]).map(mapRow);
+  const recentRows=(recentData||[]).map(mapRow);
+  const seen=new Set();const merged=[];
+  [...todayRows,...recentRows].forEach(r=>{if(!seen.has(r.id)){seen.add(r.id);merged.push(r);}});
+  merged.sort((a,b)=>b.time-a.time);
+  const pending=reports.filter(r=>String(r.id).startsWith("local-")||String(r.id).startsWith("ai-"));
+  reports=[...pending,...merged];
+}catch(e){if(reports.length===0)seedFallback();}render();if(_nearbyAreas.length)renderNearbyDashboard();}
 
 async function pollReports(){try{const{data,error}=await sb.from("reports").select("id,user_id,location_name,location_area,type,confirms,created_at").order("created_at",{ascending:false}).limit(100);if(error||!data)return;const dbReports=data.map(r=>({id:r.id,name:r.location_name,area:r.location_area,type:r.type,time:new Date(r.created_at).getTime(),confirms:r.confirms||1,userId:r.user_id,isAI:r.user_id===AI_USER_ID}));const pending=reports.filter(r=>String(r.id).startsWith("local-")||String(r.id).startsWith("ai-"));const newList=[...pending,...dbReports];const oldIds=reports.filter(r=>!String(r.id).startsWith("local-")&&!String(r.id).startsWith("ai-")).map(r=>r.id+r.confirms).join(",");const newIds=dbReports.map(r=>r.id+r.confirms).join(",");if(oldIds!==newIds){reports=newList;render();if(_nearbyAreas.length)renderNearbyDashboard();renderSavedPlacesHome();renderMyPlacesList();}}catch(e){}}
 
@@ -2231,6 +2274,11 @@ function startPolling(){
   if(_pollTimer)clearInterval(_pollTimer);
   // Poll every 5s for near-real-time feel even if WebSocket drops
   _pollTimer=setInterval(pollReports,5000);
+  // Also reload full data every 60s to catch any missed updates
+  if(window._fullSyncTimer)clearInterval(window._fullSyncTimer);
+  window._fullSyncTimer=setInterval(()=>{
+    loadReports().catch(()=>{});
+  },60000);
 }
 
 async function pushReport(loc,type){if(!CU){toast("Sign in to submit a report","info");go("account");return;}const tid="local-"+Date.now();reports.unshift({id:tid,name:loc.name,area:loc.area,type,time:Date.now(),confirms:1});if(reports.length>100)reports.pop();render();try{const{data,error}=await sb.from("reports").insert({user_id:CU.id,location_name:loc.name,location_area:loc.area,type,confirms:1}).select().single();if(error){const idx=reports.findIndex(r=>r.id===tid);if(idx!==-1)reports.splice(idx,1);render();toast(`Could not save report: ${error.message}`,"err");return;}const idx=reports.findIndex(r=>r.id===tid);if(idx!==-1)reports[idx]={id:data.id,name:data.location_name,area:data.location_area,type:data.type,time:new Date(data.created_at).getTime(),confirms:data.confirms||1,userId:data.user_id};render();toast(type==="out"?`Outage reported — ${loc.name}`:`Power restored — ${loc.name}`,type==="out"?"err":"ok");if(PR&&!PR.location_id)await saveLocation(loc);await sendAreaAlerts(loc.name,loc.area,type);setTimeout(loadReports,2000);}catch(e){const idx=reports.findIndex(r=>r.id===tid);if(idx!==-1)reports.splice(idx,1);render();toast("Could not save report — check your connection","err");}}
@@ -2369,7 +2417,14 @@ function openModal(type){mType=type;mSel=null;document.getElementById("shTitle")
 function closeModal(){document.getElementById("repOverlay").classList.remove("open");mType=null;mSel=null;}
 function filterList(){const q=document.getElementById("mSearch").value.trim().toLowerCase();if(!q){renderMList(LOCS.slice(0,60));return;}renderMList(LOCS.filter(l=>l.label.toLowerCase().includes(q)).slice(0,50));}
 function renderMList(locs){const el=document.getElementById("mList");if(!locs.length){el.innerHTML=`<div class="mopt" style="color:var(--ink3);cursor:default;justify-content:center;padding:18px">No results found</div>`;return;}el.innerHTML=locs.map(l=>`<div class="mopt ${mSel?.id===l.id?"sel":""}" onclick="selectLoc('${l.id}')"><span>${l.name}</span><span class="mopt-sub">${l.street?l.area:"Area"}</span></div>`).join("");}
-function selectLoc(id){mSel=LOCS.find(l=>l.id===id);const q=document.getElementById("mSearch").value.trim().toLowerCase();renderMList(q?LOCS.filter(l=>l.label.toLowerCase().includes(q)).slice(0,50):LOCS.slice(0,60));const btn=document.getElementById("mBtn");if(mSel){btn.disabled=false;btn.textContent=mType==="out"?`Report — ${mSel.name}`:`Restored — ${mSel.name}`;}}
+function normalizeLocName(name){
+  if(!name)return name;
+  if(/unilag main gate/i.test(name))return"UNILAG";
+  if(/university of lagos main gate/i.test(name))return"UNILAG";
+  return name;
+}
+function selectLoc(id){mSel=LOCS.find(l=>l.id===id);
+  if(mSel&&mSel.name)mSel={...mSel,name:normalizeLocName(mSel.name)};const q=document.getElementById("mSearch").value.trim().toLowerCase();renderMList(q?LOCS.filter(l=>l.label.toLowerCase().includes(q)).slice(0,50):LOCS.slice(0,60));const btn=document.getElementById("mBtn");if(mSel){btn.disabled=false;btn.textContent=mType==="out"?`Report — ${mSel.name}`:`Restored — ${mSel.name}`;}}
 async function submitReport(){if(!mSel){toast("Please select a location","info");return;}const loc=mSel,type=mType;closeModal();await pushReport(loc,type);}
 
 function buildFilter(){const sel=document.getElementById("areaFilter");if(!sel)return;const areas=new Set();LOCS.forEach(l=>areas.add(l.area));sel.innerHTML=`<option value="">All Lagos areas</option>`;[...areas].sort().forEach(a=>{const o=document.createElement("option");o.value=a;o.textContent=a;sel.appendChild(o);});}
@@ -2547,12 +2602,11 @@ window.addEventListener("load",async()=>{
     AIReporter.start();
   }
 
+  // Password reset: handled via PASSWORD_RECOVERY auth event in initAuth
+  // Fallback: if URL params indicate reset and no auth event fires
   if(isReset){
     go("account");
-    setTimeout(()=>{
-      const el=document.getElementById("authWrap");
-      el.innerHTML=`<div class="auth-wrap"><div class="auth-logo"><div class="auth-logo-icon" style="background:var(--p)">${LOGO_IMG_TAG}</div><span class="auth-logo-name">NEPA<em>Watch</em></span></div><h2>Set new password</h2><p class="auth-sub">Choose a strong new password for your account.</p><div class="msg err" id="authErr"></div><div class="msg ok" id="authOk"></div><div class="fld"><label>New Password</label><input id="inp-newpass" type="password" placeholder="Min 6 characters" autocomplete="new-password"><button type="button" class="pw-eye-btn" onclick="appTogglePw(this)" tabindex="-1"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M1 8C2.5 5 5 3.5 8 3.5C11 3.5 13.5 5 15 8C13.5 11 11 12.5 8 12.5C5 12.5 2.5 11 1 8Z" stroke="currentColor" stroke-width="1.3"/><circle cx="8" cy="8" r="2.2" stroke="currentColor" stroke-width="1.3"/></svg></button></div><div class="fld"><label>Confirm Password</label><input id="inp-confpass" type="password" placeholder="Repeat password" autocomplete="new-password"><button type="button" class="pw-eye-btn" onclick="appTogglePw(this)" tabindex="-1"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M1 8C2.5 5 5 3.5 8 3.5C11 3.5 13.5 5 15 8C13.5 11 11 12.5 8 12.5C5 12.5 2.5 11 1 8Z" stroke="currentColor" stroke-width="1.3"/><circle cx="8" cy="8" r="2.2" stroke="currentColor" stroke-width="1.3"/></svg></button></div><button class="auth-btn" id="authBtn" onclick="doPasswordReset()">Update Password</button></div>`;
-    },500);
+    setTimeout(()=>showPasswordResetForm(),600);
   }
 });
 
