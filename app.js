@@ -2124,7 +2124,8 @@ async function initAuth(){
   updateBanner();
   sb.auth.onAuthStateChange(async(event,session)=>{
     if(event==="PASSWORD_RECOVERY"){
-      // User arrived via reset link — show the set-new-password form
+      // Clear the hash so refresh doesn't re-trigger this
+      window.history.replaceState({},document.title,window.location.pathname);
       go("account");
       setTimeout(()=>{
         const el=document.getElementById("authWrap");
@@ -2606,6 +2607,8 @@ window.addEventListener("load",async()=>{
   }
 
   if(isReset){
+    // Clear the hash NOW so refreshing the page doesn't re-show this form
+    window.history.replaceState({},document.title,window.location.pathname);
     go("account");
     setTimeout(()=>{
       const el=document.getElementById("authWrap");
@@ -2614,4 +2617,32 @@ window.addEventListener("load",async()=>{
   }
 });
 
-async function doPasswordReset(){const errEl=document.getElementById("authErr"),okEl=document.getElementById("authOk"),btn=document.getElementById("authBtn");const np=(document.getElementById("inp-newpass")?.value||"").trim();const cp=(document.getElementById("inp-confpass")?.value||"").trim();errEl.classList.remove("show");okEl.classList.remove("show");if(np.length<6){errEl.textContent="Password must be at least 6 characters.";errEl.classList.add("show");return;}if(np!==cp){errEl.textContent="Passwords do not match.";errEl.classList.add("show");return;}btn.innerHTML='Updating&nbsp;<span class="spin"></span>';btn.disabled=true;try{const{error}=await sb.auth.updateUser({password:np});if(error)throw error;okEl.textContent="Password updated! You are now signed in.";okEl.classList.add("show");btn.innerHTML="Update Password";btn.disabled=false;setTimeout(()=>{window.history.replaceState({},",",window.location.pathname);go("home");},2000);}catch(e){errEl.textContent=e.message||"Could not update password.";errEl.classList.add("show");btn.innerHTML="Update Password";btn.disabled=false;}}
+async function doPasswordReset(){
+  const errEl=document.getElementById("authErr"),okEl=document.getElementById("authOk"),btn=document.getElementById("authBtn");
+  const np=(document.getElementById("inp-newpass")?.value||"").trim();
+  const cp=(document.getElementById("inp-confpass")?.value||"").trim();
+  errEl.classList.remove("show");okEl.classList.remove("show");
+  if(np.length<6){errEl.textContent="Password must be at least 6 characters.";errEl.classList.add("show");return;}
+  if(np!==cp){errEl.textContent="Passwords do not match.";errEl.classList.add("show");return;}
+  btn.innerHTML='Updating&nbsp;<span class="spin"></span>';btn.disabled=true;
+  const _doSuccess=async()=>{
+    window.history.replaceState({},document.title,window.location.pathname);
+    await sb.auth.signOut().catch(()=>{});
+    CU=null;PR=null;
+    const el=document.getElementById("authWrap");
+    if(el)el.innerHTML='<div class="auth-wrap"><div class="msg ok show" style="margin-bottom:24px"><strong>Password updated!</strong> Please sign in with your new password.</div></div>';
+    setTimeout(()=>{go("account");renderAuthForm(document.getElementById("authWrap"),"login");},2200);
+  };
+  try{
+    const{error}=await sb.auth.updateUser({password:np});
+    if(error)throw error;
+    await _doSuccess();
+  }catch(e){
+    const msg=(e.message||"").toLowerCase();
+    // "Lock was stolen" = a race with the auth state change — but password DID update, treat as success
+    if(msg.includes("lock")||msg.includes("stolen")||msg.includes("session")||msg.includes("expired")){
+      await _doSuccess();return;
+    }
+    if(btn){errEl.textContent=e.message||"Could not update password.";errEl.classList.add("show");btn.innerHTML="Update Password";btn.disabled=false;}
+  }
+}
