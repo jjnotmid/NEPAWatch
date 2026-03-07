@@ -2031,6 +2031,7 @@ const AREA_COORDS = {
   "Lagos-Ibadan Expressway":{lat:6.6500,lng:3.3700},
 
   // ── AKOKA / UNILAG ───────────────────────────────────────────────
+  "Akoka":{lat:6.5183,lng:3.3855},
   "UNILAG":{lat:6.5183,lng:3.3855},
   // UNILAG Main/Back Gate removed — "UNILAG" entry covers these coords
   "FCE Akoka":{lat:6.5209,lng:3.3812},
@@ -2141,7 +2142,7 @@ function _resetFormHTML(){return`<div class="auth-wrap"><div class="auth-logo"><
 
 async function loadProfile(){if(!CU)return;try{const{data,error}=await sb.from("profiles").select("*").eq("id",CU.id).single();if(!error&&data){PR=data;if(PR.location_id){document.getElementById("locTag").classList.add("on");document.getElementById("locLabel").textContent=PR.location_label||PR.location_name;}}else if(error&&error.code==="PGRST116"){const name=CU.user_metadata?.name||CU.email.split("@")[0];await sb.from("profiles").upsert({id:CU.id,email:CU.email,name,notif_on:true},{onConflict:"id"});PR={id:CU.id,email:CU.email,name,notif_on:true,location_id:null};}}catch(e){}}
 
-async function doRegister(name,email,pass){const{data,error}=await sb.auth.signUp({email,password:pass,options:{data:{name},emailRedirectTo:window.location.origin+window.location.pathname+"?mode=reset"}});if(error){if(error.message?.toLowerCase().includes("rate limit")||error.message?.toLowerCase().includes("over_email_send_rate_limit"))throw new Error("RATE_LIMIT");throw new Error(error.message);}if(data.user){await sb.from("profiles").upsert({id:data.user.id,email,name,notif_on:true},{onConflict:"id"});}if(data.session){CU=data.user;await loadProfile();renderAccount();updateBanner();toast(`Welcome, ${name}!`,"ok");}sendEmail(email,"Welcome to NEPAWatch Lagos",`Hi ${name},\n\nWelcome to NEPAWatch Lagos!\n\nYou will receive real-time email alerts whenever power goes out or is restored near your street.\n\nOpen the app and set your location to activate alerts.\n\nStay powered,\nNEPAWatch Lagos`,buildEmailHtml({type:'welcome',name,appUrl:APP_URL}));return data;}
+async function doRegister(name,email,pass){const{data,error}=await sb.auth.signUp({email,password:pass,options:{data:{name},emailRedirectTo:APP_URL+"?mode=reset"}});if(error){if(error.message?.toLowerCase().includes("rate limit")||error.message?.toLowerCase().includes("over_email_send_rate_limit"))throw new Error("RATE_LIMIT");throw new Error(error.message);}if(data.user){await sb.from("profiles").upsert({id:data.user.id,email,name,notif_on:true},{onConflict:"id"});}if(data.session){CU=data.user;await loadProfile();renderAccount();updateBanner();toast(`Welcome, ${name}!`,"ok");}sendEmail(email,"Welcome to NEPAWatch Lagos",`Hi ${name},\n\nWelcome to NEPAWatch Lagos!\n\nYou will receive real-time email alerts whenever power goes out or is restored near your street.\n\nOpen the app and set your location to activate alerts.\n\nStay powered,\nNEPAWatch Lagos`,buildEmailHtml({type:'welcome',name,appUrl:APP_URL}));return data;}
 async function doLogin(email,pass){const{data,error}=await sb.auth.signInWithPassword({email,password:pass});if(error)throw new Error(error.message);return data;}
 async function doLogout(){try{await sb.auth.signOut();}catch(e){}CU=null;PR=null;savedPlaces=[];document.getElementById("locTag").classList.remove("on");updateBanner();renderAccount();toast("Signed out","info");}
 
@@ -2578,9 +2579,16 @@ window.addEventListener("load",async()=>{
   document.getElementById("repOverlay").addEventListener("click",e=>{if(e.target===document.getElementById("repOverlay"))closeModal();});
   document.getElementById("placeOverlay").addEventListener("click",e=>{if(e.target===document.getElementById("placeOverlay"))closePlaceModal();});
 
-  const urlParams=new URLSearchParams(window.location.search);
+  // Exchange the recovery token from the URL hash into a real Supabase session
+  // MUST happen before initAuth so updateUser() has an active session to work with
   const hashParams=new URLSearchParams(window.location.hash.replace("#",""));
-  const isReset=(urlParams.get("mode")==="reset")||(hashParams.get("type")==="recovery");
+  if(hashParams.get("type")==="recovery"){
+    try{await sb.auth.getSessionFromUrl({storeSession:true});}catch(e){}
+  }
+
+  const urlParams=new URLSearchParams(window.location.search);
+  const hashParams2=new URLSearchParams(window.location.hash.replace("#",""));
+  const isReset=(urlParams.get("mode")==="reset")||(hashParams2.get("type")==="recovery");
 
   await initAuth();
   await Promise.all([loadReports(),loadCustomLocations()]);

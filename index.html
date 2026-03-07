@@ -857,7 +857,7 @@ async function lpDoRegister() {
   try {
     const { data, error } = await sb.auth.signUp({
       email, password: pass,
-      options: { data: { name }, emailRedirectTo: window.location.origin + window.location.pathname + '?mode=reset' },
+      options: { data: { name }, emailRedirectTo: 'https://nepawatch.app?mode=reset' },
     });
     if (error) {
       const m = error.message?.toLowerCase() || '';
@@ -1033,5 +1033,37 @@ function _silentRefresh() {
     const activePage = document.querySelector('.page.active')?.id;
     if (activePage === 'page-myarea' && typeof renderMyArea === 'function') renderMyArea();
   }).catch(() => {}); // fail silently
+}
+</script>
+
+<script>
+/* ── Service Worker registration + auto-update ── */
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', async () => {
+    try {
+      const reg = await navigator.serviceWorker.register('/sw.js');
+
+      // Poll for updates every 60s while the app is open
+      setInterval(() => reg.update(), 60000);
+
+      // When a new SW installs and is waiting...
+      reg.addEventListener('updatefound', () => {
+        const nw = reg.installing;
+        nw.addEventListener('statechange', () => {
+          if (nw.state === 'installed' && navigator.serviceWorker.controller) {
+            // Tell new SW to skip waiting and take over immediately
+            nw.postMessage('skipWaiting');
+          }
+        });
+      });
+
+      // When controller changes (new SW took over), reload once
+      let _refreshing = false;
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (!_refreshing) { _refreshing = true; window.location.reload(); }
+      });
+
+    } catch(e) { console.warn('[NEPAWatch] SW failed:', e); }
+  });
 }
 </script>
