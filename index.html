@@ -479,7 +479,7 @@ body.lp-active #nepaBotBubble, body.lp-active #botWin, body.lp-active #botNotif 
     <div class="sheet-body">
       <div class="msw">
         <span class="msico"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="6" cy="6" r="4" stroke="currentColor" stroke-width="1.4"/><path d="M9.5 9.5L13 13" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg></span>
-        <input class="msearch" id="mSearch" placeholder="Type your street, estate or area..." autocomplete="off" oninput="filterList()">
+        <input class="msearch" id="mSearch" type="text" placeholder="Type your street, estate or area..." autocomplete="new-password" data-lpignore="true" data-form-type="other" oninput="filterList()">
       </div>
       <div class="mlist" id="mList"></div>
       <button class="mconfirm" id="mBtn" disabled onclick="submitReport()">Select a location first</button>
@@ -490,8 +490,8 @@ body.lp-active #nepaBotBubble, body.lp-active #botWin, body.lp-active #botNotif 
         </button>
         <div id="suggestLocForm" style="display:none;margin-top:10px">
           <div style="font-size:.68rem;color:var(--ink3);margin-bottom:8px;line-height:1.5">Your location will be saved and visible to all users immediately.</div>
-          <input id="suggestStreet" class="msearch" style="margin-bottom:8px;padding-left:14px" placeholder="Street or estate name (e.g. Okiti Road)" autocomplete="off" autocorrect="off" autocapitalize="words" spellcheck="false">
-          <input id="suggestArea" class="msearch" style="margin-bottom:10px;padding-left:14px" placeholder="Nearest area (e.g. Badagry, Yaba)" autocomplete="off" autocorrect="off" autocapitalize="words" spellcheck="false">
+          <input id="suggestStreet" class="msearch" type="text" style="margin-bottom:8px;padding-left:14px" placeholder="Street or estate name (e.g. Okiti Road)" autocomplete="new-password" autocorrect="off" autocapitalize="words" spellcheck="false" data-form-type="other" data-lpignore="true">
+          <input id="suggestArea" class="msearch" type="text" style="margin-bottom:10px;padding-left:14px" placeholder="Nearest area (e.g. Badagry, Yaba)" autocomplete="new-password" autocorrect="off" autocapitalize="words" spellcheck="false" data-form-type="other" data-lpignore="true">
           <button class="mconfirm bck" onclick="handleSuggestLoc()" style="margin-top:0">Save and Use This Location</button>
         </div>
       </div>
@@ -530,7 +530,7 @@ body.lp-active #nepaBotBubble, body.lp-active #botWin, body.lp-active #botNotif 
       <div style="font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--ink3);margin-bottom:8px">Search Location</div>
       <div class="msw">
         <span class="msico"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="6" cy="6" r="4" stroke="currentColor" stroke-width="1.4"/><path d="M9.5 9.5L13 13" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg></span>
-        <input class="msearch" id="placeSearch" placeholder="Type your street or area..." autocomplete="off" oninput="filterPlaceList()">
+        <input class="msearch" id="placeSearch" type="text" placeholder="Type your street or area..." autocomplete="new-password" data-lpignore="true" data-form-type="other" oninput="filterPlaceList()">
       </div>
       <div class="mlist" id="placeList"></div>
       <button class="mconfirm prim" id="placeBtn" disabled onclick="submitSavedPlace()">Select a location first</button>
