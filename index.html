@@ -776,11 +776,7 @@ function lpOpenAuth(mode) {
   _lpMode = mode || 'register';
   lpSwitchTab(_lpMode);
   document.getElementById('lpAuthOverlay').classList.add('open');
-  setTimeout(() => {
-    const key = _lpMode.charAt(0).toUpperCase() + _lpMode.slice(1);
-    const first = document.querySelector(`#lpForm${key} .lp-sh-input`);
-    if (first) first.focus();
-  }, 340);
+
 }
 
 function lpCloseAuth() {
@@ -804,11 +800,7 @@ function lpSwitchTab(mode) {
   if (tabReg)   tabReg.classList.toggle('active', mode === 'register');
   if (tabLogin) tabLogin.classList.toggle('active', mode === 'login');
   lpClearMsgs();
-  setTimeout(() => {
-    const key  = mode.charAt(0).toUpperCase() + mode.slice(1);
-    const first = document.querySelector(`#lpForm${key} .lp-sh-input`);
-    if (first) first.focus();
-  }, 50);
+
 }
 
 function lpClearMsgs() {
