@@ -434,33 +434,79 @@ function resetPayBtn() {
 }
 
 // ── Handle callback return from BudPay ────────────────────────
-// When BudPay redirects back after payment, the URL will have
-// ?reference=REF_xxx — your backend already vended the token
-// via webhook. We just fetch the result and display it.
+// BudPay blocks recharge from Supabase's IPs so we call it
+// directly from the browser instead using the public key.
+const BUDPAY_PK = 'pk_test_yeq46qeltel1bmhiqeqiwtec9hatcq2frd9qqk';
+
 async function checkCallbackReturn() {
   const params = new URLSearchParams(window.location.search);
   const ref    = params.get('reference') || params.get('ref');
   if (!ref) return;
 
-  // Clean the URL
   window.history.replaceState({}, '', window.location.pathname);
+  toast('Payment confirmed — loading your token…', 'ok');
 
-  toast('Payment received — fetching your token…', 'ok');
-
+  // Step 1: Get the purchase details from your backend (Supabase)
+  let purchase;
   try {
     const res = await fetch(BACKEND, {
       method: 'POST',
       headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({ action:'getResult', reference: ref })
+      body: JSON.stringify({ action:'getPurchase', reference: ref })
     });
     const d = await res.json();
-    if (d.success && d.token) {
-      showSuccess(d);
+    if (!d.success) {
+      toast(d.error || 'Could not retrieve purchase details', 'err');
+      return;
+    }
+    // If already delivered (webhook was fast), show immediately
+    if (d.token) { showSuccess(d); return; }
+    purchase = d.purchase;
+  } catch(e) {
+    toast('Network error — please try again', 'err');
+    return;
+  }
+
+  // Step 2: Call BudPay recharge directly from browser
+  try {
+    const vendRes = await fetch('https://api.budpay.com/api/v2/electricity/recharge', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${BUDPAY_PK}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        provider: purchase.provider,
+        number:   purchase.meter_number,
+        type:     purchase.meter_type,
+        amount:   purchase.amount,
+        reference: ref + '-vend'
+      })
+    });
+    const vend = await vendRes.json();
+    console.log('[vend]', vend);
+
+    if (vend.success && vend.data?.purchased_code) {
+      const token = vend.data.purchased_code.replace(/^Token\s*:\s*/i, '').trim();
+      const result = {
+        success: true,
+        token,
+        units:  vend.data.units || '—',
+        amount: purchase.amount,
+        meter:  purchase.meter_number
+      };
+      // Save token to backend
+      await fetch(BACKEND, {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ action:'saveToken', reference: ref, token, units: vend.data.units || '—' })
+      });
+      showSuccess(result);
     } else {
-      toast(d.error || 'Token pending — check your email shortly', 'err');
+      toast(vend.message || 'Token vending failed — contact support', 'err');
     }
   } catch(e) {
-    toast('Could not fetch token — check your email for receipt', 'err');
+    toast('Could not vend token — check your email for receipt', 'err');
   }
 }
 
