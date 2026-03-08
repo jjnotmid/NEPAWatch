@@ -2,7 +2,7 @@
 /* =========================================================
    INTEGRATION PATCHES for predict.js / AI auto-reporter
    Changes from original:
-   1. renderFeed() — shows 🤖 AI badge on AI-generated reports
+   1. renderFeed() — shows AI badge on AI-generated reports
    2. go()         — handles 'predict' page + calls renderPredictPage()
                      and renderMyAreaPredictWidget() for myarea
    3. renderCommunity() leaderboard — shows NEPAWatch AI entry
@@ -15,6 +15,8 @@ const SUPA_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIs
 const EMAIL_FN = `${SUPA_URL}/functions/v1/send-alert`;
 const APP_URL = 'https://nepawatch.app';
 const APP_LOGO_URL = APP_URL + '/logo2.jpg';
+const VAPID_PUBLIC_KEY = 'BCucUDvVmV6cHGeMRideIWul16t336GXMypUT4nYwIs5RRPNVtAy0h5D0diwOY56OTjDCRFyzZbXeaXRcCUTnqw';
+
 
 function appTogglePw(btn){
   const inp=btn.previousElementSibling||btn.parentElement.querySelector('input');
@@ -2194,8 +2196,8 @@ const IC={
 
 const PLACE_ICONS={home:IC.home,work:IC.work,school:IC.school,custom:IC.custom};
 
-const MOON_SVG=`<path fill-rule="evenodd" clip-rule="evenodd" d="M8.5 2a6.5 6.5 0 1 0 5.18 10.38A5 5 0 0 1 6.5 5a5 5 0 0 1 2.83-4.48A6.6 6.6 0 0 0 8.5 2z" fill="currentColor"/>`;
-const SUN_SVG=`<circle cx="8" cy="8" r="3" fill="currentColor"/><path d="M8 1.5v2M8 12.5v2M1.5 8h2M12.5 8h2M3.58 3.58l1.41 1.41M11.01 11.01l1.41 1.41M3.58 12.42l1.41-1.41M11.01 4.99l1.41-1.41" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>`;
+const MOON_SVG=`<path d="M13 8.5A5.5 5.5 0 0 1 7.5 3a5.5 5.5 0 1 0 5.5 5.5z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/>`;
+const SUN_SVG=`<circle cx="8" cy="8" r="3.5" stroke="currentColor" stroke-width="1.3"/><path d="M8 1v1.5M8 13.5V15M1 8h1.5M13.5 8H15M3.05 3.05l1.06 1.06M11.89 11.89l1.06 1.06M3.05 12.95l1.06-1.06M11.89 4.11l1.06-1.06" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>`;
 
 function toggleTheme(){const h=document.documentElement;const isDark=h.getAttribute("data-theme")==="dark";const next=isDark?"light":"dark";h.setAttribute("data-theme",next);document.getElementById("themeIcon").innerHTML=next==="dark"?MOON_SVG:SUN_SVG;try{localStorage.setItem("nw-theme",next);}catch(e){}}
 function initTheme(){let saved;try{saved=localStorage.getItem("nw-theme");}catch(e){}const pref=window.matchMedia("(prefers-color-scheme:dark)").matches?"dark":"light";const t=saved||pref;document.documentElement.setAttribute("data-theme",t);document.getElementById("themeIcon").innerHTML=t==="dark"?MOON_SVG:SUN_SVG;}
@@ -2378,7 +2380,7 @@ async function submitSavedPlace(){
   if(saved){
     if(_editPlaceId){const idx=savedPlaces.findIndex(p=>p.id===_editPlaceId);if(idx!==-1)savedPlaces[idx]={...savedPlaces[idx],...saved};}
     else{savedPlaces.push(saved);}
-    renderSavedPlacesHome();renderMyPlacesList();toast(_editPlaceId?"Place updated":"Place saved ✓","ok");
+    renderSavedPlacesHome();renderMyPlacesList();toast(_editPlaceId?"Place updated":"Place saved","ok");
   }
   btn.innerHTML=_editPlaceId?"Save Changes":"Add Place";btn.disabled=false;
   closePlaceModal();
@@ -2401,7 +2403,7 @@ function findNearestAreas(lat,lng,count=8){
   }
   return result.slice(0,count);
 }
-async function reverseGeocode(lat,lng){try{const res=await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&zoom=16&addressdetails=1`,{headers:{"Accept-Language":"en","User-Agent":"NEPAWatch/1.0"}});const data=await res.json();const a=data.address||{};const precise=a.neighbourhood||a.suburb||a.city_district||a.town||a.city||"";if(precise){const txt=document.getElementById("geoBtnTxt");txt.textContent=precise.length>12?precise.substring(0,12)+"...":precise;toast(`📍 You are near ${precise}`,"ok");}}catch(e){}}
+async function reverseGeocode(lat,lng){try{const res=await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&zoom=16&addressdetails=1`,{headers:{"Accept-Language":"en","User-Agent":"NEPAWatch/1.0"}});const data=await res.json();const a=data.address||{};const precise=a.neighbourhood||a.suburb||a.city_district||a.town||a.city||"";if(precise){const txt=document.getElementById("geoBtnTxt");txt.textContent=precise.length>12?precise.substring(0,12)+"...":precise;toast(`Near ${precise}`,"ok");}}catch(e){}}
 
 async function detectLocation(){const btn=document.getElementById("geoBtn");const txt=document.getElementById("geoBtnTxt");if(!navigator.geolocation){toast("Geolocation not supported","err");return;}txt.textContent="Locating...";btn.disabled=true;const tryGeo=(highAccuracy,timeoutMs)=>new Promise((resolve,reject)=>{navigator.geolocation.getCurrentPosition(resolve,reject,{enableHighAccuracy:highAccuracy,timeout:timeoutMs,maximumAge:highAccuracy?10000:60000});});let pos;try{pos=await tryGeo(true,12000);}catch(e1){try{pos=await tryGeo(false,8000);}catch(e2){const msg=e2.code===1?"Location access denied":e2.code===2?"Could not get location":"Location request timed out";toast(msg,"err");txt.textContent="Locate Me";btn.disabled=false;return;}}const{latitude:lat,longitude:lng,accuracy}=pos.coords;_userLat=lat;_userLng=lng;userExactLat=lat;userExactLng=lng;_nearbyAreas=findNearestAreas(lat,lng,8);const nearest=_nearbyAreas[0]?.area;if(!nearest){toast("Could not match your location to a Lagos area","err");txt.textContent="Locate Me";btn.disabled=false;return;}// Snap to nearest existing LOCS entry within 200m
 const snapped=_findDupLoc(lat,lng,200);
@@ -2416,7 +2418,7 @@ const displayName=snapName;
 const parentName=AREA_PARENT?.[nearest]||nearest;
 // Show specific location in toast, watching area on the button
 const watchLabel=parentName!==nearest?parentName:snapName;
-toast(`📍 ${snapName}${parentName!==nearest?" — watching "+parentName:""}${accStr?" "+accStr:""}`,"ok");
+toast(`${snapName}${parentName!==nearest?" — watching "+parentName:""}${accStr?" "+accStr:""}`,"ok");
 txt.textContent=watchLabel.length>12?watchLabel.substring(0,12)+"...":watchLabel;
 // Update locTag to show watching area
 document.getElementById("locTag").classList.add("on");
@@ -2424,7 +2426,7 @@ document.getElementById("locLabel").textContent=snapName!==watchLabel?`${snapNam
 try{const res=await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&zoom=18&addressdetails=1`,{headers:{"Accept-Language":"en","User-Agent":"NEPAWatch/1.0"}});const d=await res.json();const a=d.address||{};const streetName=a.road||a.neighbourhood||a.suburb||a.city_district||"";const areaName=a.suburb||a.city_district||a.town||nearest;if(streetName){// Check dup again now that we have a real name
 const dup2=LOCS.find(l=>_normName(l.name)===_normName(streetName)&&l.area.toLowerCase()===areaName.toLowerCase());if(dup2){await saveLocation(dup2);}else{const newLoc=await submitCustomLocation(streetName,areaName,lat,lng);if(newLoc)await saveLocation(newLoc);}}else{const loc=LOCS.find(l=>l.name===nearest&&!l.street);if(loc)await saveLocation(loc);}}catch(e){const loc=LOCS.find(l=>l.name===nearest&&!l.street);if(loc)await saveLocation(loc);}}}}
 
-function showLeafletLocation(lat,lng){const mapDiv=document.getElementById('mapContainer');if(!mapDiv)return;if(!_leafletMap){_leafletMap=L.map(mapDiv,{zoomControl:true,attributionControl:false}).setView([lat,lng],15);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(_leafletMap);}else{_leafletMap.setView([lat,lng],15);}if(_leafletUserMarker)_leafletUserMarker.remove();_leafletPowerMarkers.forEach(m=>m.remove());_leafletPowerMarkers=[];const userIcon=L.divIcon({className:'',html:'<div style="width:16px;height:16px;background:#4B8EF5;border:3px solid white;border-radius:50%;box-shadow:0 2px 8px rgba(0,0,0,.4)"></div>',iconSize:[16,16],iconAnchor:[8,8]});_leafletUserMarker=L.marker([lat,lng],{icon:userIcon}).addTo(_leafletMap).bindPopup('<strong>You are here</strong>');const nearby=findNearbyPowerSpots(lat,lng,6);nearby.forEach(spot=>{const col=spot.status==='on'?'#AAFF00':spot.status==='out'?'#FF4055':'#888';const icon=L.divIcon({className:'',html:`<div style="width:13px;height:13px;background:${col};border:2px solid rgba(255,255,255,.8);border-radius:50%;box-shadow:0 1px 6px rgba(0,0,0,.5)"></div>`,iconSize:[13,13],iconAnchor:[6,6]});const marker=L.marker([spot.coords.lat,spot.coords.lng],{icon}).addTo(_leafletMap);const distTxt=spot.dist<1?`${(spot.dist*1000).toFixed(0)}m`:`${spot.dist.toFixed(1)}km`;marker.bindPopup(`<strong>${spot.area}</strong><br>Power: ${spot.status==='on'?'✅ On':spot.status==='out'?'❌ Out':'❓ Unknown'}<br>${distTxt} away`);_leafletPowerMarkers.push(marker);});setTimeout(()=>_leafletMap&&_leafletMap.invalidateSize(),200);}
+function showLeafletLocation(lat,lng){const mapDiv=document.getElementById('mapContainer');if(!mapDiv)return;if(!_leafletMap){_leafletMap=L.map(mapDiv,{zoomControl:true,attributionControl:false}).setView([lat,lng],15);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(_leafletMap);}else{_leafletMap.setView([lat,lng],15);}if(_leafletUserMarker)_leafletUserMarker.remove();_leafletPowerMarkers.forEach(m=>m.remove());_leafletPowerMarkers=[];const userIcon=L.divIcon({className:'',html:'<div style="width:16px;height:16px;background:#4B8EF5;border:3px solid white;border-radius:50%;box-shadow:0 2px 8px rgba(0,0,0,.4)"></div>',iconSize:[16,16],iconAnchor:[8,8]});_leafletUserMarker=L.marker([lat,lng],{icon:userIcon}).addTo(_leafletMap).bindPopup('<strong>You are here</strong>');const nearby=findNearbyPowerSpots(lat,lng,6);nearby.forEach(spot=>{const col=spot.status==='on'?'#AAFF00':spot.status==='out'?'#FF4055':'#888';const icon=L.divIcon({className:'',html:`<div style="width:13px;height:13px;background:${col};border:2px solid rgba(255,255,255,.8);border-radius:50%;box-shadow:0 1px 6px rgba(0,0,0,.5)"></div>`,iconSize:[13,13],iconAnchor:[6,6]});const marker=L.marker([spot.coords.lat,spot.coords.lng],{icon}).addTo(_leafletMap);const distTxt=spot.dist<1?`${(spot.dist*1000).toFixed(0)}m`:`${spot.dist.toFixed(1)}km`;marker.bindPopup(`<strong>${spot.area}</strong><br>Power: ${spot.status==='on'?'Power On':spot.status==='out'?'Power Out':'Unknown'}<br>${distTxt} away`);_leafletPowerMarkers.push(marker);});setTimeout(()=>_leafletMap&&_leafletMap.invalidateSize(),200);}
 function findNearbyPowerSpots(lat,lng,limit=5){return Object.entries(AREA_COORDS).map(([area,coords])=>({area,status:getPlaceStatus(area),coords,dist:haversine(lat,lng,coords.lat,coords.lng)})).filter(s=>s.dist<=10).sort((a,b)=>a.dist-b.dist).slice(0,limit);}
 
 function clearLoc(){filterArea="";const sel=document.getElementById("areaFilter");if(sel)sel.value="";document.getElementById("locTag").classList.remove("on");document.getElementById("geoBtn").classList.remove("active");document.getElementById("geoBtnTxt").textContent="Locate Me";_nearbyAreas=[];_userLat=null;_userLng=null;userExactLat=userExactLng=null;_hideMap();if(_leafletUserMarker){_leafletUserMarker.remove();_leafletUserMarker=null;}_leafletPowerMarkers.forEach(m=>m.remove());_leafletPowerMarkers=[];if(_leafletMap){_leafletMap.remove();_leafletMap=null;}renderNearbyDashboard();renderFeed("liveFeed");if(CU&&PR){PR.location_id=null;PR.location_name=null;PR.location_area=null;PR.location_label=null;sb.from("profiles").update({location_id:null,location_name:null,location_area:null,location_label:null}).eq("id",CU.id).then(()=>{}).catch(()=>{});}}
@@ -2434,14 +2436,15 @@ function renderNearbyDashboard(){const el=document.getElementById("nearbyDashboa
 async function loadUserCount(){try{const{count,error}=await sb.from("profiles").select("id",{count:"exact",head:true});if(!error&&count!=null){_userCount=count;const pill=document.getElementById("userCountPill");const num=document.getElementById("userCountNum");if(pill&&num&&count>=2){num.textContent=count.toLocaleString();pill.style.display="flex";}}}catch(e){}}
 
 async function saveLocation(loc){if(!CU)return;const u={location_id:loc.id,location_name:loc.name,location_area:loc.area,location_label:loc.label};try{await sb.from("profiles").update(u).eq("id",CU.id);}catch(e){}PR={...PR,...u};document.getElementById("locTag").classList.add("on");document.getElementById("locLabel").textContent=loc.label;updateBanner();toast(`Location set — ${loc.name}`,"ok");}
-async function toggleNotif(){if(!CU||!PR)return;const next=!PR.notif_on;try{await sb.from("profiles").update({notif_on:next}).eq("id",CU.id);}catch(e){}PR.notif_on=next;const btn=document.getElementById("notifToggle");if(btn)btn.classList.toggle("on",next);toast(next?"Email alerts enabled":"Email alerts disabled","info");}
+async function toggleNotif(){if(!CU||!PR)return;const next=!PR.notif_on;try{await sb.from("profiles").update({notif_on:next}).eq("id",CU.id);}catch(e){}PR.notif_on=next;const btn=document.getElementById("notifToggle");if(btn)btn.classList.toggle("on",next);toast(next?"Email alerts enabled":"Email alerts disabled","info");renderAccount();}
+async function togglePushNotif(){const status=getPushStatus();if(status==='enabled'){await disablePush();}else if(status==='blocked'){toast('Notifications are blocked in your browser settings. Please enable them manually.','info');}else{await requestPushPermission();}}
 
 async function loadCustomLocations(){try{const{data,error}=await sb.from("custom_locations").select("*").order("created_at",{ascending:true});if(!error&&data&&data.length){data.forEach(loc=>{if(!LOCS.find(l=>l.id===loc.id)){LOCS.unshift({id:loc.id,name:loc.street_name,area:loc.area_name,street:loc.street_name,label:`${loc.street_name} — ${loc.area_name}`,custom:true,lat:loc.lat||null,lng:loc.lng||null});}else{const ex=LOCS.find(l=>l.id===loc.id);if(ex&&!ex.lat&&loc.lat){ex.lat=loc.lat;ex.lng=loc.lng;}}});buildFilter();}}catch(e){}}
 async function _geocodeLoc(street,area){try{const q=encodeURIComponent(`${street}, ${area}, Lagos, Nigeria`);const res=await fetch(`https://nominatim.openstreetmap.org/search?q=${q}&format=json&limit=3&countrycodes=ng&addressdetails=1&viewbox=2.6,6.2,4.0,6.8&bounded=1`,{headers:{"Accept-Language":"en","User-Agent":"NEPAWatch/1.0"}});const d=await res.json();if(d&&d[0])return{lat:parseFloat(d[0].lat),lng:parseFloat(d[0].lon)};return null;}catch(e){return null;}}
 function _findDupLoc(lat,lng,radiusM=180){if(!lat||!lng)return null;for(const l of LOCS){if(l.lat&&l.lng){const dist=haversine(lat,lng,l.lat,l.lng)*1000;if(dist<=radiusM)return l;}}return null;}
 async function submitCustomLocation(street,area,lat=null,lng=null){if(!CU)return null;try{// Geocode if no coords provided
 if(!lat||!lng){const gc=await _geocodeLoc(street,area);if(gc){lat=gc.lat;lng=gc.lng;}}// Check for duplicate within 180m
-if(lat&&lng){const dup=_findDupLoc(lat,lng,180);if(dup){toast(`Merged with "${dup.name}" — same location 📍`,"ok");return dup;}}const{data,error}=await sb.from("custom_locations").insert({street_name:street,area_name:area,lat:lat||null,lng:lng||null}).select().single();if(error)throw error;const newLoc={id:data.id,name:street,area,street,label:`${street} — ${area}`,custom:true,lat:lat||null,lng:lng||null};if(!LOCS.find(l=>l.id===data.id))LOCS.unshift(newLoc);toast(`"${data.street_name}" added for everyone!`,"ok");return newLoc;}catch(e){toast(e.message||"Could not add location","err");return null;}}
+if(lat&&lng){const dup=_findDupLoc(lat,lng,180);if(dup){toast(`Merged with "${dup.name}" — same location`,"ok");return dup;}}const{data,error}=await sb.from("custom_locations").insert({street_name:street,area_name:area,lat:lat||null,lng:lng||null}).select().single();if(error)throw error;const newLoc={id:data.id,name:street,area,street,label:`${street} — ${area}`,custom:true,lat:lat||null,lng:lng||null};if(!LOCS.find(l=>l.id===data.id))LOCS.unshift(newLoc);toast(`"${data.street_name}" added for everyone!`,"ok");return newLoc;}catch(e){toast(e.message||"Could not add location","err");return null;}}
 
 async function loadReports(){
   try{
@@ -2600,7 +2603,13 @@ async function sendEmail(to, subject, body, htmlBody) {
     });
   } catch(e) {}
 }
-async function sendAreaAlerts(repName,repArea,repType){if(!repArea)return;const _aKey=repArea+'|'+repType;const _now=Date.now();if(_alertCooldowns[_aKey]&&(_now-_alertCooldowns[_aKey])<ALERT_COOLDOWN_MS)return;_alertCooldowns[_aKey]=_now;try{const subject=repType==="out"?`Power Outage — ${repArea}, Lagos`:`Power Restored — ${repArea}, Lagos`;const time=new Date().toLocaleTimeString("en-NG",{hour:"2-digit",minute:"2-digit"});const body=`${repType==="out"?"Power outage":"Power restored"} near ${repName}, ${repArea}.\n\nTime: ${time}\n\nSee live updates: ${APP_URL}\n\n— NEPAWatch Lagos`;const alertHtml=buildEmailHtml({type:repType,area:repArea,street:repName,time,appUrl:APP_URL});let edgeSent=false;try{const res=await fetch(EMAIL_FN,{method:"POST",headers:{"Content-Type":"application/json","apikey":SUPA_ANON,"Authorization":`Bearer ${SUPA_ANON}`},body:JSON.stringify({mode:"area_alert",area:repArea,repName,repType,subject,body,html:alertHtml,time})});if(res.ok){const json=await res.json().catch(()=>({}));const count=json.sent||0;edgeSent=true;if(count>0){emailLog.unshift({subject,to:`${count} watcher${count!==1?"s":""} in ${repArea}`,time});if(emailLog.length>8)emailLog.pop();}}}catch(fe){}if(CU&&savedPlaces.length){const matchingPlaces=savedPlaces.filter(p=>(areaMatches(repArea,p.location_area)||areaMatches(p.location_area,repArea))&&p.notif_on!==false);if(matchingPlaces.length&&CU.email&&!edgeSent){const placeNames=matchingPlaces.map(p=>getPlaceDisplayName(p)).join(", ");const placeHtml=buildEmailHtml({type:repType,area:repArea,street:repName,time,places:placeNames,appUrl:APP_URL});await sendEmail(CU.email,subject,body,placeHtml);emailLog.unshift({subject,to:CU.email+"  (saved place)",time});if(emailLog.length>8)emailLog.pop();toast("Alert sent for your saved place","ok");if(document.getElementById("page-account").classList.contains("active"))renderAccount();}}else if(!edgeSent&&CU&&PR&&(areaMatches(repArea,PR.location_area)||areaMatches(PR.location_area,repArea))&&PR.notif_on&&CU.email){const userHtml=buildEmailHtml({type:repType,area:repArea,street:repName,time,appUrl:APP_URL});await sendEmail(CU.email,subject,body,userHtml);emailLog.unshift({subject,to:CU.email,time});if(emailLog.length>8)emailLog.pop();toast("Alert sent to your email","ok");if(document.getElementById("page-account").classList.contains("active"))renderAccount();}}catch(e){}}
+async function sendAreaAlerts(repName,repArea,repType){if(!repArea)return;
+  // Fire local push notification for foreground-invisible users
+  const pushTitle=repType==='out'?`Power Outage — ${repArea}`:`Power Restored — ${repArea}`;
+  const pushBody=repType==='out'?`Outage reported near ${repName}, ${repArea}.`:`Power is back near ${repName}, ${repArea}.`;
+  _localNotify(pushTitle, pushBody, repType);
+  // If user has push sub, send via edge function too (handled server-side)
+const _aKey=repArea+'|'+repType;const _now=Date.now();if(_alertCooldowns[_aKey]&&(_now-_alertCooldowns[_aKey])<ALERT_COOLDOWN_MS)return;_alertCooldowns[_aKey]=_now;try{const subject=repType==="out"?`Power Outage — ${repArea}, Lagos`:`Power Restored — ${repArea}, Lagos`;const time=new Date().toLocaleTimeString("en-NG",{hour:"2-digit",minute:"2-digit"});const body=`${repType==="out"?"Power outage":"Power restored"} near ${repName}, ${repArea}.\n\nTime: ${time}\n\nSee live updates: ${APP_URL}\n\n— NEPAWatch Lagos`;const alertHtml=buildEmailHtml({type:repType,area:repArea,street:repName,time,appUrl:APP_URL});let edgeSent=false;try{const res=await fetch(EMAIL_FN,{method:"POST",headers:{"Content-Type":"application/json","apikey":SUPA_ANON,"Authorization":`Bearer ${SUPA_ANON}`},body:JSON.stringify({mode:"area_alert",area:repArea,repName,repType,subject,body,html:alertHtml,time})});if(res.ok){const json=await res.json().catch(()=>({}));const count=json.sent||0;edgeSent=true;if(count>0){emailLog.unshift({subject,to:`${count} watcher${count!==1?"s":""} in ${repArea}`,time});if(emailLog.length>8)emailLog.pop();}}}catch(fe){}if(CU&&savedPlaces.length){const matchingPlaces=savedPlaces.filter(p=>(areaMatches(repArea,p.location_area)||areaMatches(p.location_area,repArea))&&p.notif_on!==false);if(matchingPlaces.length&&CU.email&&!edgeSent){const placeNames=matchingPlaces.map(p=>getPlaceDisplayName(p)).join(", ");const placeHtml=buildEmailHtml({type:repType,area:repArea,street:repName,time,places:placeNames,appUrl:APP_URL});await sendEmail(CU.email,subject,body,placeHtml);emailLog.unshift({subject,to:CU.email+"  (saved place)",time});if(emailLog.length>8)emailLog.pop();toast("Alert sent for your saved place","ok");if(document.getElementById("page-account").classList.contains("active"))renderAccount();}}else if(!edgeSent&&CU&&PR&&(areaMatches(repArea,PR.location_area)||areaMatches(PR.location_area,repArea))&&PR.notif_on&&CU.email){const userHtml=buildEmailHtml({type:repType,area:repArea,street:repName,time,appUrl:APP_URL});await sendEmail(CU.email,subject,body,userHtml);emailLog.unshift({subject,to:CU.email,time});if(emailLog.length>8)emailLog.pop();toast("Alert sent to your email","ok");if(document.getElementById("page-account").classList.contains("active"))renderAccount();}}catch(e){}}
 
 function openModal(type){mType=type;mSel=null;document.getElementById("shTitle").textContent=type==="out"?"Report Power Outage":"Report Power Restored";document.getElementById("shDesc").textContent=type==="out"?"Search your street or area in Lagos.":"Great news! Tell your community.";const btn=document.getElementById("mBtn");btn.textContent=type==="out"?"Confirm Outage":"Confirm Restored";btn.className="mconfirm "+(type==="out"?"out":"bck");btn.disabled=true;document.getElementById("mSearch").value="";if(PR?.location_id){mSel=LOCS.find(l=>l.id===PR.location_id)||null;if(mSel){btn.disabled=false;btn.textContent=type==="out"?`Report — ${mSel.name}`:`Restored — ${mSel.name}`;}}renderMList(LOCS.slice(0,60));document.getElementById("repOverlay").classList.add("open");}
 function closeModal(){document.getElementById("repOverlay").classList.remove("open");mType=null;mSel=null;}
@@ -2766,7 +2775,7 @@ async function renderCommunity(){
         document.getElementById("lbList").innerHTML=reporters.map((r,i)=>{
           const isAI=r.isAI;
           const nameHtml=isAI?`<span style="color:var(--p)">${IC.ai}&nbsp;${r.name}</span>`:r.name;
-          const subHtml=isAI?`<span style="color:var(--p);font-size:.6rem">🤖 AI auto-reporter</span>`:`${IC.user}&nbsp;Community reporter`;
+          const subHtml=isAI?`<span style="color:var(--p);font-size:.6rem">AI auto-reporter</span>`:`${IC.user}&nbsp;Community reporter`;
           return`<div class="lbi"><div class="lbr ${rankClass[i]||""}">${i+1}</div><div style="flex:1"><div class="lbi-n">${nameHtml}</div><div class="lbi-a">${subHtml}</div></div><div class="lbi-c">${r.count}<small>report${r.count!==1?"s":""}</small></div></div>`;
         }).join("");
       }else{renderFallbackLeaderboard();}
@@ -2788,7 +2797,12 @@ function renderAuthForm(el,mode){el.innerHTML=`<div class="auth-wrap"><div class
 
 async function handleAuth(mode){const errEl=document.getElementById("authErr"),okEl=document.getElementById("authOk"),btn=document.getElementById("authBtn");const email=(document.getElementById("inp-email")?.value||"").trim();const pass=document.getElementById("inp-pass")?.value||"";const name=(document.getElementById("inp-name")?.value||"").trim();errEl.classList.remove("show");okEl.classList.remove("show");if(!email||!email.includes("@")||!email.includes(".")){errEl.textContent="Please enter a valid email address.";errEl.classList.add("show");return;}if(mode!=="forgot"&&pass.length<6){errEl.textContent="Password must be at least 6 characters.";errEl.classList.add("show");return;}if(mode==="register"&&!name){errEl.textContent="Please enter your name.";errEl.classList.add("show");return;}btn.innerHTML=`${mode==="login"?"Signing in":mode==="forgot"?"Sending link":"Creating account"}&nbsp;<span class="spin"></span>`;btn.disabled=true;try{if(mode==="register"){await doRegister(name,email,pass);okEl.textContent="Account created! Check your email to confirm, then sign in.";okEl.classList.add("show");btn.innerHTML="Create Account";btn.disabled=false;setTimeout(()=>renderAuthForm(document.getElementById("authWrap"),"login"),2800);}else if(mode==="forgot"){await sb.auth.resetPasswordForEmail(email,{redirectTo:APP_URL+"?mode=reset"});okEl.textContent="Reset link sent! Check your inbox (and spam folder).";okEl.classList.add("show");btn.innerHTML="Send Reset Link";btn.disabled=false;}else{await doLogin(email,pass);}}catch(e){let msg=e.message||"Something went wrong.";if(msg.toLowerCase().includes("invalid login")||msg.toLowerCase().includes("invalid credentials"))msg="Incorrect email or password. Please try again.";if(msg.toLowerCase().includes("email not confirmed"))msg="Please confirm your email first — check your inbox.";if(msg.toLowerCase().includes("already registered")||msg.toLowerCase().includes("user already registered"))msg="This email is already registered. Please sign in instead.";if(msg==="RATE_LIMIT"||msg.toLowerCase().includes("rate limit"))msg="Too many sign-up attempts. Please wait about 1 hour before trying again.";errEl.textContent=msg;errEl.classList.add("show");btn.innerHTML=mode==="login"?"Sign In":mode==="forgot"?"Send Reset Link":"Create Account";btn.disabled=false;}}
 
-function renderProfile(el){const locText=PR.location_label||PR.location_name||"Not set";const notifOn=PR.notif_on!==false;const savedCount=savedPlaces.length;el.innerHTML=`<div class="ph"><h2>Account</h2><p>Manage your alerts and locations</p></div><div class="profile-card"><div class="pc-top"><div class="pc-av">${(PR.name||"?")[0].toUpperCase()}</div><div><div class="pc-name">${PR.name||"User"}</div><div class="pc-email">${PR.email||CU.email}</div></div></div><div class="pc-row"><div class="pc-rl-wrap"><div class="pc-ico"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1A3 3 0 0 0 4 4C4 7.5 7 12 7 12S10 7.5 10 4A3 3 0 0 0 7 1z" stroke="currentColor" stroke-width="1.3"/><circle cx="7" cy="4" r="1.2" fill="currentColor"/></svg></div><div><div class="pc-rl">Watching area</div><div class="pc-rs">${locText}</div></div></div>${PR.location_id?`<button onclick="clearLoc()" style="font-size:.65rem;font-weight:600;color:var(--ink3);background:none;border:1px solid var(--bd);border-radius:6px;padding:4px 9px;cursor:pointer">Clear</button>`:""}</div><div class="pc-row"><div class="pc-rl-wrap"><div class="pc-ico"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M1.5 7L7 1.5L12.5 7V12.5H9V9H5V12.5H1.5V7Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg></div><div><div class="pc-rl">Saved Places</div><div class="pc-rs">${savedCount} place${savedCount!==1?"s":""} saved</div></div></div><button onclick="go('myarea')" style="font-size:.65rem;font-weight:600;color:var(--p);background:var(--pp);border:1px solid var(--pb);border-radius:6px;padding:4px 9px;cursor:pointer">Manage</button></div><div class="pc-row"><div class="pc-rl-wrap"><div class="pc-ico"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="1" y="2.5" width="12" height="9" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M1 5L7 8.5L13 5" stroke="currentColor" stroke-width="1.3"/></svg></div><div><div class="pc-rl">Email Alerts</div><div class="pc-rs">${notifOn?"On — receiving alerts":"Off — tap to enable"}</div></div></div><button class="toggle ${notifOn?"on":""}" id="notifToggle" onclick="toggleNotif()"></button></div><div class="pc-row"><div class="pc-rl-wrap"><div class="pc-ico"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="5" r="3" stroke="currentColor" stroke-width="1.3"/><path d="M1.5 13c0-3 2.5-4.5 5.5-4.5s5.5 1.5 5.5 4.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></div><div><div class="pc-rl">Alert address</div><div class="pc-rs">${CU.email}</div></div></div></div>${emailLog.length?`<div class="email-log"><div class="email-log-hd">Recent Alerts Sent</div>${emailLog.map(e=>`<div class="ei"><div class="ei-s">${e.subject}</div><div class="ei-m">${e.to} &middot; ${e.time}</div></div>`).join("")}</div>`:""}<button class="logout-btn" onclick="doLogout()">Sign Out</button></div>`;}
+function renderProfile(el){const locText=PR.location_label||PR.location_name||"Not set";const notifOn=PR.notif_on!==false;const savedCount=savedPlaces.length;
+  const pushSt=getPushStatus();
+  const pushStatusText=pushSt==='enabled'?'On — tap to disable':pushSt==='blocked'?'Blocked in browser settings':pushSt==='unsupported'?'Not supported in this browser':'Off — tap to enable';
+  const pushBtn=pushSt==='unsupported'?'':`<button class="toggle ${pushSt==='enabled'?'on':''}" onclick="togglePushNotif()"></button>`;
+el.innerHTML=`<div class="ph"><h2>Account</h2><p>Manage your alerts and locations</p></div><div class="profile-card"><div class="pc-top"><div class="pc-av">${(PR.name||"?")[0].toUpperCase()}</div><div><div class="pc-name">${PR.name||"User"}</div><div class="pc-email">${PR.email||CU.email}</div></div></div><div class="pc-row"><div class="pc-rl-wrap"><div class="pc-ico"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1A3 3 0 0 0 4 4C4 7.5 7 12 7 12S10 7.5 10 4A3 3 0 0 0 7 1z" stroke="currentColor" stroke-width="1.3"/><circle cx="7" cy="4" r="1.2" fill="currentColor"/></svg></div><div><div class="pc-rl">Watching area</div><div class="pc-rs">${locText}</div></div></div>${PR.location_id?`<button onclick="clearLoc()" style="font-size:.65rem;font-weight:600;color:var(--ink3);background:none;border:1px solid var(--bd);border-radius:6px;padding:4px 9px;cursor:pointer">Clear</button>`:""}</div><div class="pc-row"><div class="pc-rl-wrap"><div class="pc-ico"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M1.5 7L7 1.5L12.5 7V12.5H9V9H5V12.5H1.5V7Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg></div><div><div class="pc-rl">Saved Places</div><div class="pc-rs">${savedCount} place${savedCount!==1?"s":""} saved</div></div></div><button onclick="go('myarea')" style="font-size:.65rem;font-weight:600;color:var(--p);background:var(--pp);border:1px solid var(--pb);border-radius:6px;padding:4px 9px;cursor:pointer">Manage</button></div><div class="pc-row"><div class="pc-rl-wrap"><div class="pc-ico"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="1" y="2.5" width="12" height="9" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M1 5L7 8.5L13 5" stroke="currentColor" stroke-width="1.3"/></svg></div><div><div class="pc-rl">Email Alerts</div><div class="pc-rs">${notifOn?"On — receiving alerts":"Off — tap to enable"}</div></div></div><button class="toggle ${notifOn?"on":""}" id="notifToggle" onclick="toggleNotif()"></button></div>
+<div class="pc-row"><div class="pc-rl-wrap"><div class="pc-ico"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1.5L5 5H2.5l2 2-1 3.5L7 8.5 9.5 10.5l-1-3.5 2-2H8L7 1.5z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg></div><div><div class="pc-rl">Push Notifications</div><div class="pc-rs" id="pushStatusTxt">${pushStatusText}</div></div></div>${pushBtn}</div><div class="pc-row"><div class="pc-rl-wrap"><div class="pc-ico"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="5" r="3" stroke="currentColor" stroke-width="1.3"/><path d="M1.5 13c0-3 2.5-4.5 5.5-4.5s5.5 1.5 5.5 4.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></div><div><div class="pc-rl">Alert address</div><div class="pc-rs">${CU.email}</div></div></div></div>${emailLog.length?`<div class="email-log"><div class="email-log-hd">Recent Alerts Sent</div>${emailLog.map(e=>`<div class="ei"><div class="ei-s">${e.subject}</div><div class="ei-m">${e.to} &middot; ${e.time}</div></div>`).join("")}</div>`:""}<button class="logout-btn" onclick="doLogout()">Sign Out</button></div>`;}
 
 /* ━━━ PATCH 3: go() — handles predict page + widget refresh ━━━ */
 function go(page){
@@ -2812,6 +2826,103 @@ function go(page){
 }
   if(page==="community")renderCommunity();
   if(page==="account")renderAccount();
+}
+
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   PUSH NOTIFICATIONS
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+let _pushSubscription = null;
+
+function _urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = atob(base64);
+  return Uint8Array.from([...rawData].map(c => c.charCodeAt(0)));
+}
+
+async function initPush() {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    const existing = await reg.pushManager.getSubscription();
+    if (existing) { _pushSubscription = existing; await _savePushSub(existing); }
+  } catch(e) {}
+}
+
+async function requestPushPermission() {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+    toast('Push notifications not supported in this browser', 'info'); return false;
+  }
+  try {
+    const perm = await Notification.requestPermission();
+    if (perm !== 'granted') { toast('Notifications blocked — enable in browser settings', 'info'); return false; }
+    const reg = await navigator.serviceWorker.ready;
+    const sub = await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: _urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+    });
+    _pushSubscription = sub;
+    await _savePushSub(sub);
+    toast('Push notifications enabled', 'ok');
+    renderAccount();
+    return true;
+  } catch(e) {
+    toast('Could not enable push: ' + (e.message || 'unknown error'), 'err');
+    return false;
+  }
+}
+
+async function disablePush() {
+  try {
+    if (_pushSubscription) { await _pushSubscription.unsubscribe(); _pushSubscription = null; }
+    if (CU) await sb.from('push_subscriptions').delete().eq('user_id', CU.id);
+    toast('Push notifications disabled', 'info');
+    renderAccount();
+  } catch(e) { toast('Could not disable push', 'err'); }
+}
+
+async function _savePushSub(sub) {
+  if (!CU || !sub) return;
+  const subJson = sub.toJSON();
+  try {
+    await sb.from('push_subscriptions').upsert({
+      user_id:  CU.id,
+      endpoint: subJson.endpoint,
+      p256dh:   subJson.keys?.p256dh,
+      auth:     subJson.keys?.auth,
+      area:     PR?.location_area || null,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'user_id' });
+  } catch(e) {}
+}
+
+async function updatePushArea(area) {
+  if (!CU || !_pushSubscription) return;
+  try { await sb.from('push_subscriptions').update({ area }).eq('user_id', CU.id); } catch(e) {}
+}
+
+function getPushStatus() {
+  if (!('Notification' in window)) return 'unsupported';
+  if (Notification.permission === 'denied') return 'blocked';
+  if (_pushSubscription) return 'enabled';
+  return 'off';
+}
+
+// Deliver a local push-style notification when app is in foreground
+function _localNotify(title, body, type) {
+  if (document.visibilityState === 'visible') return; // skip if app is open
+  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+  try { new Notification(title, { body, icon: '/logo2.jpg', tag: 'nw-local-' + type }); } catch(e) {}
+}
+
+// Listen for SW push-click messages (navigate to area feed)
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.addEventListener('message', event => {
+    if (event.data?.type === 'PUSH_CLICK') {
+      go('home');
+    }
+  });
 }
 
 function render(){renderStats();renderFeed("liveFeed");renderDiscos();if(_mpMap&&document.getElementById("mapPickerOverlay")?.classList.contains("open"))_mpDrawPowerDots();}
@@ -2865,6 +2976,7 @@ window.addEventListener("load",async()=>{
   startRealtime();
   startPolling();
   renderMyArea();
+  initPush();
   if(typeof AIReporter!=='undefined'){
     await AIReporter.loadHistory();
     AIReporter.start();
@@ -2885,7 +2997,7 @@ async function doPasswordReset(){
     CU=null;PR=null;
     // Show success message
     const el=document.getElementById("authWrap");
-    if(el)el.innerHTML='<div class="auth-wrap"><div class="msg ok show" style="margin-bottom:24px"><strong>✓ Password updated!</strong><br>Please sign in with your new password.</div></div>';
+    if(el)el.innerHTML='<div class="auth-wrap"><div class="msg ok show" style="margin-bottom:24px"><strong>Password updated!</strong><br>Please sign in with your new password.</div></div>';
     // After 2s: clear reset flag, do full proper boot, show login form
     setTimeout(async()=>{
       _inResetFlow=false;
@@ -3052,7 +3164,7 @@ function selectHomeLocation(id){
   if(locLabel)locLabel.textContent=loc.street?`${loc.name}, ${loc.area}`:loc.name;
   const clear=document.getElementById('hsClear');
   if(clear)clear.style.display='none';
-  toast(`📍 Now watching ${loc.street?loc.name+', '+loc.area:loc.name}`,'ok');
+  toast(`Now watching ${loc.street?loc.name+', '+loc.area:loc.name}`,'ok');
   // Save to DB if logged in
   if(CU)saveLocation(loc);
 }
@@ -3088,7 +3200,7 @@ async function selectNominatimResult(idx){
   const locLabel=document.getElementById('locLabel');
   if(locTag)locTag.classList.add('on');
   if(locLabel)locLabel.textContent=name!==area?`${name}, ${area}`:area;
-  toast(`📍 Now watching ${name!==area?name+', '+area:area}`,'ok');
+  toast(`Now watching ${name!==area?name+', '+area:area}`,'ok');
 
   // Show on Leaflet map
   _showMap();showLeafletLocation(lat,lng);
@@ -3229,7 +3341,7 @@ function _mpDrawPowerDots(){
     if(status==='unk')return;
     const col=status==='on'?'#AAFF00':'#FF4055';
     const glow=status==='on'?'rgba(170,255,0,.5)':'rgba(255,64,85,.5)';
-    const label=status==='on'?'✅ Power on':'❌ Power out';
+    const label=status==='on'?'Power On':'Power Out';
     const icon=L.divIcon({className:'',html:`<div style="width:14px;height:14px;background:${col};border:2px solid rgba(255,255,255,.85);border-radius:50%;box-shadow:0 0 8px ${glow},0 1px 4px rgba(0,0,0,.4)"></div>`,iconSize:[14,14],iconAnchor:[7,7]});
     const marker=L.marker([coords.lat,coords.lng],{icon}).addTo(_mpMap);
     marker.bindPopup(`<strong>${area}</strong><br>${label}`);
@@ -3287,7 +3399,7 @@ const TOUR_STEPS = [
   {
     target: '#page-home',        // whole home page
     spotlight: null,             // no spotlight — just intro card
-    title: "Welcome to NEPAWatch 👋",
+    title: "Welcome to NEPAWatch",
     body: "Real-time power reports for Lagos, crowdsourced by your neighbours. Let's show you around quickly.",
     position: 'center',
   },
@@ -3384,7 +3496,7 @@ function _showTourStep() {
     <h4>${step.title}</h4>
     <p>${step.body}</p>
     <div class="onb-btns">
-      <button class="onb-next" onclick="_tourNext()">${isLast ? "Let's go! 🚀" : "Next →"}</button>
+      <button class="onb-next" onclick="_tourNext()">${isLast ? "Let's go!" : "Next →"}</button>
       ${!isLast ? `<button class="onb-skip" onclick="_endTour()">Skip tour</button>` : ''}
     </div>`;
 
