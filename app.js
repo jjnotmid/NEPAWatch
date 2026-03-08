@@ -1726,7 +1726,9 @@ const LAGOS = {
     "UNILAG Staff Quarters", "UNILAG Guest House",
     "UNILAG Health Centre", "UNILAG Chapel", "UNILAG Mosque",
     "Sconformist School UNILAG", "UNILAG IS",
-    "Jaja Hall UNILAG", "NUGA Games Village UNILAG"
+    "Jaja Hall UNILAG", "NUGA Games Village UNILAG",
+    "Alphabet Bus Stop", "Alphabet City UNILAG", "Unilag Second Gate",
+    "UNILAG Cooperative School", "UNILAG Staff Club"
   ],
   "YABATECH": [
     "Yaba College of Technology", "YABATECH Main Gate",
@@ -2031,7 +2033,7 @@ const AREA_COORDS = {
   "Lagos-Ibadan Expressway":{lat:6.6500,lng:3.3700},
 
   // ── AKOKA / UNILAG ───────────────────────────────────────────────
-  "UNILAG":{lat:6.5150,lng:3.3928},
+  "Alphabet Bus Stop":{lat:6.5175,lng:3.3910},"UNILAG":{lat:6.5150,lng:3.3928},
   // UNILAG Main/Back Gate removed — "UNILAG" entry covers these coords
   "FCE Akoka":{lat:6.5220,lng:3.3820},
   "Iwaya":{lat:6.5265,lng:3.3875},
@@ -2073,7 +2075,7 @@ const AREA_COORDS = {
 // ── GEOGRAPHIC HIERARCHY ─────────────────────────────────────────
 // Maps child areas → their parent area for "include sub-areas" filtering
 const AREA_PARENT = {
-  "UNILAG":"Yaba","YABATECH":"Yaba","FCE Akoka":"Yaba","Iwaya":"Yaba",
+  "Alphabet Bus Stop":"UNILAG","Alphabet City UNILAG":"UNILAG","Unilag Second Gate":"UNILAG","UNILAG Cooperative School":"UNILAG","UNILAG Staff Club":"UNILAG","UNILAG":"Yaba","YABATECH":"Yaba","FCE Akoka":"Yaba","Iwaya":"Yaba",
   "Akoka":"Yaba","Makoko":"Yaba","Oyingbo":"Yaba",// Ebute Metta is independent
   "Bariga":"Shomolu/Bariga","Shomolu":"Shomolu/Bariga",
   "Gbagada Phase 1":"Gbagada","Gbagada Phase 2":"Gbagada","Ifako Gbagada":"Gbagada","Soluyi":"Gbagada",
@@ -2142,11 +2144,13 @@ function getAreaFamily(area){
 function areaMatches(reportArea, filterArea){
   if(!filterArea)return true;
   if(reportArea===filterArea)return true;
-  // report is a child of the filter
+  // report is a child of the filter (e.g. report area "UNILAG" matches filter "Yaba")
   if(AREA_PARENT[reportArea]===filterArea)return true;
-  // report's parent is the filter's parent (siblings)
-  // No — siblings shouldn't match, only children
-  // report is the parent of the filter (user filtered to child, show parent too? No — too broad)
+  // filter is a child of the report area (e.g. watching "Faculty of Education UNILAG",
+  // show reports filed under parent "UNILAG" — because that's what gets stored)
+  if(AREA_PARENT[filterArea]===reportArea)return true;
+  // both share the same parent (siblings within same top-level area)
+  if(AREA_PARENT[reportArea]&&AREA_PARENT[reportArea]===AREA_PARENT[filterArea])return true;
   return false;
 }
 
@@ -2644,6 +2648,52 @@ function setFeedFilter(f){
   document.getElementById("ftAll").classList.toggle("active",f==="all");
   renderFeed("liveFeed");
 }
+function _buildReportCard(r, i=0){
+  const isAI=r.isAI||r.userId===AI_USER_ID;
+  const aiBadge=isAI?`<div class="fc-ai-badge">${IC.ai}&nbsp;NEPAWatch AI</div>`:'';
+  const isOwn = CU && r.userId === CU.id;
+  const confirmBtn = isOwn ? '' : `<button class="same-btn" onclick="addConfirm('${r.id}')">${IC.chk} Same</button>`;
+  return`<div class="fc ${r.type}" data-rid="${r.id}" style="animation-delay:${i*30}ms">
+    <div class="fc-bar"></div>
+    <div class="fc-dot">${r.type==="out"?IC.out:IC.bck}</div>
+    <div class="fc-body">
+      <div class="fc-loc">${r.name}</div>
+      <div class="fc-area">${r.area}</div>
+      <div class="fc-meta" data-confirms="${r.id}">${r.confirms} confirmation${r.confirms!==1?"s":""}</div>
+      ${aiBadge}
+    </div>
+    <div class="fc-r">
+      <div class="fc-time">${ago(r.time)} ago</div>
+      ${confirmBtn}
+      <button class="save-area-btn" onclick="promptSaveArea('${r.area.replace(/'/g,'\\&apos;')}')" title="Save this area">
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 1.5h8a.5.5 0 0 1 .5.5v8.5L6 8.5 1.5 10.5V2a.5.5 0 0 1 .5-.5z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>
+      </button>
+    </div>
+  </div>`;
+}
+
+function prependReportCard(r, feedId="liveFeed"){
+  const el=document.getElementById(feedId);if(!el)return;
+  const fa=feedId==="liveFeed"?filterArea:null;
+  // Only prepend if it passes the current filter
+  if(fa&&!areaMatches(r.area,fa))return;
+  if(feedFilter==="today"){
+    const midnight=new Date();midnight.setHours(0,0,0,0);
+    if(r.time<midnight.getTime())return;
+  }
+  // Remove empty state if present
+  const empty=el.querySelector(".empty");if(empty)empty.remove();
+  // Don't duplicate
+  if(el.querySelector(`[data-rid="${r.id}"]`))return;
+  const card=document.createElement("div");
+  card.innerHTML=_buildReportCard(r,0);
+  const node=card.firstElementChild;
+  el.insertBefore(node,el.firstChild);
+  // Cap visible cards at 40
+  const cards=el.querySelectorAll(".fc");
+  if(cards.length>40)cards[cards.length-1].remove();
+}
+
 function renderFeed(id="liveFeed", aF=null){
   const el=document.getElementById(id);if(!el)return;
   const fa=aF!==null?aF:(id==="liveFeed"?filterArea:null);
@@ -2653,30 +2703,7 @@ function renderFeed(id="liveFeed", aF=null){
     data=data.filter(r=>r.time>=midnight.getTime());
   }
   if(!data.length){el.innerHTML=`<div class="empty"><div class="empty-ico">${IC.bck}</div><p>${id==="liveFeed"&&feedFilter==="today"?"No reports today yet — be the first!":fa?`No reports for ${fa} yet.`:"No reports yet — be the first to report!"}</p></div>`;return;}
-  el.innerHTML=data.slice(0,40).map((r,i)=>{
-    const isAI=r.isAI||r.userId===AI_USER_ID;
-    const aiBadge=isAI?`<div class="fc-ai-badge">${IC.ai}&nbsp;NEPAWatch AI</div>`:'';
-    // Hide "Same" button if this report belongs to the current user
-    const isOwn = CU && r.userId === CU.id;
-    const confirmBtn = isOwn ? '' : `<button class="same-btn" onclick="addConfirm('${r.id}')">${IC.chk} Same</button>`;
-    return`<div class="fc ${r.type}" style="animation-delay:${i*30}ms">
-      <div class="fc-bar"></div>
-      <div class="fc-dot">${r.type==="out"?IC.out:IC.bck}</div>
-      <div class="fc-body">
-        <div class="fc-loc">${r.name}</div>
-        <div class="fc-area">${r.area}</div>
-        <div class="fc-meta">${r.confirms} confirmation${r.confirms!==1?"s":""}</div>
-        ${aiBadge}
-      </div>
-      <div class="fc-r">
-        <div class="fc-time">${ago(r.time)} ago</div>
-        ${confirmBtn}
-        <button class="save-area-btn" onclick="promptSaveArea('${r.area.replace(/'/g,'\\&apos;')}')" title="Save this area">
-          <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 1.5h8a.5.5 0 0 1 .5.5v8.5L6 8.5 1.5 10.5V2a.5.5 0 0 1 .5-.5z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>
-        </button>
-      </div>
-    </div>`;
-  }).join("");
+  el.innerHTML=data.slice(0,40).map((r,i)=>_buildReportCard(r,i)).join("");
 }
 
 function renderDiscos(){const el=document.getElementById("discoZones");if(!el)return;el.innerHTML=DISCO.map(d=>{const outN=d.lgas.filter(a=>areaStatus(a)==="out").length;const rel=Math.max(10,Math.round(100-(outN/Math.max(d.lgas.length,1))*100));const c=rel>70?"var(--p)":rel>40?"var(--am)":"var(--rd)";const dot=outN>d.lgas.length*.5?"var(--rd)":outN>0?"var(--am)":"var(--p)";return`<div class="zc"><div class="zdot" style="background:${dot}"></div><div class="zb"><div class="zn">${d.name}<span>${d.lgas.slice(0,3).join(" · ")}...</span></div><div class="zt"><div class="zf" style="width:${rel}%;background:${c}"></div></div></div><div class="zp" style="color:${c}">${rel}%</div></div>`;}).join("");}
@@ -2775,7 +2802,7 @@ function go(page){
 function render(){renderStats();renderFeed("liveFeed");renderDiscos();if(_mpMap&&document.getElementById("mapPickerOverlay")?.classList.contains("open"))_mpDrawPowerDots();}
 
 let _rtChannel=null,_recentAlerts=new Set(),_rtWatchdog=null;
-function startRealtime(){try{if(_rtChannel){try{sb.removeChannel(_rtChannel);}catch(e){}} _rtChannel=sb.channel("realtime-reports-"+Date.now()).on("postgres_changes",{event:"INSERT",schema:"public",table:"reports"},payload=>{try{const r=payload.new;if(!r||reports.find(x=>String(x.id)===String(r.id)))return;reports.unshift({id:String(r.id),name:String(r.location_name||""),area:String(r.location_area||""),type:String(r.type||""),time:new Date(r.created_at).getTime(),confirms:Number(r.confirms)||1,userId:r.user_id,isAI:r.user_id===AI_USER_ID});if(reports.length>200)reports.pop();render();if(_nearbyAreas.length)renderNearbyDashboard();renderSavedPlacesHome();renderMyPlacesList();if(r.user_id&&r.user_id!==CU?.id){const alertKey=r.id+r.type;if(!_recentAlerts.has(alertKey)){_recentAlerts.add(alertKey);setTimeout(()=>_recentAlerts.delete(alertKey),30000);sendAreaAlerts(r.location_name,r.location_area,r.type);}}}catch(e){}}).on("postgres_changes",{event:"UPDATE",schema:"public",table:"reports"},payload=>{try{const r=payload.new;const existing=reports.find(x=>String(x.id)===String(r.id));if(existing){existing.confirms=Number(r.confirms)||1;renderFeed("liveFeed");renderFeed("myFeed",PR?.location_area||null);}}catch(e){}}).subscribe(status=>{
+function startRealtime(){try{if(_rtChannel){try{sb.removeChannel(_rtChannel);}catch(e){}} _rtChannel=sb.channel("realtime-reports-"+Date.now()).on("postgres_changes",{event:"INSERT",schema:"public",table:"reports"},payload=>{try{const r=payload.new;if(!r||reports.find(x=>String(x.id)===String(r.id)))return;const newRep={id:String(r.id),name:String(r.location_name||""),area:String(r.location_area||""),type:String(r.type||""),time:new Date(r.created_at).getTime(),confirms:Number(r.confirms)||1,userId:r.user_id,isAI:r.user_id===AI_USER_ID};reports.unshift(newRep);if(reports.length>200)reports.pop();renderStats();prependReportCard(newRep,"liveFeed");renderDiscos();if(_nearbyAreas.length)renderNearbyDashboard();renderSavedPlacesHome();renderMyPlacesList();if(r.user_id&&r.user_id!==CU?.id){const alertKey=r.id+r.type;if(!_recentAlerts.has(alertKey)){_recentAlerts.add(alertKey);setTimeout(()=>_recentAlerts.delete(alertKey),30000);sendAreaAlerts(r.location_name,r.location_area,r.type);}}}catch(e){}}).on("postgres_changes",{event:"UPDATE",schema:"public",table:"reports"},payload=>{try{const r=payload.new;const existing=reports.find(x=>String(x.id)===String(r.id));if(existing){existing.confirms=Number(r.confirms)||1;const confirmsEl=document.querySelector(`[data-confirms="${existing.id}"]`);if(confirmsEl)confirmsEl.textContent=`${existing.confirms} confirmation${existing.confirms!==1?"s":""}`;else{renderFeed("liveFeed");renderFeed("myFeed",PR?.location_area||null);}}}catch(e){}}).subscribe(status=>{
     // If realtime drops, restart it after 5s
     if(status==='CHANNEL_ERROR'||status==='TIMED_OUT'){
       clearTimeout(_rtWatchdog);
