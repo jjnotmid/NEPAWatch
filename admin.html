@@ -290,6 +290,11 @@ tr:hover td{background:rgba(128,128,128,.04)}
         <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M1.5 5h11v7a1 1 0 0 1-1 1h-9a1 1 0 0 1-1-1V5z" stroke="currentColor" stroke-width="1.3"/><path d="M1.5 5L7 1.5 12.5 5" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>
         Broadcast
       </button>
+      <div class="sb-sec">Locations</div>
+      <button class="sb-item" data-page="locations" onclick="nav(this)">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1A3 3 0 0 0 4 4C4 7.5 7 12 7 12S10 7.5 10 4A3 3 0 0 0 7 1z" stroke="currentColor" stroke-width="1.3"/><circle cx="7" cy="4.2" r="1.2" stroke="currentColor" stroke-width="1"/><path d="M2 13h10" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+        Custom Locations
+      </button>
       <div class="sb-sec">Billing</div>
       <button class="sb-item" data-page="topup" onclick="nav(this)">
         <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="1" y="3" width="12" height="8.5" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M1 6h12" stroke="currentColor" stroke-width="1.3"/><circle cx="3.5" cy="9" r="1" fill="currentColor"/></svg>
@@ -339,6 +344,7 @@ tr:hover td{background:rgba(128,128,128,.04)}
         <input type="text" id="rep-search" placeholder="Search location…" oninput="filterReports()">
         <select id="rep-type" onchange="filterReports()"><option value="">All types</option><option value="out">Outage</option><option value="bck">Restored</option></select>
         <select id="rep-area" onchange="filterReports()"><option value="">All areas</option></select>
+        <select id="rep-reporter" onchange="filterReports()"><option value="">All reporters</option><option value="ai">AI Only</option><option value="human">Human Only</option></select>
       </div>
       <div class="card"><div class="tbl-wrap"><table><thead><tr><th>Location</th><th>Area</th><th>Type</th><th>Confirms</th><th>Time</th><th>Reporter</th><th></th></tr></thead><tbody id="reportsTable"><tr><td colspan="7" class="loading-row"><span class="spin"></span>Loading…</td></tr></tbody></table></div></div>
     </div>
@@ -371,15 +377,32 @@ tr:hover td{background:rgba(128,128,128,.04)}
 
     <!-- BROADCAST -->
     <div class="page" id="page-broadcast">
-      <div class="ph"><h2>Broadcast Alert</h2><p>Send email alerts to your users</p></div>
+      <div class="ph"><h2>Broadcast & Email</h2><p>Send emails to all users or specific people</p></div>
+      <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap">
+        <button class="btn btn-primary" id="bcModeAll" onclick="setBcMode('broadcast')" style="flex:1;min-width:120px">📣 Broadcast to Users</button>
+        <button class="btn btn-ghost" id="bcModeOne" onclick="setBcMode('single')" style="flex:1;min-width:120px">✉️ Email One Person</button>
+      </div>
       <div class="bc-grid" id="bcGrid">
         <div class="card">
-          <div class="card-hd"><div class="card-title">Compose Message</div></div>
+          <div class="card-hd"><div class="card-title" id="bcFormTitle">Compose Broadcast</div></div>
           <div class="card-body">
             <div class="bc-form">
+              <div class="fld" id="bcToField" style="margin-bottom:0;display:none"><label>To (email address)</label><input id="bc-to" type="email" placeholder="user@example.com"></div>
+              <div class="fld" id="bcAreaField" style="margin-bottom:0"><label>Target Area <span style="color:var(--ink3);font-weight:400">(blank = all users with alerts)</span></label><select id="bc-area"><option value="">All users with alerts enabled</option></select></div>
               <div class="fld" style="margin-bottom:0"><label>Subject</label><input id="bc-subject" type="text" placeholder="e.g. Scheduled outage in Lekki tonight"></div>
-              <div class="fld" style="margin-bottom:0"><label>Message</label><textarea id="bc-body" placeholder="Write your message here…"></textarea></div>
-              <div class="fld" style="margin-bottom:0"><label>Target Area (blank = all users)</label><select id="bc-area"><option value="">All users with alerts enabled</option></select></div>
+              <div class="fld" style="margin-bottom:0"><label>Message (plain text)</label><textarea id="bc-body" placeholder="Write your message here…" rows="5"></textarea></div>
+              <div style="margin-bottom:12px">
+                <button class="btn btn-ghost" style="font-size:.72rem;padding:5px 12px" onclick="toggleHtmlEditor()">🎨 Edit HTML Email Template</button>
+                <span style="font-size:.65rem;color:var(--ink3);margin-left:8px">Optional — uses plain text if left empty</span>
+              </div>
+              <div id="htmlEditorWrap" style="display:none">
+                <div style="font-size:.72rem;color:var(--ink3);margin-bottom:6px">HTML template — use <code style="background:var(--bg3);padding:1px 5px;border-radius:3px">{{name}}</code>, <code style="background:var(--bg3);padding:1px 5px;border-radius:3px">{{body}}</code>, <code style="background:var(--bg3);padding:1px 5px;border-radius:3px">{{area}}</code> as placeholders</div>
+                <textarea id="bc-html" rows="10" placeholder="Paste your HTML email here…" style="font-family:monospace;font-size:.72rem"></textarea>
+                <div style="display:flex;gap:8px;margin-top:8px">
+                  <button class="btn btn-ghost" style="font-size:.7rem;padding:4px 10px" onclick="loadDefaultTemplate()">Load Default Template</button>
+                  <button class="btn btn-ghost" style="font-size:.7rem;padding:4px 10px" onclick="previewHtml()">Preview</button>
+                </div>
+              </div>
               <button class="btn btn-primary" id="bc-send" onclick="sendBroadcast()">Send Broadcast</button>
             </div>
           </div>
@@ -389,6 +412,16 @@ tr:hover td{background:rgba(128,128,128,.04)}
           <div class="card-body" id="bc-history"><p class="empty-state">No broadcasts sent yet.</p></div>
         </div>
       </div>
+    </div>
+
+    <!-- CUSTOM LOCATIONS -->
+    <div class="page" id="page-locations">
+      <div class="ph-row">
+        <div class="ph"><h2>Custom Locations</h2><p>User-added streets and locations</p></div>
+        <button class="btn btn-ghost" onclick="loadCustomLocations()">↻ Refresh</button>
+      </div>
+      <div class="filter-bar"><input type="text" id="loc-search" placeholder="Search location or area…" oninput="filterLocations()"></div>
+      <div class="card"><div class="tbl-wrap"><table><thead><tr><th>Street Name</th><th>Area</th><th>Added</th><th colspan="2">Actions</th></tr></thead><tbody id="locationsTable"><tr><td colspan="5" class="loading-row"><span class="spin"></span>Loading…</td></tr></tbody></table></div></div>
     </div>
 
     <!-- TOP-UPS -->
@@ -415,6 +448,30 @@ tr:hover td{background:rgba(128,128,128,.04)}
       <button class="btn btn-ghost" onclick="document.getElementById('addAreaModal').classList.remove('open')">Cancel</button>
       <button class="btn btn-primary" onclick="addArea()">Add Area</button>
     </div>
+  </div>
+</div>
+
+<!-- EDIT LOCATION MODAL -->
+<div class="modal-bg" id="editLocModal">
+  <div class="modal">
+    <h3>Edit Location</h3>
+    <p class="modal-p">Update the street name or area for this location.</p>
+    <input type="hidden" id="editLocId">
+    <div class="fld"><label>Street Name</label><input id="editLocStreet" type="text" placeholder="e.g. Admiralty Way"></div>
+    <div class="fld"><label>Area</label><input id="editLocArea" type="text" placeholder="e.g. Lekki Phase 1"></div>
+    <div class="modal-btns">
+      <button class="btn btn-ghost" onclick="document.getElementById('editLocModal').classList.remove('open')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveEditLocation()">Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<!-- HTML PREVIEW MODAL -->
+<div class="modal-bg" id="htmlPreviewModal" onclick="this.classList.remove('open')">
+  <div class="modal" style="max-width:640px;width:95%" onclick="event.stopPropagation()">
+    <h3>Email Preview</h3>
+    <div id="htmlPreviewFrame" style="border:1px solid var(--bd2);border-radius:8px;padding:16px;background:#fff;max-height:60vh;overflow-y:auto;margin:12px 0"></div>
+    <button class="btn btn-ghost" onclick="document.getElementById('htmlPreviewModal').classList.remove('open')">Close</button>
   </div>
 </div>
 
@@ -501,7 +558,7 @@ function boot() {
     .subscribe();
 }
 async function refreshAll() {
-  await Promise.all([loadStats(), loadReports(), loadUsers(), loadTopups()]);
+  await Promise.all([loadStats(), loadReports(), loadUsers(), loadTopups(), loadCustomLocations()]);
 }
 
 // ── SIDEBAR ───────────────────────────────────────────────────
@@ -582,9 +639,11 @@ function filterReports() {
   const q=document.getElementById('rep-search').value.toLowerCase();
   const type=document.getElementById('rep-type').value;
   const area=document.getElementById('rep-area').value;
+  const reporter=document.getElementById('rep-reporter')?.value||'';
   const f=allReports.filter(r=>
     (!q||(r.location_name||'').toLowerCase().includes(q)||(r.location_area||'').toLowerCase().includes(q))&&
-    (!type||r.type===type)&&(!area||r.location_area===area)
+    (!type||r.type===type)&&(!area||r.location_area===area)&&
+    (!reporter||(reporter==='ai'?r.user_id==='nepawatch-ai':r.user_id!=='nepawatch-ai'))
   );
   const tb=document.getElementById('reportsTable');
   if(!f.length){tb.innerHTML=`<tr><td colspan="7" class="empty-state">No reports found.</td></tr>`;return;}
@@ -703,10 +762,14 @@ function filterUsers() {
   </tr>`).join('');
 }
 function quickEmail(email,name) {
-  document.getElementById('bc-subject').value=`Hey ${name||'there'} — from NEPAWatch`;
-  document.getElementById('bc-body').value=`Hi ${name||'there'},\n\n`;
   document.querySelector('[data-page="broadcast"]').click();
-  setTimeout(()=>document.getElementById('bc-subject').focus(),100);
+  setTimeout(()=>{
+    setBcMode('single');
+    document.getElementById('bc-to').value=email||'';
+    document.getElementById('bc-subject').value=`Hey ${name||'there'} — from NEPAWatch`;
+    document.getElementById('bc-body').value=`Hi ${name||'there'},\n\n`;
+    document.getElementById('bc-to').focus();
+  },120);
 }
 
 // ── TOP-UPS ───────────────────────────────────────────────────
@@ -759,25 +822,66 @@ function populateSelects() {
     LAGOS_AREAS.forEach(a=>{ const o=document.createElement('option');o.value=a;o.textContent=a;sel.appendChild(o); });
   });
 }
+let _bcMode='broadcast';
+function setBcMode(m){
+  _bcMode=m;
+  const isSingle=m==='single';
+  document.getElementById('bcToField').style.display=isSingle?'block':'none';
+  document.getElementById('bcAreaField').style.display=isSingle?'none':'block';
+  document.getElementById('bcFormTitle').textContent=isSingle?'Email One Person':'Compose Broadcast';
+  document.getElementById('bc-send').textContent=isSingle?'Send Email':'Send Broadcast';
+  document.getElementById('bcModeAll').className=isSingle?'btn btn-ghost':'btn btn-primary';
+  document.getElementById('bcModeOne').className=isSingle?'btn btn-primary':'btn btn-ghost';
+}
+function toggleHtmlEditor(){
+  const w=document.getElementById('htmlEditorWrap');
+  w.style.display=w.style.display==='none'?'block':'none';
+}
+function loadDefaultTemplate(){
+  const tpl=`<!DOCTYPE html><html><head><meta charset="utf-8"><style>body{font-family:sans-serif;background:#0d1117;color:#e6edf3;margin:0;padding:0}.wrap{max-width:520px;margin:40px auto;background:#161b22;border-radius:14px;overflow:hidden}.header{background:#f7c842;padding:22px 28px;text-align:center}.logo{font-size:1.3rem;font-weight:800;color:#0d1117;letter-spacing:-0.5px}.logo em{color:#333;font-style:normal}.body{padding:28px 28px 20px}.greeting{font-size:1rem;font-weight:600;margin-bottom:12px;color:#e6edf3}.msg{font-size:.88rem;line-height:1.7;color:#b1bac4;white-space:pre-wrap}.footer{padding:14px 28px 22px;font-size:.7rem;color:#484f58;border-top:1px solid #21262d}</style></head><body><div class="wrap"><div class="header"><div class="logo">NEPA<em>Watch</em> Lagos</div></div><div class="body"><div class="greeting">Hi {{name}} 👋</div><div class="msg">{{body}}</div></div><div class="footer">You received this because you signed up for NEPAWatch alerts.<br>NEPAWatch Lagos — nepawatch.netlify.app</div></div></body></html>`;
+  document.getElementById('bc-html').value=tpl;
+  document.getElementById('htmlEditorWrap').style.display='block';
+}
+function previewHtml(){
+  const html=document.getElementById('bc-html').value;
+  const body=document.getElementById('bc-body').value;
+  const filled=html.replace(/{{name}}/g,'Preview User').replace(/{{body}}/g,body||'Your message here').replace(/{{area}}/g,document.getElementById('bc-area')?.value||'Lagos');
+  document.getElementById('htmlPreviewFrame').innerHTML=filled;
+  document.getElementById('htmlPreviewModal').classList.add('open');
+}
 async function sendBroadcast() {
   const subject=document.getElementById('bc-subject').value.trim();
   const body=document.getElementById('bc-body').value.trim();
-  const area=document.getElementById('bc-area').value;
+  const htmlTpl=document.getElementById('bc-html')?.value.trim()||'';
   const btn=document.getElementById('bc-send');
   if(!subject||!body){toast('Enter subject and message','err');return;}
-  if(!confirm(`Send to ${area?'users in '+area:'ALL users'}?`))return;
   btn.textContent='Sending…'; btn.disabled=true;
   try {
-    const res=await fetch(EMAIL_FN,{method:'POST',headers:{'Content-Type':'application/json','apikey':SUPA_ANON,'Authorization':`Bearer ${SUPA_ANON}`},body:JSON.stringify({mode:'broadcast',subject,body,area:area||null})});
-    const json=await res.json().catch(()=>({}));
-    const count=json.sent||0;
-    toast(`Sent to ${count} user${count!==1?'s':''}!`,'ok');
-    bcHistory.unshift({subject,area:area||'All users',count,time:new Date().toLocaleTimeString('en-NG',{hour:'2-digit',minute:'2-digit'})});
-    renderBcHistory();
-    document.getElementById('bc-subject').value='';
-    document.getElementById('bc-body').value='';
-  } catch(e){toast('Broadcast failed','err');}
-  btn.textContent='Send Broadcast'; btn.disabled=false;
+    if(_bcMode==='single'){
+      const toEmail=document.getElementById('bc-to').value.trim();
+      if(!toEmail||!toEmail.includes('@')){toast('Enter a valid email address','err');btn.textContent='Send Email';btn.disabled=false;return;}
+      if(!confirm(`Send to ${toEmail}?`))return;
+      const html=htmlTpl?htmlTpl.replace(/{{name}}/g,toEmail.split('@')[0]).replace(/{{body}}/g,body).replace(/{{area}}/g,''):null;
+      const res=await fetch(EMAIL_FN,{method:'POST',headers:{'Content-Type':'application/json','apikey':SUPA_ANON,'Authorization':`Bearer ${SUPA_ANON}`},body:JSON.stringify({mode:'single',to:toEmail,subject,body,html})});
+      const json=await res.json().catch(()=>({}));
+      if(res.ok||json.sent){toast(`Sent to ${toEmail}`,'ok');bcHistory.unshift({subject,area:toEmail,count:1,time:new Date().toLocaleTimeString('en-NG',{hour:'2-digit',minute:'2-digit'})});renderBcHistory();}
+      else toast('Send failed — check Edge Function logs','err');
+    } else {
+      const area=document.getElementById('bc-area').value;
+      if(!confirm(`Send to ${area?'users in '+area:'ALL users'}?`))return;
+      const html=htmlTpl?htmlTpl:null;
+      const res=await fetch(EMAIL_FN,{method:'POST',headers:{'Content-Type':'application/json','apikey':SUPA_ANON,'Authorization':`Bearer ${SUPA_ANON}`},body:JSON.stringify({mode:'broadcast',subject,body,html,area:area||null})});
+      const json=await res.json().catch(()=>({}));
+      const count=json.sent||0;
+      toast(`Sent to ${count} user${count!==1?'s':''}!`,'ok');
+      bcHistory.unshift({subject,area:area||'All users',count,time:new Date().toLocaleTimeString('en-NG',{hour:'2-digit',minute:'2-digit'})});
+      renderBcHistory();
+      document.getElementById('bc-subject').value='';
+      document.getElementById('bc-body').value='';
+      document.getElementById('bc-html').value='';
+    }
+  } catch(e){toast('Send failed: '+e.message,'err');}
+  btn.textContent=_bcMode==='single'?'Send Email':'Send Broadcast'; btn.disabled=false;
 }
 function renderBcHistory() {
   const el=document.getElementById('bc-history');
@@ -801,6 +905,65 @@ window.addEventListener('resize',()=>{
   const g=document.getElementById('bcGrid');
   if(g) g.style.gridTemplateColumns=window.innerWidth<700?'1fr':'1fr 1fr';
 });
+
+// ── CUSTOM LOCATIONS ─────────────────────────────────────────
+let allLocations=[];
+async function loadCustomLocations(){
+  const tb=document.getElementById('locationsTable');
+  if(tb)tb.innerHTML=`<tr><td colspan="5" class="loading-row"><span class="spin"></span>Loading…</td></tr>`;
+  try {
+    const {data,error}=await sb.from('custom_locations').select('*').order('created_at',{ascending:false}).limit(500);
+    if(error)throw error;
+    allLocations=data||[];
+    filterLocations();
+    toast(`${allLocations.length} custom locations loaded`,'ok');
+  } catch(e){if(tb)tb.innerHTML=`<tr><td colspan="5" class="empty-state">Could not load locations: ${e.message}</td></tr>`;}
+}
+function filterLocations(){
+  const q=(document.getElementById('loc-search')?.value||'').toLowerCase();
+  const tb=document.getElementById('locationsTable');if(!tb)return;
+  const f=allLocations.filter(l=>
+    (!q||(l.street_name||'').toLowerCase().includes(q)||(l.area_name||'').toLowerCase().includes(q))
+  );
+  if(!f.length){tb.innerHTML=`<tr><td colspan="5" class="empty-state">No locations found.</td></tr>`;return;}
+  tb.innerHTML=f.map(l=>`<tr>
+    <td><div style="font-weight:600;font-size:.77rem">${l.street_name||'—'}</div></td>
+    <td style="color:var(--ink2);font-size:.73rem">${l.area_name||'—'}</td>
+    <td style="color:var(--ink3);font-size:.67rem">${l.created_at?new Date(l.created_at).toLocaleDateString('en-NG',{day:'numeric',month:'short',year:'numeric'}):'—'}</td>
+    <td><button class="btn btn-ghost" style="padding:3px 9px;font-size:.68rem" onclick="openEditLoc('${l.id}','${(l.street_name||'').replace(/'/g,"\'")}','${(l.area_name||'').replace(/'/g,"\'")}')">Edit</button></td>
+    <td><button class="del-btn" onclick="deleteLocation('${l.id}')">Delete</button></td>
+  </tr>`).join('');
+}
+function openEditLoc(id, street, area){
+  document.getElementById('editLocId').value=id;
+  document.getElementById('editLocStreet').value=street;
+  document.getElementById('editLocArea').value=area;
+  document.getElementById('editLocModal').classList.add('open');
+}
+async function saveEditLocation(){
+  const id=document.getElementById('editLocId').value;
+  const street=document.getElementById('editLocStreet').value.trim();
+  const area=document.getElementById('editLocArea').value.trim();
+  if(!street||!area){toast('Fill in all fields','err');return;}
+  try {
+    const {error}=await sb.from('custom_locations').update({street_name:street,area_name:area}).eq('id',id);
+    if(error)throw error;
+    const loc=allLocations.find(l=>l.id==id);
+    if(loc){loc.street_name=street;loc.area_name=area;}
+    filterLocations();
+    document.getElementById('editLocModal').classList.remove('open');
+    toast('Location updated','ok');
+  } catch(e){toast('Update failed: '+e.message,'err');}
+}
+async function deleteLocation(id){
+  if(!confirm('Delete this location? It will be removed for all users.'))return;
+  try {
+    await sb.from('custom_locations').delete().eq('id',id);
+    allLocations=allLocations.filter(l=>l.id!=id);
+    filterLocations();
+    toast('Location deleted','ok');
+  } catch(e){toast('Delete failed','err');}
+}
 
 // ── AUTO-LOGIN ────────────────────────────────────────────────
 (async function(){
