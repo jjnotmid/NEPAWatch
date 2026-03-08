@@ -1920,7 +1920,7 @@ const AREA_COORDS = {
   "National Theatre":{lat:6.4786,lng:3.3615},
   "Idumota":{lat:6.4600,lng:3.3950},
   "Adeniji Adele":{lat:6.4570,lng:3.3840},
-  "CMS Lagos":{lat:6.4538,lng:3.3958},
+  "CMS Lagos":{lat:6.4542,lng:3.3970},
 
   // ── LEKKI CORRIDOR ───────────────────────────────────────────────
   "Lekki Phase 1":{lat:6.4397,lng:3.4723},
@@ -1951,12 +1951,12 @@ const AREA_COORDS = {
   "Ozumba Mbadiwe":{lat:6.4300,lng:3.4350},
   "Eko Hotel":{lat:6.4305,lng:3.4235},
   "Pan-Atlantic University":{lat:6.4511,lng:3.6047},
-  "Lagos Business School":{lat:6.4511,lng:3.6047},
+  // Lagos Business School — same as Pan-Atlantic, removed,
 
   // ── MAINLAND NORTH ───────────────────────────────────────────────
   "Ikeja GRA":{lat:6.5843,lng:3.3360},
   "Ikeja (Allen/Opebi)":{lat:6.6018,lng:3.3515},
-  "Allen Avenue":{lat:6.6005,lng:3.3520},
+  "Allen Avenue":{lat:6.6010,lng:3.3530},
   "Opebi":{lat:6.5990,lng:3.3470},
   "Toyin Street Ikeja":{lat:6.5968,lng:3.3442},
   "Alausa/Secretariat":{lat:6.5880,lng:3.3430},
@@ -1980,7 +1980,7 @@ const AREA_COORDS = {
   "Ilupeju":{lat:6.5540,lng:3.3602},
   "Mushin":{lat:6.5283,lng:3.3542},
   "Oshodi/Isolo":{lat:6.5478,lng:3.3230},
-  "Oshodi Market":{lat:6.5478,lng:3.3230},
+  "Oshodi Market":{lat:6.5490,lng:3.3245},
   "Isolo":{lat:6.5350,lng:3.3200},
   "Ejigbo":{lat:6.5300,lng:3.3100},
   "Ago Palace Way":{lat:6.5100,lng:3.3080},
@@ -2031,10 +2031,10 @@ const AREA_COORDS = {
   "Lagos-Ibadan Expressway":{lat:6.6500,lng:3.3700},
 
   // ── AKOKA / UNILAG ───────────────────────────────────────────────
-  "UNILAG":{lat:6.5183,lng:3.3855},
+  "UNILAG":{lat:6.5158,lng:3.3905},
   // UNILAG Main/Back Gate removed — "UNILAG" entry covers these coords
-  "FCE Akoka":{lat:6.5209,lng:3.3812},
-  "Iwaya":{lat:6.5250,lng:3.3880},
+  "FCE Akoka":{lat:6.5220,lng:3.3820},
+  "Iwaya":{lat:6.5265,lng:3.3875},
   "Makoko":{lat:6.5041,lng:3.3816},
   "Oyingbo":{lat:6.4990,lng:3.3780},
 
@@ -2066,10 +2066,90 @@ const AREA_COORDS = {
   // ── TRANSPORT ────────────────────────────────────────────────────
   "Third Mainland Bridge":{lat:6.5020,lng:3.3900},
   "Lekki-Ikoyi Link Bridge":{lat:6.4440,lng:3.4495},
-  "Apapa Port":{lat:6.4491,lng:3.3660},
+  "Apapa Port":{lat:6.4480,lng:3.3580},
   "Tin Can Island Port":{lat:6.4370,lng:3.3110},
   "Ikorodu Bus Terminal":{lat:6.6180,lng:3.5065}
 };
+// ── GEOGRAPHIC HIERARCHY ─────────────────────────────────────────
+// Maps child areas → their parent area for "include sub-areas" filtering
+const AREA_PARENT = {
+  "UNILAG":"Yaba","YABATECH":"Yaba","FCE Akoka":"Yaba","Iwaya":"Yaba",
+  "Akoka":"Yaba","Makoko":"Yaba","Oyingbo":"Yaba","Ebute Metta":"Yaba",
+  "Bariga":"Shomolu/Bariga","Shomolu":"Shomolu/Bariga",
+  "Gbagada Phase 1":"Gbagada","Gbagada Phase 2":"Gbagada","Ifako Gbagada":"Gbagada","Soluyi":"Gbagada",
+  "Gbagada":"Shomolu/Bariga",
+  "Allen Avenue":"Ikeja (Allen/Opebi)","Opebi":"Ikeja (Allen/Opebi)",
+  "Toyin Street Ikeja":"Ikeja (Allen/Opebi)","Computer Village Ikeja":"Ikeja (Allen/Opebi)",
+  "Ikeja City Mall":"Ikeja (Allen/Opebi)","Agidingbi":"Ikeja (Allen/Opebi)",
+  "Alausa/Secretariat":"Ikeja GRA","LASUTH":"Ikeja GRA","Oregun":"Ikeja GRA",
+  "Magodo Phase 1":"Magodo","Magodo Phase 2":"Magodo",
+  "Ojodu Berger":"Ojodu/Omole","Omole Phase 1":"Ojodu/Omole","Omole Phase 2":"Ojodu/Omole",
+  "Ketu":"Kosofe/Ketu","Alapere":"Kosofe/Ketu","Ogudu":"Kosofe/Ketu",
+  "Ogudu GRA":"Kosofe/Ketu","Ojota/Oregun":"Kosofe/Ketu","Mile 12 Market":"Kosofe/Ketu",
+  "Anthony Village":"Maryland/Anthony","Palmgrove":"Maryland/Anthony",
+  "Onipanu":"Maryland/Anthony","Fadeyi":"Maryland/Anthony",
+  "The Palms Lekki":"Lekki Phase 1","Landmark Beach":"Lekki Phase 1",
+  "Elegushi Beach":"Lekki Phase 1","Ikate Elegushi":"Lekki Phase 1",
+  "Nike Art Gallery":"Lekki Phase 1","Oniru Estate":"Lekki Phase 1",
+  "Adeola Odeku":"Victoria Island","Ahmadu Bello Way":"Victoria Island",
+  "Ozumba Mbadiwe":"Victoria Island","Eko Hotel":"Victoria Island",
+  "Eko Atlantic City":"Victoria Island","Bar Beach":"Victoria Island","1004 Estate":"Victoria Island",
+  "Banana Island":"Ikoyi","Parkview Estate Ikoyi":"Ikoyi","Bourdillon Road Ikoyi":"Ikoyi",
+  "Osborne Estate":"Ikoyi","Dolphin Estate":"Ikoyi",
+  "Balogun Market":"Lagos Island","Marina":"Lagos Island","Broad Street":"Lagos Island",
+  "CMS Lagos":"Lagos Island","Tafawa Balewa Square":"Lagos Island","Idumota":"Lagos Island",
+  "Adeniji Adele":"Lagos Island","Obalende/CMS":"Lagos Island","National Theatre":"Lagos Island",
+  "Nigerian Law School Lagos":"Lagos Island","Lagos Island General Hospital":"Lagos Island",
+  "Igbo Efon/Ilasan":"Lekki Phase 2/Ikota","Osapa London":"Lekki Phase 2/Ikota",
+  "Agungi":"Lekki Phase 2/Ikota","Jakande Estate Lekki":"Lekki Phase 2/Ikota",
+  "VGC":"Lekki Phase 2/Ikota","Lekki Conservation Centre":"Lekki Phase 2/Ikota",
+  "Abraham Adesanya":"Ajah","Sangotedo":"Ajah","Awoyaya":"Ajah",
+  "Bogije":"Ajah","Abijo":"Ajah","Pan-Atlantic University":"Ajah",
+  "Apapa GRA":"Apapa","Apapa Port":"Apapa","Tin Can Island":"Apapa",
+  "Tin Can Island Port":"Apapa","Kirikiri":"Apapa",
+  "Oshodi Market":"Oshodi/Isolo","Isolo":"Oshodi/Isolo","Ejigbo":"Oshodi/Isolo",
+  "Mafoluku":"Oshodi/Isolo","Ajao Estate":"Oshodi/Isolo",
+  "Ojuelegba":"Surulere","Iponri":"Surulere","Costain":"Surulere","Eko Hospital Surulere":"Surulere",
+  "Amuwo Odofin":"Festac Town","Mile 2":"Festac Town","Alakija":"Festac Town",
+  "Satellite Town":"Festac Town","Trade Fair Complex":"Festac Town","Agboju":"Festac Town",
+  "Alaba International Market":"Ojo/Alaba","Ajangbadi":"Ojo/Alaba","Iba":"Ojo/Alaba",
+  "Iyana Ipaja":"Alimosho/Ipaja","Idimu":"Alimosho/Ipaja","Egbe":"Alimosho/Ipaja",
+  "Akowonjo":"Alimosho/Ipaja","Shasha":"Alimosho/Ipaja","Ayobo":"Alimosho/Ipaja",
+  "Abule Egba":"Alimosho/Ipaja","Dopemu":"Alimosho/Ipaja",
+  "Pen Cinema Agege":"Agege",
+  "Ikorodu GRA":"Ikorodu","Agric Ikorodu":"Ikorodu","Imota":"Ikorodu",
+  "Igbogbo":"Ikorodu","Bayeku":"Ikorodu","Ikorodu Bus Terminal":"Ikorodu",
+  "Eleko":"Ibeju-Lekki",
+  "LUTH":"Yaba","Gbagada General Hospital":"Gbagada","Eko Hospital Surulere":"Surulere",
+  "Reddington Hospital VI":"Victoria Island",
+  "Third Mainland Bridge":"Yaba","Lekki-Ikoyi Link Bridge":"Lekki Phase 1",
+  "Murtala Muhammed Airport":"Ikeja GRA","Ilupeju":"Maryland/Anthony",
+  "Mushin":"Oshodi/Isolo","Okota":"Oshodi/Isolo","Ago Palace Way":"Oshodi/Isolo",
+};
+
+// Returns all area names that match a filter (parent + all its children + self)
+function getAreaFamily(area){
+  if(!area)return null;
+  const set=new Set([area]);
+  // Add children
+  Object.entries(AREA_PARENT).forEach(([child,parent])=>{if(parent===area)set.add(child);});
+  // Add parent
+  if(AREA_PARENT[area])set.add(AREA_PARENT[area]);
+  return set;
+}
+
+// Returns true if report area matches the filter considering hierarchy
+function areaMatches(reportArea, filterArea){
+  if(!filterArea)return true;
+  if(reportArea===filterArea)return true;
+  // report is a child of the filter
+  if(AREA_PARENT[reportArea]===filterArea)return true;
+  // report's parent is the filter's parent (siblings)
+  // No — siblings shouldn't match, only children
+  // report is the parent of the filter (user filtered to child, show parent too? No — too broad)
+  return false;
+}
+
 
 function sl(s){return s.toLowerCase().replace(/[^a-z0-9]/g,"-").replace(/-+/g,"-");}
 const LOCS=[];
@@ -2142,7 +2222,7 @@ async function savePlaceToDB(placeObj){if(!CU)return null;try{if(placeObj.id&&!S
 async function deleteSavedPlace(id){savedPlaces=savedPlaces.filter(p=>p.id!==id);if(!String(id).startsWith("local-")){try{await sb.from("saved_places").delete().eq("id",id);}catch(e){}}renderSavedPlacesHome();renderMyPlacesList();toast("Place removed","info");}
 async function togglePlaceNotif(id){const p=savedPlaces.find(x=>x.id===id);if(!p)return;p.notif_on=!p.notif_on;if(!String(id).startsWith("local-")){try{await sb.from("saved_places").update({notif_on:p.notif_on}).eq("id",id);}catch(e){}}toast(p.notif_on?"Alerts on for this place":"Alerts off for this place","info");renderMyPlacesList();}
 function getPlaceDisplayName(p){if(p.custom_label)return p.custom_label;const names={home:"Home",work:"Work",school:"School",custom:"My Place"};return names[p.type]||"My Place";}
-function getPlaceStatus(area){if(!area)return"unk";const r=reports.filter(x=>x.area===area);if(!r.length)return"unk";return r[0].type==="out"?"out":"on";}
+function getPlaceStatus(area){if(!area)return"unk";const r=reports.filter(x=>areaMatches(x.area,area)||areaMatches(area,x.area));if(!r.length)return"unk";return r[0].type==="out"?"out":"on";}
 
 function renderSavedPlacesHome(){const el=document.getElementById("savedPlacesHome");if(!savedPlaces.length){el.innerHTML="";return;}const cards=savedPlaces.map(p=>{const status=getPlaceStatus(p.location_area);const statusCls=status==="out"?"s-out":status==="on"?"s-on":"s-unk";const statusTxt=status==="out"?"Power out":status==="on"?"Power on":"Unknown";const statusIco=status==="out"?IC.out:status==="on"?IC.bck:IC.pin;const cardCls=status==="out"?"sp-out":status==="on"?"sp-on":"";return`<div class="sp-card ${cardCls}" onclick="jumpToArea('${p.location_area||""}')"><div class="sp-label">${getPlaceDisplayName(p)}</div><div class="sp-name">${p.location_name}</div><div class="sp-status ${statusCls}">${statusIco}&nbsp;${statusTxt}</div></div>`;}).join("");el.innerHTML=`<div class="slbl">Saved Places</div><div class="saved-places"><div class="sp-scroll">${cards}<button class="sp-add" onclick="openPlaceModal()"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 2v12M2 8h12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>Add Place</button></div></div>`;}
 
@@ -2211,11 +2291,37 @@ function selectPlaceLoc(id){_placeSel=LOCS.find(l=>l.id===id);const q=document.g
 async function submitSavedPlace(){if(!CU){toast("Sign in to save places","info");closePlaceModal();go("account");return;}if(!_placeSel){toast("Select a location","info");return;}const customLabel=document.getElementById("customPlaceName").value.trim()||null;const btn=document.getElementById("placeBtn");btn.innerHTML=`Saving... <span class="spin"></span>`;btn.disabled=true;const placeObj={id:_editPlaceId||null,type:_placeType,custom_label:customLabel,location_id:_placeSel.id,location_name:_placeSel.name,location_area:_placeSel.area,location_label:_placeSel.label,notif_on:true};const saved=await savePlaceToDB(placeObj);if(saved){if(_editPlaceId){const idx=savedPlaces.findIndex(p=>p.id===_editPlaceId);if(idx!==-1)savedPlaces[idx]={...savedPlaces[idx],...saved};}else{savedPlaces.push(saved);}renderSavedPlacesHome();renderMyPlacesList();toast(_editPlaceId?"Place updated":"Place saved","ok");}btn.innerHTML=_editPlaceId?"Save Changes":"Add Place";btn.disabled=false;closePlaceModal();}
 
 function haversine(lat1,lng1,lat2,lng2){const R=6371,dLat=(lat2-lat1)*Math.PI/180,dLng=(lng2-lng1)*Math.PI/180;const a=Math.sin(dLat/2)**2+Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)**2;return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));}
-function findNearestAreas(lat,lng,count=8){return Object.entries(AREA_COORDS).map(([area,coords])=>({area,dist:haversine(lat,lng,coords.lat,coords.lng)})).sort((a,b)=>a.dist-b.dist).slice(0,count);}
+function findNearestAreas(lat,lng,count=8){
+  const all=Object.entries(AREA_COORDS).map(([area,coords])=>({area,dist:haversine(lat,lng,coords.lat,coords.lng)})).sort((a,b)=>a.dist-b.dist);
+  // Prefer child areas over parent areas at same distance
+  const result=[];const seen=new Set();
+  for(const entry of all){
+    if(result.length>=count)break;
+    if(seen.has(entry.area))continue;
+    result.push(entry);seen.add(entry.area);
+    // If this is a child area, also mark its parent as "covered" so it doesn't duplicate
+    const parent=AREA_PARENT?.[entry.area];
+    if(parent&&result.length<count){
+      // Don't skip parent — add it too so user can filter up
+    }
+  }
+  return result.slice(0,count);
+}
 async function reverseGeocode(lat,lng){try{const res=await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&zoom=16&addressdetails=1`,{headers:{"Accept-Language":"en","User-Agent":"NEPAWatch/1.0"}});const data=await res.json();const a=data.address||{};const precise=a.neighbourhood||a.suburb||a.city_district||a.town||a.city||"";if(precise){const txt=document.getElementById("geoBtnTxt");txt.textContent=precise.length>12?precise.substring(0,12)+"...":precise;toast(`📍 You are near ${precise}`,"ok");}}catch(e){}}
 
 async function detectLocation(){const btn=document.getElementById("geoBtn");const txt=document.getElementById("geoBtnTxt");if(!navigator.geolocation){toast("Geolocation not supported","err");return;}txt.textContent="Locating...";btn.disabled=true;const tryGeo=(highAccuracy,timeoutMs)=>new Promise((resolve,reject)=>{navigator.geolocation.getCurrentPosition(resolve,reject,{enableHighAccuracy:highAccuracy,timeout:timeoutMs,maximumAge:highAccuracy?10000:60000});});let pos;try{pos=await tryGeo(true,12000);}catch(e1){try{pos=await tryGeo(false,8000);}catch(e2){const msg=e2.code===1?"Location access denied":e2.code===2?"Could not get location":"Location request timed out";toast(msg,"err");txt.textContent="Locate Me";btn.disabled=false;return;}}const{latitude:lat,longitude:lng,accuracy}=pos.coords;_userLat=lat;_userLng=lng;userExactLat=lat;userExactLng=lng;_nearbyAreas=findNearestAreas(lat,lng,8);const nearest=_nearbyAreas[0]?.area;if(!nearest){toast("Could not match your location to a Lagos area","err");txt.textContent="Locate Me";btn.disabled=false;return;}// Snap to nearest existing LOCS entry within 200m
-const snapped=_findDupLoc(lat,lng,200);const sel=document.getElementById("areaFilter");sel.value=nearest;filterArea=nearest;renderFeed("liveFeed");btn.classList.add("active");btn.disabled=false;const accStr=accuracy<100?`±${Math.round(accuracy)}m`:"";const snapName=snapped?snapped.name:nearest;toast(`📍 Located near ${snapName}${accStr?" "+accStr:""}`,"ok");txt.textContent=snapName.length>12?snapName.substring(0,12)+"...":snapName;renderNearbyDashboard();_showMap();showLeafletLocation(lat,lng);// Reverse geocode to get street name from Nominatim
+const snapped=_findDupLoc(lat,lng,200);
+// Use parent area for filtering so sub-area reports all show together
+const _nearestParent=AREA_PARENT?.[nearest]||nearest;
+const sel=document.getElementById("areaFilter");
+// Show the specific area in filter UI but filter by parent for broader results
+filterArea=_nearestParent;
+sel.value=_nearestParent;
+renderFeed("liveFeed");btn.classList.add("active");btn.disabled=false;const accStr=accuracy<100?`±${Math.round(accuracy)}m`:"";const snapName=snapped?snapped.name:nearest;
+const displayName=snapName;
+const parentName=AREA_PARENT?.[nearest]||nearest;
+toast(`📍 ${snapName}${parentName!==nearest?" ("+parentName+")":""}${accStr?" "+accStr:""}`,"ok");
+txt.textContent=snapName.length>12?snapName.substring(0,12)+"...":snapName;renderNearbyDashboard();_showMap();showLeafletLocation(lat,lng);// Reverse geocode to get street name from Nominatim
 reverseGeocode(lat,lng);if(CU&&PR&&!PR.location_id){if(snapped){await saveLocation(snapped);}else{// Try to get a street name via Nominatim and find/create a location
 try{const res=await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&zoom=18&addressdetails=1`,{headers:{"Accept-Language":"en","User-Agent":"NEPAWatch/1.0"}});const d=await res.json();const a=d.address||{};const streetName=a.road||a.neighbourhood||a.suburb||a.city_district||"";const areaName=a.suburb||a.city_district||a.town||nearest;if(streetName){// Check dup again now that we have a real name
 const dup2=LOCS.find(l=>_normName(l.name)===_normName(streetName)&&l.area.toLowerCase()===areaName.toLowerCase());if(dup2){await saveLocation(dup2);}else{const newLoc=await submitCustomLocation(streetName,areaName,lat,lng);if(newLoc)await saveLocation(newLoc);}}else{const loc=LOCS.find(l=>l.name===nearest&&!l.street);if(loc)await saveLocation(loc);}}catch(e){const loc=LOCS.find(l=>l.name===nearest&&!l.street);if(loc)await saveLocation(loc);}}}}
@@ -2411,7 +2517,18 @@ function selectLoc(id){mSel=LOCS.find(l=>l.id===id);
   if(mSel)mSel={...mSel,name:_normName(mSel.name),label:_normName(mSel.name)+(mSel.area?" — "+mSel.area:"")};const q=document.getElementById("mSearch").value.trim().toLowerCase();renderMList(q?LOCS.filter(l=>l.label.toLowerCase().includes(q)).slice(0,50):LOCS.slice(0,60));const btn=document.getElementById("mBtn");if(mSel){btn.disabled=false;btn.textContent=mType==="out"?`Report — ${mSel.name}`:`Restored — ${mSel.name}`;}}
 async function submitReport(){if(!mSel){toast("Please select a location","info");return;}const loc=mSel,type=mType;closeModal();await pushReport(loc,type);}
 
-function buildFilter(){const sel=document.getElementById("areaFilter");if(!sel)return;const areas=new Set();LOCS.forEach(l=>areas.add(l.area));sel.innerHTML=`<option value="">All Lagos areas</option>`;[...areas].sort().forEach(a=>{const o=document.createElement("option");o.value=a;o.textContent=a;sel.appendChild(o);});}
+function buildFilter(){const sel=document.getElementById("areaFilter");if(!sel)return;
+const areas=new Set();LOCS.forEach(l=>areas.add(l.area));
+// Separate parents and children
+const parents=new Set(Object.values(AREA_PARENT||{}));
+const children=new Set(Object.keys(AREA_PARENT||{}));
+// Parent areas = have children OR are in AREA_COORDS and not a child of anything
+const topLevel=[...areas].filter(a=>!AREA_PARENT?.[a]).sort();
+const childAreas=[...areas].filter(a=>AREA_PARENT?.[a]).sort();
+sel.innerHTML=`<option value="">All Lagos areas</option>`;
+topLevel.forEach(a=>{const o=document.createElement("option");o.value=a;o.textContent=a;sel.appendChild(o);});
+if(childAreas.length){const grp=document.createElement("optgroup");grp.label="Specific areas";childAreas.forEach(a=>{const o=document.createElement("option");o.value=a;o.textContent=`${a} (${AREA_PARENT[a]})`;grp.appendChild(o);});sel.appendChild(grp);}
+}
 function applyFilter(){filterArea=document.getElementById("areaFilter").value;renderFeed("liveFeed");}
 function toggleSuggestLoc(){const form=document.getElementById("suggestLocForm");const txt=document.getElementById("suggestLocToggleTxt");if(!form)return;const show=form.style.display==="none";form.style.display=show?"block":"none";txt.textContent=show?"Hide":"+ Cannot find your street? Add it for everyone";if(show){setTimeout(()=>{const si=document.getElementById("suggestStreet");if(si)si.focus();},80);}}
 async function handleSuggestLoc(){if(!CU){toast("Sign in to add a location","info");closeModal();go("account");return;}const street=(document.getElementById("suggestStreet")?.value||"").trim();const area=(document.getElementById("suggestArea")?.value||"").trim();if(!street){toast("Enter a street name","info");return;}if(!area){toast("Enter the area name","info");return;}const btn=document.querySelector("#suggestLocForm .mconfirm");if(btn){btn.innerHTML='Checking location... <span class="spin"></span>';btn.disabled=true;}// submitCustomLocation now geocodes + deduplicates automatically
@@ -2436,7 +2553,7 @@ function setFeedFilter(f){
 function renderFeed(id="liveFeed", aF=null){
   const el=document.getElementById(id);if(!el)return;
   const fa=aF!==null?aF:(id==="liveFeed"?filterArea:null);
-  let data=fa?reports.filter(r=>r.area===fa):reports;
+  let data=fa?reports.filter(r=>areaMatches(r.area,fa)):reports;
   if(id==="liveFeed"&&feedFilter==="today"){
     const midnight=new Date();midnight.setHours(0,0,0,0);
     data=data.filter(r=>r.time>=midnight.getTime());
@@ -2471,7 +2588,7 @@ function renderMyArea(){
   const loc=PR?.location_id?LOCS.find(l=>l.id===PR.location_id):null;
   const days7=["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
   const now=Date.now();const dayMs=86400000;
-  let hrs=days7.map((_,i)=>{if(!loc)return null;const dayStart=now-(6-i)*dayMs;const dayEnd=dayStart+dayMs;const dayReps=reports.filter(r=>r.area===loc.area&&r.time>=dayStart&&r.time<dayEnd);if(!dayReps.length)return null;const outage=dayReps.filter(r=>r.type==="out").length;const restored=dayReps.filter(r=>r.type==="bck").length;return Math.min(23,Math.max(1,12-(outage*3)+(restored*1.5)));});
+  let hrs=days7.map((_,i)=>{if(!loc)return null;const dayStart=now-(6-i)*dayMs;const dayEnd=dayStart+dayMs;const dayReps=reports.filter(r=>areaMatches(r.area,loc.area)&&r.time>=dayStart&&r.time<dayEnd);if(!dayReps.length)return null;const outage=dayReps.filter(r=>r.type==="out").length;const restored=dayReps.filter(r=>r.type==="bck").length;return Math.min(23,Math.max(1,12-(outage*3)+(restored*1.5)));});
   const hasData=hrs.some(h=>h!==null);
   if(!hasData){document.getElementById("myScore").innerHTML=`—<span class="score-u">h/day</span>`;document.getElementById("myDesc").textContent=loc?`No reports yet for ${loc.area}. Be the first!`:"Set your location on Home or tap Locate Me.";document.getElementById("weekGrid").innerHTML=days7.map(d=>`<div class="dr"><div class="dl">${d}</div><div class="dtr"><div class="df" style="width:0%;background:var(--ink3)"></div></div><div class="dh" style="color:var(--ink3)">—</div></div>`).join("");renderFeed("myFeed",loc?.area||null);renderMyPlacesList();
   /* Show widget even without data */ if(typeof renderMyAreaPredictWidget==='function')renderMyAreaPredictWidget();
@@ -2517,7 +2634,7 @@ async function renderCommunity(){
     }else{renderFallbackLeaderboard();}
   }catch(e){renderFallbackLeaderboard();}
 
-  const areas=Object.keys(LAGOS).map(a=>{const aReps=reports.filter(r=>r.area===a);const outN=aReps.filter(r=>r.type==="out").length;const bckN=aReps.filter(r=>r.type==="bck").length;const total=aReps.length;if(total===0)return{name:a,score:null,reports:0};const score=Math.max(5,Math.min(98,80-(outN*15)+(bckN*10)));return{name:a,score,reports:total};}).sort((a,b)=>{if(a.score===null&&b.score===null)return 0;if(a.score===null)return 1;if(b.score===null)return-1;return b.score-a.score;});
+  const areas=Object.keys(LAGOS).map(a=>{const aReps=reports.filter(r=>areaMatches(r.area,a));const outN=aReps.filter(r=>r.type==="out").length;const bckN=aReps.filter(r=>r.type==="bck").length;const total=aReps.length;if(total===0)return{name:a,score:null,reports:0};const score=Math.max(5,Math.min(98,80-(outN*15)+(bckN*10)));return{name:a,score,reports:total};}).sort((a,b)=>{if(a.score===null&&b.score===null)return 0;if(a.score===null)return 1;if(b.score===null)return-1;return b.score-a.score;});
   document.getElementById("areaRank").innerHTML=areas.slice(0,16).map((a,i)=>{const hasData=a.score!==null;const c=!hasData?"var(--ink3)":a.score>70?"var(--p)":a.score>45?"var(--am)":"var(--rd)";return`<div class="zc" style="animation:pgIn .2s ease ${i*20}ms both"><div style="font-size:.68rem;color:var(--ink3);font-weight:700;width:22px;flex-shrink:0;text-align:center">${i+1}</div><div class="zb"><div class="zn">${a.name}<span>${a.reports?a.reports+" report"+(a.reports!==1?"s":""):"No reports yet"}</span></div><div class="zt"><div class="zf" style="width:${hasData?a.score:0}%;background:${c}"></div></div></div><div class="zp" style="color:${c}">${hasData?`${a.score}%`:"—"}</div></div>`;}).join("");
   document.getElementById("commNote").style.display="block";
 }
@@ -2558,7 +2675,7 @@ function go(page){
   if(page==="account")renderAccount();
 }
 
-function render(){renderStats();renderFeed("liveFeed");renderDiscos();}
+function render(){renderStats();renderFeed("liveFeed");renderDiscos();if(_mpMap&&document.getElementById('mapPickerOverlay')?.classList.contains('open'))_mpDrawPowerDots();}
 
 let _rtChannel=null,_recentAlerts=new Set(),_rtWatchdog=null;
 function startRealtime(){try{if(_rtChannel){try{sb.removeChannel(_rtChannel);}catch(e){}} _rtChannel=sb.channel("realtime-reports-"+Date.now()).on("postgres_changes",{event:"INSERT",schema:"public",table:"reports"},payload=>{try{const r=payload.new;if(!r||reports.find(x=>String(x.id)===String(r.id)))return;reports.unshift({id:String(r.id),name:String(r.location_name||""),area:String(r.location_area||""),type:String(r.type||""),time:new Date(r.created_at).getTime(),confirms:Number(r.confirms)||1,userId:r.user_id,isAI:r.user_id===AI_USER_ID});if(reports.length>100)reports.pop();render();if(_nearbyAreas.length)renderNearbyDashboard();renderSavedPlacesHome();renderMyPlacesList();if(r.user_id&&r.user_id!==CU?.id&&r.user_id!==AI_USER_ID){const alertKey=r.id+r.type;if(!_recentAlerts.has(alertKey)){_recentAlerts.add(alertKey);setTimeout(()=>_recentAlerts.delete(alertKey),30000);sendAreaAlerts(r.location_name,r.location_area,r.type);}}}catch(e){}}).on("postgres_changes",{event:"UPDATE",schema:"public",table:"reports"},payload=>{try{const r=payload.new;const existing=reports.find(x=>String(x.id)===String(r.id));if(existing){existing.confirms=Number(r.confirms)||1;renderFeed("liveFeed");renderFeed("myFeed",PR?.location_area||null);}}catch(e){}}).subscribe(status=>{
@@ -2869,55 +2986,110 @@ document.addEventListener('click',e=>{
 
 let _mpMap=null,_mpMarker=null,_mpLat=null,_mpLng=null,_mpArea=null;
 
+let _mpPowerMarkers=[];
+
 function openMapPicker(){
   document.getElementById('mapPickerOverlay').classList.add('open');
   hideHomeResults();
   setTimeout(()=>{
     if(!_mpMap){
-      // Centre on Lagos
       _mpMap=L.map('mapPickerMap',{zoomControl:true,attributionControl:false}).setView([6.5244,3.3792],12);
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(_mpMap);
       _mpMap.on('click',_onMapPickerClick);
-      // If we already have user location, centre there
-      if(userExactLat&&userExactLng)_mpMap.setView([userExactLat,userExactLng],15);
     }
     _mpMap.invalidateSize();
-  },200);
+    // Always try to get fresh GPS location when map opens
+    _mpAutoLocate();
+  },220);
 }
 
-function closeMapPicker(){
-  document.getElementById('mapPickerOverlay').classList.remove('open');
+async function _mpAutoLocate(){
+  // If we already have coords from Locate Me, use them immediately
+  if(userExactLat&&userExactLng){
+    _mpMap.setView([userExactLat,userExactLng],15);
+    _mpPlaceUserPin(userExactLat,userExactLng);
+    _mpDrawPowerDots();
+    return;
+  }
+  // Otherwise request GPS
+  if(!navigator.geolocation)return;
+  const loadEl=document.getElementById('mpLocatingMsg');
+  if(loadEl)loadEl.style.display='flex';
+  try{
+    const pos=await new Promise((res,rej)=>navigator.geolocation.getCurrentPosition(res,rej,{enableHighAccuracy:true,timeout:12000,maximumAge:30000}));
+    const {latitude:lat,longitude:lng}=pos.coords;
+    userExactLat=lat;userExactLng=lng;
+    _mpMap.setView([lat,lng],15);
+    _mpPlaceUserPin(lat,lng);
+    _mpDrawPowerDots();
+  }catch(e){
+    // GPS denied/failed — just show Lagos overview with all power dots
+    _mpMap.setView([6.5244,3.3792],12);
+    _mpDrawPowerDots();
+  }finally{
+    if(loadEl)loadEl.style.display='none';
+  }
 }
 
-async function _onMapPickerClick(e){
-  const {lat,lng}=e.latlng;
-  _mpLat=lat;_mpLng=lng;
-
+function _mpPlaceUserPin(lat,lng){
   if(_mpMarker)_mpMarker.remove();
-  const icon=L.divIcon({className:'',html:'<div style="width:22px;height:22px;background:var(--p,#AAFF00);border:3px solid white;border-radius:50%;box-shadow:0 2px 12px rgba(0,0,0,.5);transform:translate(-50%,-50%)"></div>',iconSize:[0,0],iconAnchor:[0,0]});
-  _mpMarker=L.marker([lat,lng],{icon}).addTo(_mpMap);
+  const icon=L.divIcon({className:'',html:`
+    <div style="position:relative;width:24px;height:24px">
+      <div style="position:absolute;inset:0;background:rgba(75,142,245,.25);border-radius:50%;animation:mp-pulse 1.8s ease infinite"></div>
+      <div style="position:absolute;top:4px;left:4px;width:16px;height:16px;background:#4B8EF5;border:3px solid white;border-radius:50%;box-shadow:0 2px 8px rgba(0,0,0,.5)"></div>
+    </div>`,iconSize:[24,24],iconAnchor:[12,12]});
+  _mpMarker=L.marker([lat,lng],{icon,zIndexOffset:1000}).addTo(_mpMap);
+  _mpMarker.bindPopup('<strong>You are here</strong>').openPopup();
+  _mpLat=lat;_mpLng=lng;
+  // Auto-fill location name
+  _mpReverseAndFill(lat,lng);
+}
 
-  // Find nearest area
+async function _mpReverseAndFill(lat,lng){
   const nearestArr=findNearestAreas(lat,lng,1);
   _mpArea=nearestArr[0]?.area||null;
-
-  // Reverse geocode with Nominatim
-  let locName=_mpArea||'Selected location';
+  let locName=_mpArea||'Your location';
   try{
     const res=await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&zoom=18&addressdetails=1`,{headers:{"Accept-Language":"en","User-Agent":"NEPAWatch/1.0"}});
     const data=await res.json();
     const a=data.address||{};
-    locName=a.road||a.neighbourhood||a.suburb||a.city_district||_mpArea||'Selected location';
+    locName=a.road||a.neighbourhood||a.suburb||a.city_district||_mpArea||'Your location';
   }catch(e){}
-
   const selEl=document.getElementById('mpSelected');
   const nameEl=document.getElementById('mpSelectedName');
-  const areaEl=document.getElementById('mpArea');
   if(selEl)selEl.style.display='block';
   if(nameEl)nameEl.textContent=locName;
-
   const btn=document.getElementById('mpConfirmBtn');
   if(btn){btn.disabled=false;btn.textContent=`Use "${locName.length>24?locName.slice(0,24)+'…':locName}"`;}
+}
+
+function _mpDrawPowerDots(){
+  // Remove old dots
+  _mpPowerMarkers.forEach(m=>m.remove());
+  _mpPowerMarkers=[];
+  // Draw a dot for every area in AREA_COORDS
+  Object.entries(AREA_COORDS).forEach(([area,coords])=>{
+    const status=getPlaceStatus(area);
+    if(status==='unk')return; // only show areas with actual reports
+    const col=status==='on'?'#AAFF00':'#FF4055';
+    const glow=status==='on'?'rgba(170,255,0,.5)':'rgba(255,64,85,.5)';
+    const label=status==='on'?'✅ Power on':'❌ Power out';
+    const icon=L.divIcon({className:'',html:`<div style="width:14px;height:14px;background:${col};border:2px solid rgba(255,255,255,.85);border-radius:50%;box-shadow:0 0 8px ${glow},0 1px 4px rgba(0,0,0,.4)"></div>`,iconSize:[14,14],iconAnchor:[7,7]});
+    const marker=L.marker([coords.lat,coords.lng],{icon}).addTo(_mpMap);
+    marker.bindPopup(`<strong>${area}</strong><br>${label}`);
+    _mpPowerMarkers.push(marker);
+  });
+}
+
+function closeMapPicker(){
+  document.getElementById('mapPickerOverlay').classList.remove('open');
+  // Keep map alive so reopening is instant, just close the sheet
+}
+
+async function _onMapPickerClick(e){
+  const {lat,lng}=e.latlng;
+  // Reuse the same pin/fill logic — user tapped a different spot
+  _mpPlaceUserPin(lat,lng);
 }
 
 async function confirmMapPick(){
