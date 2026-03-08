@@ -464,9 +464,18 @@ body.lp-active #nepaBotBubble, body.lp-active #botWin, body.lp-active #botNotif 
       <div style="padding:14px 16px">
         <div class="mp-selected" id="mpSelected" style="display:none">
           <div class="mp-sel-row">
-            <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M6.5 1A2.8 2.8 0 0 0 3.7 3.8C3.7 6.6 6.5 12 6.5 12S9.3 6.6 9.3 3.8A2.8 2.8 0 0 0 6.5 1z" stroke="currentColor" stroke-width="1.2"/><circle cx="6.5" cy="3.8" r="1.1" fill="currentColor"/></svg>
-            <span id="mpSelectedName">—</span>
+            <svg width="13" height="13" viewBox="0 0 13 13" fill="none" style="flex-shrink:0;color:var(--p)"><path d="M6.5 1A2.8 2.8 0 0 0 3.7 3.8C3.7 6.6 6.5 12 6.5 12S9.3 6.6 9.3 3.8A2.8 2.8 0 0 0 6.5 1z" stroke="currentColor" stroke-width="1.2"/><circle cx="6.5" cy="3.8" r="1.1" fill="currentColor"/></svg>
+            <input id="mpSelectedName" class="mp-name-input" value="—" 
+              autocomplete="off" autocorrect="off" autocapitalize="words" spellcheck="false"
+              oninput="mpOnNameEdit(this.value)"
+              onfocus="this.closest('.mp-selected').classList.add('editing')"
+              onblur="this.closest('.mp-selected').classList.remove('editing')"
+            />
+            <button class="mp-edit-hint" onclick="document.getElementById('mpSelectedName').focus()" tabindex="-1" title="Edit name">
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M8.5 1.5l2 2-7 7H1.5v-2l7-7z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>
+            </button>
           </div>
+          <div class="mp-edit-tip">Tap name to correct it</div>
         </div>
         <button class="mconfirm prim" id="mpConfirmBtn" disabled onclick="confirmMapPick()">Tap map to pick a location</button>
         <button class="mcancel" onclick="closeMapPicker()">Cancel</button>
