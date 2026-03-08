@@ -562,25 +562,5 @@ nav{
 .save-area-btn:active{color:var(--p);}
 
 /* ── First-login onboarding tour ── */
-.onb-overlay{
-  position:fixed;inset:0;z-index:10000;pointer-events:none;
-}
-.onb-spotlight{
-  position:absolute;border-radius:12px;
-  box-shadow:0 0 0 9999px rgba(0,0,0,.72);
-  transition:all .35s cubic-bezier(.4,0,.2,1);
-  pointer-events:none;
-}
-.onb-tooltip{
-  position:absolute;background:var(--bg2,#1a1f1a);border:1.5px solid var(--p,#AAFF00);
-  border-radius:14px;padding:16px 18px;max-width:270px;min-width:200px;
-  box-shadow:0 8px 32px rgba(0,0,0,.5);pointer-events:all;z-index:10001;
-  animation:onb-pop .25s cubic-bezier(.4,0,.2,1);
-}
-@keyframes onb-pop{from{opacity:0;transform:scale(.92)}to{opacity:1;transform:scale(1)}}
-.onb-tooltip .onb-step{font-size:.58rem;letter-spacing:.1em;text-transform:uppercase;color:var(--p);font-weight:700;margin-bottom:6px;opacity:.7}
-.onb-tooltip h4{font-size:.88rem;font-weight:700;color:var(--ink1,#e6ede8);margin:0 0 6px}
-.onb-tooltip p{font-size:.75rem;color:var(--ink2,#a8b5aa);margin:0 0 14px;line-height:1.55}
-.onb-tooltip .onb-btns{display:flex;gap:8px;align-items:center}
-.onb-next{background:var(--p,#AAFF00);color:#0a0d0a;border:none;border-radius:8px;padding:8px 18px;font-size:.78rem;font-weight:700;cursor:pointer;flex:1}
-.onb-skip{background:none;border:none;color:var(--ink3,#6b7c6d);font-size:.72rem;cursor:pointer;padding:4px 8px}
+@keyframes onb-pop{from{opacity:0;transform:scale(.93)}to{opacity:1;transform:scale(1)}}
+@keyframes a2hs-up{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
