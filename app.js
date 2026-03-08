@@ -2031,7 +2031,7 @@ const AREA_COORDS = {
   "Lagos-Ibadan Expressway":{lat:6.6500,lng:3.3700},
 
   // ── AKOKA / UNILAG ───────────────────────────────────────────────
-  "UNILAG":{lat:6.5158,lng:3.3905},
+  "UNILAG":{lat:6.5150,lng:3.3928},
   // UNILAG Main/Back Gate removed — "UNILAG" entry covers these coords
   "FCE Akoka":{lat:6.5220,lng:3.3820},
   "Iwaya":{lat:6.5265,lng:3.3875},
@@ -2410,9 +2410,13 @@ sel.value=_nearestParent;
 renderFeed("liveFeed");btn.classList.add("active");btn.disabled=false;const accStr=accuracy<100?`±${Math.round(accuracy)}m`:"";const snapName=snapped?snapped.name:nearest;
 const displayName=snapName;
 const parentName=AREA_PARENT?.[nearest]||nearest;
-toast(`📍 ${snapName}${parentName!==nearest?" ("+parentName+")":""}${accStr?" "+accStr:""}`,"ok");
-txt.textContent=snapName.length>12?snapName.substring(0,12)+"...":snapName;renderNearbyDashboard();_showMap();showLeafletLocation(lat,lng);// Reverse geocode to get street name from Nominatim
-reverseGeocode(lat,lng);if(CU&&PR&&!PR.location_id){if(snapped){await saveLocation(snapped);}else{// Try to get a street name via Nominatim and find/create a location
+// Show specific location in toast, watching area on the button
+const watchLabel=parentName!==nearest?parentName:snapName;
+toast(`📍 ${snapName}${parentName!==nearest?" — watching "+parentName:""}${accStr?" "+accStr:""}`,"ok");
+txt.textContent=watchLabel.length>12?watchLabel.substring(0,12)+"...":watchLabel;
+// Update locTag to show watching area
+document.getElementById("locTag").classList.add("on");
+document.getElementById("locLabel").textContent=snapName!==watchLabel?`${snapName}, ${watchLabel}`:watchLabel;renderNearbyDashboard();_showMap();showLeafletLocation(lat,lng);if(CU&&PR&&!PR.location_id){if(snapped){await saveLocation(snapped);}else{// Try to get a street name via Nominatim and find/create a location
 try{const res=await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&zoom=18&addressdetails=1`,{headers:{"Accept-Language":"en","User-Agent":"NEPAWatch/1.0"}});const d=await res.json();const a=d.address||{};const streetName=a.road||a.neighbourhood||a.suburb||a.city_district||"";const areaName=a.suburb||a.city_district||a.town||nearest;if(streetName){// Check dup again now that we have a real name
 const dup2=LOCS.find(l=>_normName(l.name)===_normName(streetName)&&l.area.toLowerCase()===areaName.toLowerCase());if(dup2){await saveLocation(dup2);}else{const newLoc=await submitCustomLocation(streetName,areaName,lat,lng);if(newLoc)await saveLocation(newLoc);}}else{const loc=LOCS.find(l=>l.name===nearest&&!l.street);if(loc)await saveLocation(loc);}}catch(e){const loc=LOCS.find(l=>l.name===nearest&&!l.street);if(loc)await saveLocation(loc);}}}}
 
