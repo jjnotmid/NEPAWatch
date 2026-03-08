@@ -532,3 +532,21 @@ nav{
 /* ── Map picker pulse + spin animations ── */
 @keyframes mp-pulse{0%{transform:scale(1);opacity:.7}70%{transform:scale(2.4);opacity:0}100%{transform:scale(2.4);opacity:0}}
 @keyframes mp-spin{to{transform:rotate(360deg)}}
+
+/* ── Map picker editable location name ── */
+.mp-selected{background:var(--pp);border:1.5px solid var(--pb);border-radius:11px;padding:10px 13px;margin-bottom:12px;transition:border-color .15s}
+.mp-selected.editing{border-color:var(--p);box-shadow:0 0 0 3px rgba(170,255,0,.12)}
+.mp-sel-row{display:flex;align-items:center;gap:8px}
+.mp-name-input{
+  flex:1;min-width:0;background:transparent;border:none;outline:none;
+  font-family:var(--font-body);font-size:.86rem;font-weight:600;color:var(--p);
+  padding:0;cursor:text;
+}
+.mp-name-input::placeholder{color:rgba(170,255,0,.4)}
+.mp-edit-hint{
+  background:none;border:none;padding:3px;cursor:pointer;
+  color:rgba(170,255,0,.45);flex-shrink:0;display:flex;align-items:center;
+  transition:color .15s;border-radius:4px
+}
+.mp-edit-hint:hover{color:var(--p)}
+.mp-edit-tip{font-size:.6rem;color:var(--ink3);margin-top:3px;padding-left:21px;letter-spacing:.02em}
