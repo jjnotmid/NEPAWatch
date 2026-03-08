@@ -1,13 +1,10 @@
 /* =====================================================
-   NEPAWatch Lagos — Service Worker
-   !! BUMP THIS VERSION STRING ON EVERY DEPLOY !!
-   e.g. v1.0.1 → v1.0.2 → v1.0.3
-   This is what forces users onto the new version.
+   NEPAWatch Lagos — Service Worker v1.1.0
+   !! BUMP VERSION STRING ON EVERY DEPLOY !!
    ===================================================== */
-const VERSION = 'v1.0.0';
+const VERSION = 'v1.1.0';
 const CACHE   = `nepawatch-${VERSION}`;
 
-/* Files to cache for offline use */
 const PRECACHE = [
   '/',
   '/index.html',
@@ -19,44 +16,26 @@ const PRECACHE = [
   '/logo2.jpg',
 ];
 
-/* ── Install: cache all core files ── */
 self.addEventListener('install', event => {
-  // Skip waiting so the new SW takes over immediately
-  // (instead of waiting for all tabs to close)
   self.skipWaiting();
-  event.waitUntil(
-    caches.open(CACHE).then(cache => cache.addAll(PRECACHE))
-  );
+  event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(PRECACHE)));
 });
 
-/* ── Activate: delete every old cache ── */
 self.addEventListener('activate', event => {
   event.waitUntil(
-    caches.keys().then(keys =>
-      Promise.all(
-        keys
-          .filter(key => key !== CACHE)          // anything not this version
-          .map(key => caches.delete(key))         // nuke it
-      )
-    ).then(() => self.clients.claim())            // take control of all open tabs
+    caches.keys()
+      .then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k))))
+      .then(() => self.clients.claim())
   );
 });
 
-/* ── Fetch: network-first for HTML/JS/CSS, cache fallback ── */
 self.addEventListener('fetch', event => {
   const { request } = event;
   const url = new URL(request.url);
-
-  // Don't intercept Supabase API calls, Google Maps, external fonts, etc.
   if (url.origin !== self.location.origin) return;
-
-  // Network-first strategy: always try the network first.
-  // If the network succeeds, update the cache entry.
-  // If the network fails (offline), fall back to the cache.
   event.respondWith(
     fetch(request)
       .then(response => {
-        // Only cache valid responses for our own files
         if (response && response.status === 200 && request.method === 'GET') {
           const clone = response.clone();
           caches.open(CACHE).then(cache => cache.put(request, clone));
@@ -67,7 +46,52 @@ self.addEventListener('fetch', event => {
   );
 });
 
-/* ── Message: force update on demand ── */
 self.addEventListener('message', event => {
   if (event.data === 'skipWaiting') self.skipWaiting();
+});
+
+/* ━━━ PUSH NOTIFICATIONS ━━━ */
+self.addEventListener('push', event => {
+  let data = {};
+  try { data = event.data?.json() || {}; }
+  catch(e) { data = { title: 'NEPAWatch', body: event.data?.text() || 'New power update' }; }
+
+  const title = data.title || 'NEPAWatch Lagos';
+  const body  = data.body  || 'New power report in your area.';
+  const type  = data.type  || 'info';
+  const area  = data.area  || '';
+
+  const options = {
+    body,
+    icon:     '/logo2.jpg',
+    badge:    '/logo2.jpg',
+    tag:      `nw-${area}-${type}`,
+    renotify: true,
+    data:     { url: data.url || '/' },
+    actions: [
+      { action: 'open',    title: 'Open App' },
+      { action: 'dismiss', title: 'Dismiss'  },
+    ],
+    vibrate: type === 'out' ? [200, 100, 200] : [100],
+  };
+
+  event.waitUntil(self.registration.showNotification(title, options));
+});
+
+self.addEventListener('notificationclick', event => {
+  event.notification.close();
+  if (event.action === 'dismiss') return;
+  const targetUrl = event.notification.data?.url || '/';
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(cs => {
+      for (const c of cs) {
+        if (c.url.includes(self.location.origin) && 'focus' in c) {
+          c.focus();
+          c.postMessage({ type: 'PUSH_CLICK', url: targetUrl });
+          return;
+        }
+      }
+      return clients.openWindow(targetUrl);
+    })
+  );
 });
