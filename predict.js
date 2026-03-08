@@ -12,7 +12,7 @@ const AI_USER_ID            = 'nepawatch-ai';
 const AI_USER_NAME          = 'NEPAWatch AI';
 const AI_CONFIDENCE_THRESH  = 0.72;   /* min prob to auto-file an outage report */
 const AI_SCAN_INTERVAL_MS   = 12 * 60 * 1000;  /* scan every 12 min */
-const AI_COOLDOWN_MS        = 60 * 60 * 1000;  /* 1 hr per area cooldown */
+/* AI_COOLDOWN_MS removed — replaced by per-area state machine in AIReporter */
 const AI_RESTORE_THRESH     = 0.25;   /* below this → file restoration report */
 
 /* ─── BAND CLASSIFICATION ────────────────────────────────────────────────── */
@@ -188,8 +188,26 @@ function getRiskLevel(prob) {
 
 /* ─── AI AUTO-REPORTER ───────────────────────────────────────────────────── */
 const AIReporter = {
-  _cooldowns: {},
   _timer: null,
+
+  // Per-area state machine: tracks what the AI last said about each area
+  // 'out' = AI said power is out (don't say out again until bck confirmed)
+  // 'bck' = AI said power is back (or area is known to have light)
+  //  null = unknown, AI has never spoken about this area
+  _areaState: {},
+
+  // Rebuild state from the reports array so we survive page reloads
+  _rebuildState() {
+    if (typeof reports === 'undefined') return;
+    this._areaState = {};
+    // Walk reports oldest→newest so the latest one wins per area
+    const sorted = [...reports].sort((a,b) => a.time - b.time);
+    for (const r of sorted) {
+      if (!r.area) continue;
+      // Count both AI and human reports — if humans say bck, area has light
+      this._areaState[r.area] = r.type; // 'out' or 'bck'
+    }
+  },
 
   async loadHistory() {
     try {
@@ -203,68 +221,71 @@ const AIReporter = {
         console.log(`[NEPAWatch AI] History loaded: ${data.length} reports ingested.`);
       }
     } catch(e) { console.warn('[NEPAWatch AI] History load failed, using baseline model.'); }
+    this._rebuildState();
   },
 
   async scan() {
     await WeatherState.refresh(); // free, cached 15min — rain/storms boost predictions
+    this._rebuildState(); // refresh state before every scan
     const now=new Date(), h=now.getHours(), d=now.getDay();
     for (const area of Object.keys(AREA_BANDS)) {
       const { prob } = predictOutage(area, h, d);
       if (prob < AI_CONFIDENCE_THRESH) continue;
-      if (now - (this._cooldowns[area]||0) < AI_COOLDOWN_MS) continue;
-      /* Don't override a recent human restoration */
+
+      // CORE RULE: never file 'out' if we already believe it's out
+      // Must see a 'bck' (from anyone — human or AI) before filing out again
+      const currentState = this._areaState[area];
+      if (currentState === 'out') continue; // already out, don't repeat
+
+      // Don't override a recent human OR AI restoration (last 30 min)
       const recentRestore = (typeof reports!=='undefined') &&
-        reports.some(r => r.area===area && r.type==='bck' && (now-r.time)<30*60000);
+        reports.some(r =>
+          (r.area===area || (typeof AREA_PARENT!=='undefined' && AREA_PARENT[r.area]===area))
+          && r.type==='bck' && (now-r.time) < 30*60000);
+      // If there was a very recent restore, don't immediately call out again
       if (recentRestore) continue;
+
       await this._fire(area, 'out', prob);
     }
   },
 
   async scanRestorations() {
     if (typeof reports==='undefined') return;
+    this._rebuildState(); // always fresh before checking
     const now=new Date(), h=now.getHours(), d=now.getDay();
 
-    // Case 1: Areas where AI filed an outage and prob has now dropped
-    const recentAIOut = reports.filter(r =>
-      r.userId===AI_USER_ID && r.type==='out' && (now-r.time)<6*3600000);
-    for (const r of recentAIOut) {
-      const { prob } = predictOutage(r.area, h, d);
-      if (prob >= AI_RESTORE_THRESH) continue;
-      const alreadyRestored = reports.some(x =>
-        (x.area===r.area||(typeof AREA_PARENT!=='undefined'&&(AREA_PARENT[x.area]===r.area||AREA_PARENT[r.area]===x.area)))
-        && x.type==='bck' && x.time>r.time);
-      if (alreadyRestored) continue;
-      if (now-(this._cooldowns[r.area+'_bck']||0) < AI_COOLDOWN_MS) continue;
-      this._cooldowns[r.area+'_bck'] = Date.now();
-      await this._fire(r.area, 'bck', 1-prob);
-    }
+    // Case 1: Areas where the current state is 'out' and prob has now dropped
+    // (covers both AI-filed and human-reported outages)
+    const outAreas = Object.entries(this._areaState)
+      .filter(([area, state]) => state === 'out')
+      .map(([area]) => area);
 
-    // Case 2: Areas where HUMAN outage reported but no restoration after 3+ hrs
-    // and current prob model says power should be back — AI files restoration
-    const staleHumanOut = reports.filter(r =>
-      r.userId !== AI_USER_ID && r.type==='out' &&
-      (now-r.time) > 3*3600000 && (now-r.time) < 12*3600000);
-    // Deduplicate by area
-    const staleAreas = [...new Set(staleHumanOut.map(r=>r.area))];
-    for (const area of staleAreas) {
+    for (const area of outAreas) {
+      if (!AREA_BANDS[area]) continue; // only scan areas we know about
       const { prob } = predictOutage(area, h, d);
-      if (prob >= AI_RESTORE_THRESH * 1.5) continue; // only if clearly low risk now
+      if (prob >= AI_RESTORE_THRESH) continue; // still looks like outage
+
+      // Find when the outage started for this area
+      const outageReport = [...reports]
+        .filter(r => r.area===area && r.type==='out')
+        .sort((a,b) => b.time - a.time)[0];
+
+      // Don't restore too quickly — wait at least 45 minutes since the outage report
+      if (outageReport && (now - outageReport.time) < 45*60000) continue;
+
+      // Check nobody already reported light back recently
       const alreadyRestored = reports.some(x =>
         x.area===area && x.type==='bck' &&
-        (now-x.time) < 3*3600000);
+        (outageReport ? x.time > outageReport.time : true));
       if (alreadyRestored) continue;
-      const aiAlreadyFiredRestore = reports.some(x =>
-        x.area===area && x.type==='bck' && x.userId===AI_USER_ID &&
-        (now-x.time) < 4*3600000);
-      if (aiAlreadyFiredRestore) continue;
-      if (now-(this._cooldowns[area+'_bck']||0) < AI_COOLDOWN_MS) continue;
-      this._cooldowns[area+'_bck'] = Date.now();
+
       await this._fire(area, 'bck', 1-prob);
     }
   },
 
   async _fire(area, type, prob) {
-    this._cooldowns[area] = Date.now();
+    // Update state machine — this is the source of truth
+    this._areaState[area] = type;
     // Always use the area name as the location — consistent, findable, no random streets
     const locName = area;
 
