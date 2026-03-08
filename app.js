@@ -2437,7 +2437,7 @@ async function loadUserCount(){try{const{count,error}=await sb.from("profiles").
 
 async function saveLocation(loc){if(!CU)return;const u={location_id:loc.id,location_name:loc.name,location_area:loc.area,location_label:loc.label};try{await sb.from("profiles").update(u).eq("id",CU.id);}catch(e){}PR={...PR,...u};document.getElementById("locTag").classList.add("on");document.getElementById("locLabel").textContent=loc.label;updateBanner();toast(`Location set — ${loc.name}`,"ok");}
 async function toggleNotif(){if(!CU||!PR)return;const next=!PR.notif_on;try{await sb.from("profiles").update({notif_on:next}).eq("id",CU.id);}catch(e){}PR.notif_on=next;const btn=document.getElementById("notifToggle");if(btn)btn.classList.toggle("on",next);toast(next?"Email alerts enabled":"Email alerts disabled","info");renderAccount();}
-async function togglePushNotif(){const status=getPushStatus();if(status==='enabled'){await disablePush();}else if(status==='blocked'){toast('Notifications are blocked in your browser settings. Please enable them manually.','info');}else{await requestPushPermission();}}
+async function togglePushNotif(){const status=getPushStatus();if(status==='enabled'){await disablePush();}else if(status==='blocked'){toast('Notifications blocked — go to browser Settings and allow notifications for this site','info');}else if(status==='ios-needs-install'){toast('On iPhone, add NEPAWatch to your Home Screen first: Safari › Share › Add to Home Screen','info');}else if(status==='unsupported'){toast('Push notifications are not supported in this browser','info');}else{await requestPushPermission();}}
 
 async function loadCustomLocations(){try{const{data,error}=await sb.from("custom_locations").select("*").order("created_at",{ascending:true});if(!error&&data&&data.length){data.forEach(loc=>{if(!LOCS.find(l=>l.id===loc.id)){LOCS.unshift({id:loc.id,name:loc.street_name,area:loc.area_name,street:loc.street_name,label:`${loc.street_name} — ${loc.area_name}`,custom:true,lat:loc.lat||null,lng:loc.lng||null});}else{const ex=LOCS.find(l=>l.id===loc.id);if(ex&&!ex.lat&&loc.lat){ex.lat=loc.lat;ex.lng=loc.lng;}}});buildFilter();}}catch(e){}}
 async function _geocodeLoc(street,area){try{const q=encodeURIComponent(`${street}, ${area}, Lagos, Nigeria`);const res=await fetch(`https://nominatim.openstreetmap.org/search?q=${q}&format=json&limit=3&countrycodes=ng&addressdetails=1&viewbox=2.6,6.2,4.0,6.8&bounded=1`,{headers:{"Accept-Language":"en","User-Agent":"NEPAWatch/1.0"}});const d=await res.json();if(d&&d[0])return{lat:parseFloat(d[0].lat),lng:parseFloat(d[0].lon)};return null;}catch(e){return null;}}
@@ -2533,54 +2533,109 @@ function buildEmailHtml({type='info', name='', area='', street='', time='', plac
        <p style="margin:0 0 20px;color:#8FAE97;font-size:14px;line-height:1.7">This was reported by the NEPAWatch community. Check the app for the latest updates, or to confirm the report.</p>`;
 
   return `<!DOCTYPE html>
-<html lang="en">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>NEPAWatch Alert</title></head>
-<body style="margin:0;padding:0;background:#07090A;font-family:'Segoe UI',Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#07090A;padding:32px 16px">
-    <tr><td align="center">
-      <table width="100%" style="max-width:520px;background:#0F1511;border:1px solid #1C271E;border-radius:16px;overflow:hidden">
-        <!-- Header -->
-        <tr><td style="background:#080C09;padding:20px 28px;border-bottom:1px solid #1C271E">
-          <table width="100%" cellpadding="0" cellspacing="0"><tr>
-            <td style="vertical-align:middle">
-              <span style="font-family:'Arial Black',Arial,sans-serif;font-size:22px;font-weight:900;color:#E6EDE8;letter-spacing:.02em">NEPA<span style="color:#00E676">Watch</span></span>
-              <span style="font-size:11px;font-weight:600;letter-spacing:.08em;color:rgba(230,237,232,.35);background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:4px;padding:2px 6px;margin-left:8px;vertical-align:middle">LAGOS</span>
-            </td>
-            <td align="right" style="vertical-align:middle">
-              <span style="display:inline-flex;align-items:center;gap:5px;background:rgba(0,230,118,.08);border:1px solid rgba(0,230,118,.18);border-radius:99px;padding:4px 10px;font-size:11px;font-weight:700;color:#00E676;letter-spacing:.08em">
-                <span style="width:6px;height:6px;background:#00E676;border-radius:50%;display:inline-block"></span> LIVE
-              </span>
-            </td>
-          </tr></table>
-        </td></tr>
-        <!-- Status badge -->
-        <tr><td style="padding:28px 28px 0">
-          <div style="display:inline-flex;align-items:center;gap:8px;background:${statusBg};border-radius:8px;padding:8px 14px;margin-bottom:18px">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" style="flex-shrink:0">${iconPath}</svg>
-            <span style="font-size:12px;font-weight:800;color:${statusText};letter-spacing:.12em">${statusLabel}</span>
-          </div>
-          <h1 style="margin:0 0 20px;font-size:22px;font-weight:800;color:#E6EDE8;line-height:1.25">${headline}</h1>
-        </td></tr>
-        <!-- Body -->
-        <tr><td style="padding:0 28px 24px">
-          <div style="background:#141C16;border:1px solid #1C271E;border-radius:12px;padding:20px">
-            ${bodyHtml}
-          </div>
-        </td></tr>
-        <!-- CTA -->
-        <tr><td style="padding:0 28px 28px;text-align:center">
-          <a href="${appUrl}" style="display:inline-block;background:#00E676;color:#07090A;font-size:15px;font-weight:700;text-decoration:none;padding:13px 32px;border-radius:10px;letter-spacing:.01em">
-            ${isWelcome ? 'Open NEPAWatch →' : 'See Live Updates →'}
-          </a>
-        </td></tr>
-        <!-- Footer -->
-        <tr><td style="padding:18px 28px;border-top:1px solid #1C271E;text-align:center">
-          <p style="margin:0 0 4px;font-size:12px;color:rgba(230,237,232,.25)">You're receiving this because you signed up for alerts on NEPAWatch.</p>
-          <p style="margin:0;font-size:12px;color:rgba(230,237,232,.18)"><a href="${appUrl}" style="color:#00E676;text-decoration:none">nepawatch.app</a> &mdash; Real-time power tracking for Lagos</p>
-        </td></tr>
-      </table>
-    </td></tr>
-  </table>
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <meta name="supported-color-schemes" content="dark">
+  <title>NEPAWatch Alert</title>
+  <style>
+    :root { color-scheme: dark; }
+    body {
+      margin: 0 !important;
+      padding: 0 !important;
+      background-color: #07090A !important;
+      -webkit-font-smoothing: antialiased;
+    }
+    /* Force dark on Gmail (targets [data-ogsc] Gmail app wrapper) */
+    [data-ogsc] body, [data-ogsb] body { background-color: #07090A !important; }
+    [data-ogsc] .outer-wrap, [data-ogsb] .outer-wrap { background-color: #07090A !important; }
+    [data-ogsc] .card, [data-ogsb] .card { background-color: #0F1511 !important; }
+    [data-ogsc] .card-header, [data-ogsb] .card-header { background-color: #080C09 !important; }
+    [data-ogsc] .card-body-inner, [data-ogsb] .card-body-inner { background-color: #141C16 !important; }
+    /* Apple Mail / iOS dark mode support */
+    @media (prefers-color-scheme: dark) {
+      body { background-color: #07090A !important; }
+      .outer-wrap { background-color: #07090A !important; }
+      .card { background-color: #0F1511 !important; border-color: #1C271E !important; }
+      .card-header { background-color: #080C09 !important; border-color: #1C271E !important; }
+      .card-body-inner { background-color: #141C16 !important; border-color: #1C271E !important; }
+      .footer-row { border-color: #1C271E !important; }
+      h1 { color: #E6EDE8 !important; }
+      .logo-text { color: #E6EDE8 !important; }
+    }
+  </style>
+</head>
+<body style="margin:0;padding:0;background-color:#07090A;font-family:'Segoe UI',Helvetica,Arial,sans-serif;">
+  <!--[if mso]><table width="100%" bgcolor="#07090A"><tr><td><![endif]-->
+  <div class="outer-wrap" style="background-color:#07090A;padding:32px 16px;width:100%">
+    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:520px;margin:0 auto">
+      <tr><td>
+        <table class="card" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#0F1511;border:1px solid #1C271E;border-radius:16px;overflow:hidden">
+
+          <!-- Header -->
+          <tr><td class="card-header" style="background-color:#080C09;padding:20px 28px;border-bottom:1px solid #1C271E">
+            <table width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+              <td style="vertical-align:middle">
+                <span class="logo-text" style="font-family:'Arial Black',Arial,sans-serif;font-size:22px;font-weight:900;color:#E6EDE8;letter-spacing:.02em">NEPA<span style="color:#00E676">Watch</span></span>
+                <span style="font-size:11px;font-weight:600;letter-spacing:.08em;color:rgba(230,237,232,.45);background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);border-radius:4px;padding:2px 7px;margin-left:8px;vertical-align:middle">LAGOS</span>
+              </td>
+              <td align="right" style="vertical-align:middle">
+                <table cellpadding="0" cellspacing="0" border="0"><tr>
+                  <td style="background:rgba(0,230,118,.1);border:1px solid rgba(0,230,118,.22);border-radius:99px;padding:4px 10px">
+                    <table cellpadding="0" cellspacing="0" border="0"><tr>
+                      <td><div style="width:6px;height:6px;background:#00E676;border-radius:50%;display:block;margin-right:5px"></div></td>
+                      <td style="font-size:11px;font-weight:700;color:#00E676;letter-spacing:.08em;white-space:nowrap">LIVE</td>
+                    </tr></table>
+                  </td>
+                </tr></table>
+              </td>
+            </tr></table>
+          </td></tr>
+
+          <!-- Status badge + headline -->
+          <tr><td style="padding:28px 28px 0">
+            <table cellpadding="0" cellspacing="0" border="0" style="margin-bottom:18px"><tr>
+              <td style="background:${statusBg};border-radius:8px;padding:8px 14px">
+                <table cellpadding="0" cellspacing="0" border="0"><tr>
+                  <td style="vertical-align:middle;padding-right:8px">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">${iconPath}</svg>
+                  </td>
+                  <td style="font-size:12px;font-weight:800;color:${statusText};letter-spacing:.12em;white-space:nowrap">${statusLabel}</td>
+                </tr></table>
+              </td>
+            </tr></table>
+            <h1 style="margin:0 0 20px;font-size:22px;font-weight:800;color:#E6EDE8;line-height:1.25;font-family:'Segoe UI',Helvetica,Arial,sans-serif">${headline}</h1>
+          </td></tr>
+
+          <!-- Body -->
+          <tr><td style="padding:0 28px 24px">
+            <table class="card-body-inner" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#141C16;border:1px solid #1C271E;border-radius:12px">
+              <tr><td style="padding:20px">
+                ${bodyHtml}
+              </td></tr>
+            </table>
+          </td></tr>
+
+          <!-- CTA -->
+          <tr><td style="padding:0 28px 28px;text-align:center">
+            <a href="${appUrl}" style="display:inline-block;background:#00E676;color:#07090A;font-size:15px;font-weight:700;text-decoration:none;padding:13px 32px;border-radius:10px;letter-spacing:.01em;font-family:'Segoe UI',Helvetica,Arial,sans-serif">
+              ${isWelcome ? 'Open NEPAWatch &rarr;' : 'See Live Updates &rarr;'}
+            </a>
+          </td></tr>
+
+          <!-- Footer -->
+          <tr><td class="footer-row" style="padding:18px 28px;border-top:1px solid #1C271E;text-align:center">
+            <p style="margin:0 0 4px;font-size:12px;color:rgba(230,237,232,.3);font-family:Arial,sans-serif">You are receiving this because you signed up for alerts on NEPAWatch.</p>
+            <p style="margin:0;font-size:12px;color:rgba(230,237,232,.2);font-family:Arial,sans-serif"><a href="${appUrl}" style="color:#00E676;text-decoration:none">nepawatch.app</a> &mdash; Real-time power tracking for Lagos</p>
+          </td></tr>
+
+        </table>
+      </td></tr>
+    </table>
+  </div>
+  <!--[if mso]></td></tr></table><![endif]-->
 </body>
 </html>`;
 }
@@ -2789,7 +2844,7 @@ async function renderCommunity(){
 
 function renderFallbackLeaderboard(){document.getElementById("lbList").innerHTML=`<div class="empty" style="padding:24px 18px"><div class="empty-ico">${IC.user}</div><p>Be the first to report! Top reporters will appear here.</p></div>`;}
 
-function renderAccount(){const el=document.getElementById("authWrap");if(CU&&PR)renderProfile(el);else if(CU&&!PR)el.innerHTML=`<div class="loading-row"><div class="spin w"></div>Loading profile...</div>`;else renderAuthForm(el,"login");}
+function renderAccount(){const el=document.getElementById("authWrap");if(CU&&PR){renderProfile(el);_maybeShowA2HSOnAccount();}else if(CU&&!PR)el.innerHTML=`<div class="loading-row"><div class="spin w"></div>Loading profile...</div>`;else renderAuthForm(el,"login");}
 
 const LOGO_IMG_TAG=`<img src="logo.jpg" alt="NEPAWatch" style="width:100%;height:100%;object-fit:cover;border-radius:8px">`;
 
@@ -2799,8 +2854,17 @@ async function handleAuth(mode){const errEl=document.getElementById("authErr"),o
 
 function renderProfile(el){const locText=PR.location_label||PR.location_name||"Not set";const notifOn=PR.notif_on!==false;const savedCount=savedPlaces.length;
   const pushSt=getPushStatus();
-  const pushStatusText=pushSt==='enabled'?'On — tap to disable':pushSt==='blocked'?'Blocked in browser settings':pushSt==='unsupported'?'Not supported in this browser':'Off — tap to enable';
-  const pushBtn=pushSt==='unsupported'?'':`<button class="toggle ${pushSt==='enabled'?'on':''}" onclick="togglePushNotif()"></button>`;
+  const _pushMsgs={
+    'enabled':          'On — tap to disable',
+    'blocked':          'Blocked — enable in browser settings',
+    'unsupported':      'Not available in this browser',
+    'ios-needs-install':'Add to Home Screen first (Safari > Share > Add to Home Screen)',
+    'off':              'Off — tap to enable',
+  };
+  const pushStatusText=_pushMsgs[pushSt]||'Off — tap to enable';
+  const pushBtn=pushSt==='unsupported'?'':
+    pushSt==='ios-needs-install'?`<a href="https://support.apple.com/guide/iphone/bookmark-favorite-webpages-iph42ab2f3a7/ios" target="_blank" style="font-size:.65rem;font-weight:600;color:var(--p);background:var(--pp);border:1px solid var(--pb);border-radius:6px;padding:4px 9px;cursor:pointer;text-decoration:none">How?</a>`:
+    `<button class="toggle ${pushSt==='enabled'?'on':''}" onclick="togglePushNotif()"></button>`;
 el.innerHTML=`<div class="ph"><h2>Account</h2><p>Manage your alerts and locations</p></div><div class="profile-card"><div class="pc-top"><div class="pc-av">${(PR.name||"?")[0].toUpperCase()}</div><div><div class="pc-name">${PR.name||"User"}</div><div class="pc-email">${PR.email||CU.email}</div></div></div><div class="pc-row"><div class="pc-rl-wrap"><div class="pc-ico"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1A3 3 0 0 0 4 4C4 7.5 7 12 7 12S10 7.5 10 4A3 3 0 0 0 7 1z" stroke="currentColor" stroke-width="1.3"/><circle cx="7" cy="4" r="1.2" fill="currentColor"/></svg></div><div><div class="pc-rl">Watching area</div><div class="pc-rs">${locText}</div></div></div>${PR.location_id?`<button onclick="clearLoc()" style="font-size:.65rem;font-weight:600;color:var(--ink3);background:none;border:1px solid var(--bd);border-radius:6px;padding:4px 9px;cursor:pointer">Clear</button>`:""}</div><div class="pc-row"><div class="pc-rl-wrap"><div class="pc-ico"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M1.5 7L7 1.5L12.5 7V12.5H9V9H5V12.5H1.5V7Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg></div><div><div class="pc-rl">Saved Places</div><div class="pc-rs">${savedCount} place${savedCount!==1?"s":""} saved</div></div></div><button onclick="go('myarea')" style="font-size:.65rem;font-weight:600;color:var(--p);background:var(--pp);border:1px solid var(--pb);border-radius:6px;padding:4px 9px;cursor:pointer">Manage</button></div><div class="pc-row"><div class="pc-rl-wrap"><div class="pc-ico"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="1" y="2.5" width="12" height="9" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M1 5L7 8.5L13 5" stroke="currentColor" stroke-width="1.3"/></svg></div><div><div class="pc-rl">Email Alerts</div><div class="pc-rs">${notifOn?"On — receiving alerts":"Off — tap to enable"}</div></div></div><button class="toggle ${notifOn?"on":""}" id="notifToggle" onclick="toggleNotif()"></button></div>
 <div class="pc-row"><div class="pc-rl-wrap"><div class="pc-ico"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1.5L5 5H2.5l2 2-1 3.5L7 8.5 9.5 10.5l-1-3.5 2-2H8L7 1.5z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg></div><div><div class="pc-rl">Push Notifications</div><div class="pc-rs" id="pushStatusTxt">${pushStatusText}</div></div></div>${pushBtn}</div><div class="pc-row"><div class="pc-rl-wrap"><div class="pc-ico"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="5" r="3" stroke="currentColor" stroke-width="1.3"/><path d="M1.5 13c0-3 2.5-4.5 5.5-4.5s5.5 1.5 5.5 4.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></div><div><div class="pc-rl">Alert address</div><div class="pc-rs">${CU.email}</div></div></div></div>${emailLog.length?`<div class="email-log"><div class="email-log-hd">Recent Alerts Sent</div>${emailLog.map(e=>`<div class="ei"><div class="ei-s">${e.subject}</div><div class="ei-m">${e.to} &middot; ${e.time}</div></div>`).join("")}</div>`:""}<button class="logout-btn" onclick="doLogout()">Sign Out</button></div>`;}
 
@@ -2902,8 +2966,24 @@ async function updatePushArea(area) {
   try { await sb.from('push_subscriptions').update({ area }).eq('user_id', CU.id); } catch(e) {}
 }
 
+function _isIos() {
+  return /iphone|ipad|ipod/i.test(navigator.userAgent);
+}
+function _isInStandaloneMode() {
+  return ('standalone' in navigator && navigator.standalone) ||
+    window.matchMedia('(display-mode: standalone)').matches;
+}
 function getPushStatus() {
-  if (!('Notification' in window)) return 'unsupported';
+  // iOS Chrome / Firefox never support Push (Apple forces their own engine)
+  // iOS Safari only supports Push if installed as PWA (standalone)
+  if (_isIos()) {
+    if (!('Notification' in window)) return 'ios-needs-install';
+    if (!_isInStandaloneMode()) return 'ios-needs-install';
+    if (Notification.permission === 'denied') return 'blocked';
+    if (_pushSubscription) return 'enabled';
+    return 'off';
+  }
+  if (!('PushManager' in window) || !('Notification' in window)) return 'unsupported';
   if (Notification.permission === 'denied') return 'blocked';
   if (_pushSubscription) return 'enabled';
   return 'off';
@@ -3391,141 +3471,157 @@ function dismissMap(){_hideMap();if(_leafletMap){_leafletMap.remove();_leafletMa
 
 
 /* ═══════════════════════════════════════════════════════
-   ONBOARDING TOUR — shows first time a user logs in
+   WELCOME MODAL — shows once on first login
    ═══════════════════════════════════════════════════════ */
-const TOUR_KEY = 'nw_tour_done_v1';
+const TOUR_KEY = 'nw_welcome_v2';
 
-const TOUR_STEPS = [
-  {
-    target: '#page-home',        // whole home page
-    spotlight: null,             // no spotlight — just intro card
-    title: "Welcome to NEPAWatch",
-    body: "Real-time power reports for Lagos, crowdsourced by your neighbours. Let's show you around quickly.",
-    position: 'center',
-  },
-  {
-    target: '#homeSearch',
-    title: "Search your area",
-    body: "Type your street or estate and tap it — the feed instantly shows all power reports nearby, including sub-areas.",
-    position: 'below',
-  },
-  {
-    target: '#geoBtn',
-    title: "Or let us find you",
-    body: "Tap Locate Me and we'll use GPS to find your exact location and filter reports automatically.",
-    position: 'below',
-  },
-  {
-    target: '.rep-btns, #repBtns, .action-btns',
-    title: "Report power changes",
-    body: "Seen a blackout or power restored? Tap Light Don Go or Light Don Come to let your community know instantly.",
-    position: 'above',
-  },
-  {
-    target: '.nav-btn[data-page="myarea"], [onclick*="myarea"]',
-    title: "Save places for alerts",
-    body: "Go to My Area to save Home, Work, or School. You'll get email alerts the moment power changes there.",
-    position: 'above',
-  },
-  {
-    target: '.nav-btn[data-page="account"], [onclick*="account"]',
-    title: "Control your alerts",
-    body: "In Account you can turn email alerts on/off and see your watching area. That's it — you're ready!",
-    position: 'above',
-    last: true,
-  },
-];
+function startTour() { _showWelcome(); }
 
-let _tourStep = 0;
-let _tourEl = null;
-
-function startTour() {
-  if (localStorage.getItem(TOUR_KEY)) return; // already seen
-  _tourStep = 0;
-  _showTourStep();
-}
-
-function _showTourStep() {
-  _clearTourEl();
-  const step = TOUR_STEPS[_tourStep];
-  if (!step) { _endTour(); return; }
+function _showWelcome() {
+  if (localStorage.getItem(TOUR_KEY)) return;
 
   const overlay = document.createElement('div');
-  overlay.className = 'onb-overlay';
   overlay.id = 'onbOverlay';
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,.75);display:flex;align-items:center;justify-content:center;padding:20px;pointer-events:all';
 
-  // Find target element for spotlight
-  let targetEl = null;
-  if (step.target && step.position !== 'center') {
-    targetEl = document.querySelector(step.target);
-  }
+  overlay.innerHTML = `
+    <div style="background:var(--bg2);border:1.5px solid var(--p);border-radius:18px;padding:28px 24px;max-width:340px;width:100%;box-shadow:0 16px 48px rgba(0,0,0,.6);animation:onb-pop .25s cubic-bezier(.4,0,.2,1)">
+      <div style="font-size:1.35rem;font-weight:900;color:var(--ink1);margin-bottom:6px;letter-spacing:-.01em">Welcome to NEPAWatch</div>
+      <div style="font-size:.78rem;color:var(--p);font-weight:700;letter-spacing:.06em;text-transform:uppercase;margin-bottom:20px">Lagos Power Tracker</div>
 
-  // Spotlight box
-  let spotStyle = '';
-  let tooltipStyle = '';
-  if (targetEl) {
-    const r = targetEl.getBoundingClientRect();
-    const pad = 8;
-    spotStyle = `top:${r.top - pad}px;left:${r.left - pad}px;width:${r.width + pad*2}px;height:${r.height + pad*2}px`;
+      <div style="display:flex;flex-direction:column;gap:14px;margin-bottom:24px">
 
-    // Position tooltip below or above
-    if (step.position === 'below') {
-      const top = Math.min(r.bottom + 16, window.innerHeight - 220);
-      const left = Math.max(16, Math.min(r.left, window.innerWidth - 286));
-      tooltipStyle = `top:${top}px;left:${left}px`;
-    } else if (step.position === 'above') {
-      const top = Math.max(16, r.top - 16 - 200);
-      const left = Math.max(16, Math.min(r.left, window.innerWidth - 286));
-      tooltipStyle = `top:${top}px;left:${left}px`;
-    }
-    overlay.innerHTML = `<div class="onb-spotlight" style="${spotStyle}"></div>`;
-  } else {
-    // Center tooltip on screen
-    tooltipStyle = `top:50%;left:50%;transform:translate(-50%,-50%)`;
-    // Dark overlay with no spotlight cutout — just a dimmed screen
-    overlay.style.background = 'rgba(0,0,0,.72)';
-    overlay.style.pointerEvents = 'all';
-  }
+        <div style="display:flex;align-items:flex-start;gap:12px">
+          <div style="flex-shrink:0;width:32px;height:32px;background:var(--pp);border-radius:8px;display:flex;align-items:center;justify-content:center">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 1.5L4.5 8.5H7.5L6.5 14.5L11.5 7.5H8.5L8 1.5Z" stroke="var(--p)" stroke-width="1.4" stroke-linejoin="round"/></svg>
+          </div>
+          <div>
+            <div style="font-size:.8rem;font-weight:700;color:var(--ink1);margin-bottom:2px">Report power changes</div>
+            <div style="font-size:.73rem;color:var(--ink3);line-height:1.5">Tap <strong style="color:var(--ink2)">Light Don Go</strong> or <strong style="color:var(--ink2)">Light Don Come</strong> on the home screen to update your community.</div>
+          </div>
+        </div>
 
-  const isLast = step.last || _tourStep === TOUR_STEPS.length - 1;
-  const tooltip = document.createElement('div');
-  tooltip.className = 'onb-tooltip';
-  tooltip.style.cssText = tooltipStyle;
-  tooltip.innerHTML = `
-    <div class="onb-step">Step ${_tourStep + 1} of ${TOUR_STEPS.length}</div>
-    <h4>${step.title}</h4>
-    <p>${step.body}</p>
-    <div class="onb-btns">
-      <button class="onb-next" onclick="_tourNext()">${isLast ? "Let's go!" : "Next →"}</button>
-      ${!isLast ? `<button class="onb-skip" onclick="_endTour()">Skip tour</button>` : ''}
+        <div style="display:flex;align-items:flex-start;gap:12px">
+          <div style="flex-shrink:0;width:32px;height:32px;background:var(--pp);border-radius:8px;display:flex;align-items:center;justify-content:center">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="7" cy="6.5" r="4" stroke="var(--p)" stroke-width="1.4"/><path d="M11 10.5L14.5 14" stroke="var(--p)" stroke-width="1.4" stroke-linecap="round"/></svg>
+          </div>
+          <div>
+            <div style="font-size:.8rem;font-weight:700;color:var(--ink1);margin-bottom:2px">Search or tap Locate Me</div>
+            <div style="font-size:.73rem;color:var(--ink3);line-height:1.5">Type your street in the search bar, or tap <strong style="color:var(--ink2)">Locate Me</strong> in the top bar to auto-detect your area.</div>
+          </div>
+        </div>
+
+        <div style="display:flex;align-items:flex-start;gap:12px">
+          <div style="flex-shrink:0;width:32px;height:32px;background:var(--pp);border-radius:8px;display:flex;align-items:center;justify-content:center">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2 8h12M8 2v12" stroke="var(--p)" stroke-width="1.4" stroke-linecap="round"/></svg>
+          </div>
+          <div>
+            <div style="font-size:.8rem;font-weight:700;color:var(--ink1);margin-bottom:2px">Save places for alerts</div>
+            <div style="font-size:.73rem;color:var(--ink3);line-height:1.5">Go to <strong style="color:var(--ink2)">My Area</strong> to save Home, Work or School and get email alerts the moment power changes.</div>
+          </div>
+        </div>
+
+      </div>
+
+      <button onclick="_endTour()" style="width:100%;background:var(--p);color:#07090A;border:none;border-radius:10px;padding:13px;font-size:.9rem;font-weight:800;cursor:pointer;letter-spacing:.01em">Got it — open the app</button>
     </div>`;
 
-  overlay.appendChild(tooltip);
   document.body.appendChild(overlay);
-  _tourEl = overlay;
-
-  // Scroll target into view
-  if (targetEl) targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
-}
-
-function _tourNext() {
-  _tourStep++;
-  _showTourStep();
 }
 
 function _endTour() {
-  _clearTourEl();
+  document.getElementById('onbOverlay')?.remove();
   localStorage.setItem(TOUR_KEY, '1');
+  // Show add-to-home-screen banner after welcome is dismissed
+  setTimeout(_maybeShowA2HS, 600);
 }
 
 function _clearTourEl() {
-  if (_tourEl) { _tourEl.remove(); _tourEl = null; }
   document.getElementById('onbOverlay')?.remove();
 }
 
-// Auto-start tour after first login — called from doLogin/doRegister success
 function _maybeStartTour() {
   if (!localStorage.getItem(TOUR_KEY)) {
-    setTimeout(startTour, 800); // small delay so UI settles
+    setTimeout(_showWelcome, 800);
   }
+}
+
+/* ═══════════════════════════════════════════════════════
+   ADD TO HOME SCREEN BANNER
+   Shows after welcome modal (and on repeat visits if not installed)
+   ═══════════════════════════════════════════════════════ */
+const A2HS_KEY = 'nw_a2hs_dismissed_v1';
+let _deferredA2HSPrompt = null; // captured from beforeinstallprompt
+
+// Capture the native install prompt on Android/desktop Chrome
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  _deferredA2HSPrompt = e;
+  // Only auto-show if they haven't dismissed it before
+  if (!localStorage.getItem(A2HS_KEY) && !_isInStandaloneMode()) {
+    _maybeShowA2HS();
+  }
+});
+
+function _maybeShowA2HS() {
+  if (_isInStandaloneMode()) return; // already installed
+  if (document.getElementById('a2hsBanner')) return; // already showing
+  if (localStorage.getItem(A2HS_KEY)) return; // user dismissed
+
+  const isIos = _isIos();
+  // On iOS we always show (instructions-based), on other platforms only if we have the prompt
+  if (!isIos && !_deferredA2HSPrompt) return;
+
+  const banner = document.createElement('div');
+  banner.id = 'a2hsBanner';
+
+  const iosInstructions = `
+    <div style="font-size:.72rem;color:var(--ink3);line-height:1.6;margin-top:4px">
+      In <strong style="color:var(--ink2)">Safari</strong>: tap
+      <svg style="vertical-align:middle;margin:0 2px" width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1v8M4 4l3-3 3 3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><path d="M2 8v4h10V8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Share &rarr; <strong style="color:var(--ink2)">Add to Home Screen</strong>
+    </div>`;
+
+  const androidBtn = `<button onclick="_triggerA2HS()" style="background:var(--p);color:#07090A;border:none;border-radius:7px;padding:7px 14px;font-size:.75rem;font-weight:700;cursor:pointer;white-space:nowrap">Install App</button>`;
+
+  banner.style.cssText = 'position:fixed;bottom:72px;left:12px;right:12px;z-index:9000;background:var(--bg2);border:1px solid var(--bd);border-radius:14px;padding:14px 16px;box-shadow:0 4px 20px rgba(0,0,0,.4);animation:onb-pop .25s ease';
+  banner.innerHTML = `
+    <div style="display:flex;align-items:flex-start;gap:12px">
+      <div style="flex-shrink:0;width:36px;height:36px;background:var(--pp);border-radius:9px;display:flex;align-items:center;justify-content:center">
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><rect x="2" y="2" width="14" height="14" rx="3" stroke="var(--p)" stroke-width="1.4"/><path d="M9 6v6M6 9h6" stroke="var(--p)" stroke-width="1.4" stroke-linecap="round"/></svg>
+      </div>
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+          <div style="font-size:.82rem;font-weight:700;color:var(--ink1)">Add to Home Screen</div>
+          <button onclick="_dismissA2HS()" style="background:none;border:none;color:var(--ink3);cursor:pointer;padding:2px;flex-shrink:0;line-height:1">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 2l10 10M12 2L2 12" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+          </button>
+        </div>
+        <div style="font-size:.73rem;color:var(--ink3);margin-top:2px">Get instant push notifications even when the app is closed.</div>
+        ${isIos ? iosInstructions : androidBtn}
+      </div>
+    </div>`;
+
+  document.body.appendChild(banner);
+}
+
+async function _triggerA2HS() {
+  if (!_deferredA2HSPrompt) return;
+  _deferredA2HSPrompt.prompt();
+  const { outcome } = await _deferredA2HSPrompt.userChoice;
+  _deferredA2HSPrompt = null;
+  if (outcome === 'accepted') _dismissA2HS();
+}
+
+function _dismissA2HS() {
+  document.getElementById('a2hsBanner')?.remove();
+  localStorage.setItem(A2HS_KEY, '1');
+}
+
+// Also show the banner on Account page if push is not set up and app isn't installed
+function _maybeShowA2HSOnAccount() {
+  if (_isInStandaloneMode()) return;
+  if (localStorage.getItem(A2HS_KEY)) return;
+  if (document.getElementById('a2hsBanner')) return;
+  setTimeout(_maybeShowA2HS, 300);
 }
