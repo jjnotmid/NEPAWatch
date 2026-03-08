@@ -231,7 +231,7 @@ tr:hover td{background:rgba(128,128,128,.04)}
       </div>
     </div>
     <button class="auth-btn" id="loginBtn" onclick="doLogin()">Sign In to Admin</button>
-    <p class="denied" id="deniedMsg">⚠️ This email is not authorised for admin access.</p>
+    <p class="denied" id="deniedMsg">This email is not authorised for admin access.</p>
   </div>
 </div>
 
@@ -379,8 +379,8 @@ tr:hover td{background:rgba(128,128,128,.04)}
     <div class="page" id="page-broadcast">
       <div class="ph"><h2>Broadcast & Email</h2><p>Send emails to all users or specific people</p></div>
       <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap">
-        <button class="btn btn-primary" id="bcModeAll" onclick="setBcMode('broadcast')" style="flex:1;min-width:120px">📣 Broadcast to Users</button>
-        <button class="btn btn-ghost" id="bcModeOne" onclick="setBcMode('single')" style="flex:1;min-width:120px">✉️ Email One Person</button>
+        <button class="btn btn-primary" id="bcModeAll" onclick="setBcMode('broadcast')" style="flex:1;min-width:120px"><svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M6.5 7.5a1 1 0 1 0 0-2 1 1 0 0 0 0 2z" fill="currentColor"/><path d="M3.5 9.5a4.2 4.2 0 0 1 0-6M9.5 9.5a4.2 4.2 0 0 0 0-6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><path d="M1.5 11.5a7 7 0 0 1 0-10M11.5 11.5a7 7 0 0 0 0-10" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg> Broadcast to Users</button>
+        <button class="btn btn-ghost" id="bcModeOne" onclick="setBcMode('single')" style="flex:1;min-width:120px"><svg width="13" height="13" viewBox="0 0 13 13" fill="none"><rect x="1" y="2.5" width="11" height="8" rx="1.3" stroke="currentColor" stroke-width="1.2"/><path d="M1 5l5.5 3.5L12 5" stroke="currentColor" stroke-width="1.2"/></svg> Email One Person</button>
       </div>
       <div class="bc-grid" id="bcGrid">
         <div class="card">
@@ -392,7 +392,7 @@ tr:hover td{background:rgba(128,128,128,.04)}
               <div class="fld" style="margin-bottom:0"><label>Subject</label><input id="bc-subject" type="text" placeholder="e.g. Scheduled outage in Lekki tonight"></div>
               <div class="fld" style="margin-bottom:0"><label>Message (plain text)</label><textarea id="bc-body" placeholder="Write your message here…" rows="5"></textarea></div>
               <div style="margin-bottom:12px">
-                <button class="btn btn-ghost" style="font-size:.72rem;padding:5px 12px" onclick="toggleHtmlEditor()">🎨 Edit HTML Email Template</button>
+                <button class="btn btn-ghost" style="font-size:.72rem;padding:5px 12px" onclick="toggleHtmlEditor()"><svg width="13" height="13" viewBox="0 0 13 13" fill="none"><circle cx="6.5" cy="6.5" r="5" stroke="currentColor" stroke-width="1.2"/><circle cx="4" cy="5" r=".9" fill="currentColor"/><circle cx="7" cy="3.5" r=".9" fill="currentColor"/><circle cx="9.5" cy="5.5" r=".9" fill="currentColor"/></svg> Edit HTML Template</button>
                 <span style="font-size:.65rem;color:var(--ink3);margin-left:8px">Optional — uses plain text if left empty</span>
               </div>
               <div id="htmlEditorWrap" style="display:none">
@@ -420,6 +420,19 @@ tr:hover td{background:rgba(128,128,128,.04)}
         <div class="ph"><h2>Custom Locations</h2><p>User-added streets and locations</p></div>
         <button class="btn btn-ghost" onclick="loadCustomLocations()">↻ Refresh</button>
       </div>
+
+      <!-- RLS Warning Banner (hidden by default) -->
+      <div id="rlsWarning" style="display:none;background:var(--am);color:#0d1117;border-radius:10px;padding:16px 18px;margin-bottom:16px;font-size:.78rem;line-height:1.7">
+        <div style="font-weight:700;font-size:.85rem;margin-bottom:6px"><svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M6.5 1.5L1 11.5h11L6.5 1.5z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M6.5 5.5v2.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><circle cx="6.5" cy="9.5" r=".5" fill="currentColor"/></svg> RLS Policy Missing — <span id="rlsAction">edit</span> was blocked</div>
+        <div style="margin-bottom:10px">Your Supabase RLS policy doesn't allow admin edits yet. Run this SQL once to fix it permanently:</div>
+        <pre id="rlsSql" style="background:rgba(0,0,0,.2);border-radius:6px;padding:10px 14px;font-size:.68rem;overflow-x:auto;white-space:pre-wrap;margin:0 0 10px"></pre>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <a href="https://supabase.com/dashboard/project/djurokbkkqrmpafcxlez/sql" target="_blank" class="btn btn-primary" style="font-size:.72rem;padding:6px 14px;text-decoration:none">Open Supabase SQL Editor ↗</a>
+          <button class="btn btn-ghost" style="font-size:.72rem;padding:6px 14px" onclick="navigator.clipboard.writeText(document.getElementById('rlsSql').textContent).then(()=>toast('SQL copied!','ok'))">Copy SQL</button>
+          <button class="btn btn-ghost" style="font-size:.72rem;padding:6px 14px" onclick="document.getElementById('rlsWarning').style.display='none'">Dismiss</button>
+        </div>
+      </div>
+
       <div class="filter-bar"><input type="text" id="loc-search" placeholder="Search location or area…" oninput="filterLocations()"></div>
       <div class="card"><div class="tbl-wrap"><table><thead><tr><th>Street Name</th><th>Area</th><th>Added</th><th colspan="2">Actions</th></tr></thead><tbody id="locationsTable"><tr><td colspan="5" class="loading-row"><span class="spin"></span>Loading…</td></tr></tbody></table></div></div>
     </div>
@@ -630,7 +643,7 @@ function renderDashReports() {
   tb.innerHTML=s.map(r=>`<tr>
     <td>${r.location_name||'—'}</td>
     <td style="color:var(--ink2)">${r.location_area||'—'}</td>
-    <td><span class="badge ${r.type}">${r.type==='out'?'⚡ Outage':'✅ Restored'}</span>${r.user_id==='nepawatch-ai'?'<span class="badge ai" style="margin-left:4px">AI</span>':''}</td>
+    <td><span class="badge ${r.type}">${r.type==='out'?'<svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6.5 1L3 6.5h3.5L5 11l4.5-6H6L6.5 1z" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/></svg> Outage':'<svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 6l3 3 5-5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg> Restored'}</span>${r.user_id==='nepawatch-ai'?'<span class="badge ai" style="margin-left:4px">AI</span>':''}</td>
     <td>${dots(r.confirms)}</td>
     <td style="color:var(--ink3);font-size:.7rem">${ago(r.created_at)}</td>
   </tr>`).join('');
@@ -650,7 +663,7 @@ function filterReports() {
   tb.innerHTML=f.map(r=>`<tr>
     <td>${r.location_name||'—'}</td>
     <td style="color:var(--ink2)">${r.location_area||'—'}</td>
-    <td><span class="badge ${r.type}">${r.type==='out'?'⚡ Outage':'✅ Restored'}</span>${r.user_id==='nepawatch-ai'?'<span class="badge ai" style="margin-left:4px">AI</span>':''}</td>
+    <td><span class="badge ${r.type}">${r.type==='out'?'<svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6.5 1L3 6.5h3.5L5 11l4.5-6H6L6.5 1z" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/></svg> Outage':'<svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 6l3 3 5-5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg> Restored'}</span>${r.user_id==='nepawatch-ai'?'<span class="badge ai" style="margin-left:4px">AI</span>':''}</td>
     <td>${dots(r.confirms)}</td>
     <td style="color:var(--ink3);font-size:.7rem">${ago(r.created_at)}</td>
     <td style="color:var(--ink3);font-size:.68rem">${r.user_id==='nepawatch-ai'?'AI Bot':r.user_id?.substring(0,8)+'…'}</td>
@@ -674,7 +687,7 @@ function renderConfirms() {
   tb.innerHTML=f.map(r=>`<tr>
     <td>${r.location_name||'—'}</td>
     <td style="color:var(--ink2)">${r.location_area||'—'}</td>
-    <td><span class="badge ${r.type}">${r.type==='out'?'⚡ Outage':'✅ Restored'}</span></td>
+    <td><span class="badge ${r.type}">${r.type==='out'?'<svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6.5 1L3 6.5h3.5L5 11l4.5-6H6L6.5 1z" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/></svg> Outage':'<svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 6l3 3 5-5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg> Restored'}</span></td>
     <td>${dots(r.confirms)} <span style="color:var(--p);font-weight:700;font-size:.72rem;margin-left:6px">${r.confirms} confirmed</span></td>
     <td style="color:var(--ink3);font-size:.7rem">${ago(r.created_at)}</td>
   </tr>`).join('');
@@ -688,7 +701,7 @@ function renderAreas() {
   if(!filtered.length){grid.innerHTML='<div class="empty-state">No areas found.</div>';return;}
   grid.innerHTML=filtered.map(a=>{
     const st=areaStatus[a]||'unknown';
-    const stLabel=st==='out'?'⚡ Power out':st==='bck'?'✅ Power on':'No recent report';
+    const stLabel=st==='out'?'<svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6.5 1L3 6.5h3.5L5 11l4.5-6H6L6.5 1z" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/></svg> Power out':st==='bck'?'<svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 6l3 3 5-5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg> Power on':'No recent report';
     return`<div class="area-item">
       <div><div class="area-name">${a}</div><div class="area-sub">${stLabel}</div></div>
       <div class="adot ${st==='out'?'out':st==='bck'?'ok':'unknown'}"></div>
@@ -719,7 +732,7 @@ async function loadUsers() {
       const { count: total } = await sb.from('profiles').select('id', { count: 'exact', head: true });
       if (total && total > allUsers.length) {
         tb.innerHTML = `<tr><td colspan="6" class="empty-state" style="padding:32px">
-          <div style="font-size:.85rem;font-weight:600;color:var(--am);margin-bottom:10px">⚠️ RLS policy missing — seeing ${allUsers.length} of ${total} users</div>
+          <div style="font-size:.85rem;font-weight:600;color:var(--am);margin-bottom:10px"><svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M6.5 1.5L1 11.5h11L6.5 1.5z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M6.5 5.5v2.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><circle cx="6.5" cy="9.5" r=".5" fill="currentColor"/></svg> RLS policy missing — seeing ${allUsers.length} of ${total} users</div>
           <div style="font-size:.75rem;color:var(--ink2);line-height:1.8;max-width:440px;margin:0 auto">
             Run <code style="background:var(--bg3);padding:2px 6px;border-radius:4px;font-size:.72rem">admin-rls-FINAL.sql</code> in your 
             <a href="https://supabase.com/dashboard/project/djurokbkkqrmpafcxlez/sql" target="_blank" style="color:var(--p);text-decoration:underline">Supabase SQL Editor ↗</a>
@@ -734,7 +747,7 @@ async function loadUsers() {
     filterUsers();
   } catch(e) {
     tb.innerHTML = `<tr><td colspan="6" class="empty-state" style="padding:32px">
-      <div style="font-size:.85rem;font-weight:600;color:var(--rd);margin-bottom:10px">❌ Could not load users</div>
+      <div style="font-size:.85rem;font-weight:600;color:var(--rd);margin-bottom:10px"><svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 2l8 8M10 2L2 10" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg> Could not load users</div>
       <div style="font-size:.75rem;color:var(--ink2);line-height:1.8">
         Run <code style="background:var(--bg3);padding:2px 6px;border-radius:4px">admin-rls-FINAL.sql</code> in your
         <a href="https://supabase.com/dashboard/project/djurokbkkqrmpafcxlez/sql" target="_blank" style="color:var(--p);text-decoration:underline">Supabase SQL Editor ↗</a>
@@ -756,7 +769,7 @@ function filterUsers() {
     <td><div style="display:flex;align-items:center;gap:8px"><div class="av">${(u.name||u.email||'?')[0].toUpperCase()}</div>${u.name||'—'}</div></td>
     <td style="font-size:.72rem;color:var(--ink2)">${u.email||'—'}</td>
     <td style="font-size:.7rem;color:var(--ink2)">${u.location_name?`${u.location_name} (${u.location_area||''})`:'—'}</td>
-    <td><span style="font-size:.7rem;color:${u.notif_on!==false?'var(--p)':'var(--ink3)'}">${u.notif_on!==false?'✓ On':'Off'}</span></td>
+    <td><span style="font-size:.7rem;color:${u.notif_on!==false?'var(--p)':'var(--ink3)'}">${u.notif_on!==false?'On':'Off'}</span></td>
     <td style="font-size:.68rem;color:var(--ink3)">${u.created_at?new Date(u.created_at).toLocaleDateString('en-NG',{day:'numeric',month:'short',year:'numeric'}):'—'}</td>
     <td><button class="email-btn" onclick="quickEmail('${u.email||''}','${(u.name||'').replace(/'/g,'')}')">Email</button></td>
   </tr>`).join('');
@@ -838,7 +851,7 @@ function toggleHtmlEditor(){
   w.style.display=w.style.display==='none'?'block':'none';
 }
 function loadDefaultTemplate(){
-  const tpl=`<!DOCTYPE html><html><head><meta charset="utf-8"><style>body{font-family:sans-serif;background:#0d1117;color:#e6edf3;margin:0;padding:0}.wrap{max-width:520px;margin:40px auto;background:#161b22;border-radius:14px;overflow:hidden}.header{background:#f7c842;padding:22px 28px;text-align:center}.logo{font-size:1.3rem;font-weight:800;color:#0d1117;letter-spacing:-0.5px}.logo em{color:#333;font-style:normal}.body{padding:28px 28px 20px}.greeting{font-size:1rem;font-weight:600;margin-bottom:12px;color:#e6edf3}.msg{font-size:.88rem;line-height:1.7;color:#b1bac4;white-space:pre-wrap}.footer{padding:14px 28px 22px;font-size:.7rem;color:#484f58;border-top:1px solid #21262d}</style></head><body><div class="wrap"><div class="header"><div class="logo">NEPA<em>Watch</em> Lagos</div></div><div class="body"><div class="greeting">Hi {{name}} 👋</div><div class="msg">{{body}}</div></div><div class="footer">You received this because you signed up for NEPAWatch alerts.<br>NEPAWatch Lagos — nepawatch.netlify.app</div></div></body></html>`;
+  const tpl=`<!DOCTYPE html><html><head><meta charset="utf-8"><style>body{font-family:sans-serif;background:#0d1117;color:#e6edf3;margin:0;padding:0}.wrap{max-width:520px;margin:40px auto;background:#161b22;border-radius:14px;overflow:hidden}.header{background:#f7c842;padding:22px 28px;text-align:center}.logo{font-size:1.3rem;font-weight:800;color:#0d1117;letter-spacing:-0.5px}.logo em{color:#333;font-style:normal}.body{padding:28px 28px 20px}.greeting{font-size:1rem;font-weight:600;margin-bottom:12px;color:#e6edf3}.msg{font-size:.88rem;line-height:1.7;color:#b1bac4;white-space:pre-wrap}.footer{padding:14px 28px 22px;font-size:.7rem;color:#484f58;border-top:1px solid #21262d}</style></head><body><div class="wrap"><div class="header"><div class="logo">NEPA<em>Watch</em> Lagos</div></div><div class="body"><div class="greeting">Hi {{name}},</div><div class="msg">{{body}}</div></div><div class="footer">You received this because you signed up for NEPAWatch alerts.<br>NEPAWatch Lagos — nepawatch.netlify.app</div></div></body></html>`;
   document.getElementById('bc-html').value=tpl;
   document.getElementById('htmlEditorWrap').style.display='block';
 }
@@ -945,24 +958,65 @@ async function saveEditLocation(){
   const street=document.getElementById('editLocStreet').value.trim();
   const area=document.getElementById('editLocArea').value.trim();
   if(!street||!area){toast('Fill in all fields','err');return;}
+  const btn=document.querySelector('#editLocModal .btn-primary');
+  if(btn){btn.textContent='Saving…';btn.disabled=true;}
   try {
-    const {error}=await sb.from('custom_locations').update({street_name:street,area_name:area}).eq('id',id);
+    // Request count so we can detect RLS silent blocks
+    const {data,error,count}=await sb.from('custom_locations')
+      .update({street_name:street,area_name:area},{count:'exact'})
+      .eq('id',id)
+      .select();
     if(error)throw error;
-    const loc=allLocations.find(l=>l.id==id);
+    // If 0 rows updated, RLS is blocking the update
+    if((data&&data.length===0)||(count===0)){
+      showRlsWarning('update');
+      if(btn){btn.textContent='Save Changes';btn.disabled=false;}
+      return;
+    }
+    const loc=allLocations.find(l=>String(l.id)===String(id));
     if(loc){loc.street_name=street;loc.area_name=area;}
     filterLocations();
     document.getElementById('editLocModal').classList.remove('open');
     toast('Location updated','ok');
   } catch(e){toast('Update failed: '+e.message,'err');}
+  if(btn){btn.textContent='Save Changes';btn.disabled=false;}
 }
 async function deleteLocation(id){
   if(!confirm('Delete this location? It will be removed for all users.'))return;
   try {
-    await sb.from('custom_locations').delete().eq('id',id);
-    allLocations=allLocations.filter(l=>l.id!=id);
+    const {data,error,count}=await sb.from('custom_locations')
+      .delete({count:'exact'})
+      .eq('id',id)
+      .select();
+    if(error)throw error;
+    if((data&&data.length===0)||(count===0)){showRlsWarning('delete');return;}
+    allLocations=allLocations.filter(l=>String(l.id)!==String(id));
     filterLocations();
     toast('Location deleted','ok');
-  } catch(e){toast('Delete failed','err');}
+  } catch(e){toast('Delete failed: '+e.message,'err');}
+}
+function showRlsWarning(action){
+  const sql=`-- Run this once in your Supabase SQL Editor to allow admin edits:
+-- https://supabase.com/dashboard/project/djurokbkkqrmpafcxlez/sql
+
+-- Allow admin to UPDATE any custom location
+CREATE POLICY "Admin can update any custom location"
+  ON custom_locations FOR UPDATE
+  USING (true) WITH CHECK (true);
+
+-- Allow admin to DELETE any custom location  
+CREATE POLICY "Admin can delete any custom location"
+  ON custom_locations FOR DELETE
+  USING (true);`;
+  const el=document.getElementById('rlsWarning');
+  if(el){
+    el.style.display='block';
+    document.getElementById('rlsSql').textContent=sql;
+    document.getElementById('rlsAction').textContent=action;
+  } else {
+    // Fallback toast with instructions
+    toast('RLS blocked — run the SQL fix in Supabase (see Custom Locations page)','err');
+  }
 }
 
 // ── AUTO-LOGIN ────────────────────────────────────────────────
