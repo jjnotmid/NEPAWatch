@@ -3584,7 +3584,7 @@ function _maybeShowA2HS() {
 
   const androidBtn = `<button onclick="_triggerA2HS()" style="background:var(--p);color:#07090A;border:none;border-radius:7px;padding:7px 14px;font-size:.75rem;font-weight:700;cursor:pointer;white-space:nowrap">Install App</button>`;
 
-  banner.style.cssText = 'position:fixed;bottom:72px;left:12px;right:12px;z-index:9000;background:var(--bg2);border:1px solid var(--bd);border-radius:14px;padding:14px 16px;box-shadow:0 4px 20px rgba(0,0,0,.4);animation:onb-pop .25s ease';
+  banner.style.cssText = 'position:fixed;bottom:72px;left:12px;right:12px;z-index:9000;background:var(--bg1);border:1.5px solid var(--p);border-radius:14px;padding:14px 16px;box-shadow:0 8px 32px rgba(0,0,0,.8);animation:onb-pop .25s ease;backdrop-filter:none;-webkit-backdrop-filter:none';
   banner.innerHTML = `
     <div style="display:flex;align-items:flex-start;gap:12px">
       <div style="flex-shrink:0;width:36px;height:36px;background:var(--pp);border-radius:9px;display:flex;align-items:center;justify-content:center">
