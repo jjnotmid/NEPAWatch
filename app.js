@@ -2984,9 +2984,15 @@ document.addEventListener('click',e=>{
    MAP PICKER — Leaflet interactive location picker
    ═══════════════════════════════════════════════════════ */
 
-let _mpMap=null,_mpMarker=null,_mpLat=null,_mpLng=null,_mpArea=null;
+let _mpMap=null,_mpMarker=null,_mpLat=null,_mpLng=null,_mpArea=null,_mpCurrentName='';
 
 let _mpPowerMarkers=[];
+
+function mpOnNameEdit(val){
+  _mpCurrentName=val.trim();
+  const btn=document.getElementById('mpConfirmBtn');
+  if(btn)btn.disabled=!_mpCurrentName;
+}
 
 function openMapPicker(){
   document.getElementById('mapPickerOverlay').classList.add('open');
@@ -3058,9 +3064,10 @@ async function _mpReverseAndFill(lat,lng){
   const selEl=document.getElementById('mpSelected');
   const nameEl=document.getElementById('mpSelectedName');
   if(selEl)selEl.style.display='block';
-  if(nameEl)nameEl.textContent=locName;
+  if(nameEl)nameEl.value=locName;
+  _mpCurrentName=locName;
   const btn=document.getElementById('mpConfirmBtn');
-  if(btn){btn.disabled=false;btn.textContent=`Use "${locName.length>24?locName.slice(0,24)+'…':locName}"`;}
+  if(btn){btn.disabled=false;btn.textContent='Use This Location';}
 }
 
 function _mpDrawPowerDots(){
@@ -3095,15 +3102,17 @@ async function _onMapPickerClick(e){
 async function confirmMapPick(){
   if(_mpLat===null||_mpLng===null)return;
 
-  // Reverse geocode to get a proper name
-  let streetName='', areaName=_mpArea||'Lagos';
-  try{
-    const res=await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${_mpLat}&lon=${_mpLng}&format=json&zoom=18&addressdetails=1`,{headers:{"Accept-Language":"en","User-Agent":"NEPAWatch/1.0"}});
-    const data=await res.json();
-    const a=data.address||{};
-    streetName=a.road||a.neighbourhood||a.suburb||a.city_district||'';
-    areaName=a.suburb||a.city_district||a.town||a.city||_mpArea||'Lagos';
-  }catch(e){}
+  // Use the name the user typed (or the one we reverse-geocoded)
+  let streetName=_mpCurrentName||'', areaName=_mpArea||'Lagos';
+  if(!streetName){
+    try{
+      const res=await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${_mpLat}&lon=${_mpLng}&format=json&zoom=18&addressdetails=1`,{headers:{"Accept-Language":"en","User-Agent":"NEPAWatch/1.0"}});
+      const data=await res.json();
+      const a=data.address||{};
+      streetName=a.road||a.neighbourhood||a.suburb||a.city_district||'';
+      areaName=a.suburb||a.city_district||a.town||a.city||_mpArea||'Lagos';
+    }catch(e){}
+  }
 
   closeMapPicker();
 
