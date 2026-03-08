@@ -157,7 +157,7 @@ nav{
 }
 .sc:hover{transform:translateY(-2px)}
 .sn{font-family:var(--font-display);font-size:2rem;font-weight:900;line-height:1;margin-bottom:4px}
-.sn.r{color:var(--rd)}.sn.g{color:var(--p)}.sn.a{color:var(--am)}
+.sn.r{color:var(--rd)}.sn.g{color:var(--p)}.sn.a{color:var(--am)}.sn.b{color:#4B8EF5}
 .sl{font-size:.53rem;font-weight:700;color:var(--ink3);text-transform:uppercase;letter-spacing:.1em}
 
 /* ===== USER COUNT PILL ===== */
