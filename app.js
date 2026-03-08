@@ -2615,7 +2615,7 @@ function selectLoc(id){mSel=LOCS.find(l=>l.id===id);
   if(mSel)mSel={...mSel,name:_normName(mSel.name),label:_normName(mSel.name)+(mSel.area?" — "+mSel.area:"")};const q=document.getElementById("mSearch").value.trim().toLowerCase();renderMList(q?LOCS.filter(l=>l.label.toLowerCase().includes(q)).slice(0,50):LOCS.slice(0,60));const btn=document.getElementById("mBtn");if(mSel){btn.disabled=false;btn.textContent=mType==="out"?`Report — ${mSel.name}`:`Restored — ${mSel.name}`;}}
 async function submitReport(){if(!mSel){toast("Please select a location","info");return;}const loc=mSel,type=mType;closeModal();await pushReport(loc,type);}
 
-function buildFilter(){const sel=document.getElementById("areaFilter");if(!sel)return;
+function buildFilter(){const sel=document.getElementById("areaFilter");if(!sel)return;setTimeout(()=>{const locsEl=document.getElementById("s-locs");if(locsEl)animateNum("s-locs",LOCS.length);},100);
 const areas=new Set();LOCS.forEach(l=>areas.add(l.area));
 // Separate parents and children
 const parents=new Set(Object.values(AREA_PARENT||{}));
@@ -2638,14 +2638,29 @@ function ago(ts){const d=Math.floor((Date.now()-ts)/1000);if(d<60)return`${d}s`;
 function areaStatus(a){const r=reports.filter(x=>x.area===a);if(!r.length)return"unknown";return r[0].type==="out"?"out":"on";}
 
 function todayReports(){const midnight=new Date();midnight.setHours(0,0,0,0);return reports.filter(r=>r.time>=midnight.getTime());}
-function renderStats(){const today=todayReports();const out=new Set(),bck=new Set();today.forEach(r=>r.type==="out"?out.add(r.area):bck.add(r.area));animateNum("s-out",out.size);animateNum("s-bck",bck.size);animateNum("s-rep",today.length);}
-function animateNum(id,target){const el=document.getElementById(id);const current=parseInt(el.textContent)||0;if(current===target){el.textContent=target;return;}let start=null;const dur=400;const step=ts=>{if(!start)start=ts;const p=Math.min((ts-start)/dur,1);el.textContent=Math.round(current+(target-current)*p);if(p<1)requestAnimationFrame(step);};requestAnimationFrame(step);}
+function renderStats(){
+  const isAll=feedFilter==="all";
+  const pool=isAll?reports:todayReports();
+  const out=new Set(),bck=new Set();
+  pool.forEach(r=>r.type==="out"?out.add(r.area):bck.add(r.area));
+  animateNum("s-out",out.size);
+  animateNum("s-bck",bck.size);
+  animateNum("s-rep",pool.length);
+  const lOut=document.getElementById("sl-out"),lBck=document.getElementById("sl-bck"),lRep=document.getElementById("sl-rep");
+  if(lOut)lOut.textContent=isAll?"Out Areas":"Today Out";
+  if(lBck)lBck.textContent=isAll?"Restored Areas":"Today Restored";
+  if(lRep)lRep.textContent=isAll?"All Reports":"Today Reports";
+  const locsEl=document.getElementById("s-locs");
+  if(locsEl)animateNum("s-locs",LOCS.length);
+}
+function animateNum(id,target){const el=document.getElementById(id);if(!el)return;const current=parseInt(el.textContent)||0;if(current===target){el.textContent=target;return;}let start=null;const dur=400;const step=ts=>{if(!start)start=ts;const p=Math.min((ts-start)/dur,1);el.textContent=Math.round(current+(target-current)*p);if(p<1)requestAnimationFrame(step);};requestAnimationFrame(step);}
 
 /* ━━━ PATCH 1: renderFeed — AI badge on AI-generated reports + hide own confirm button ━━━ */
 function setFeedFilter(f){
   feedFilter=f;
   document.getElementById("ftToday").classList.toggle("active",f==="today");
   document.getElementById("ftAll").classList.toggle("active",f==="all");
+  renderStats();
   renderFeed("liveFeed");
 }
 function _buildReportCard(r, i=0){
