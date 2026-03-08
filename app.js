@@ -2087,8 +2087,8 @@ const ALERT_COOLDOWN_MS=5*60*1000;
 let savedPlaces=[];
 let _placeSel=null,_placeType="home",_editPlaceId=null;
 let _userCount=0,_nearbyAreas=[],_userLat=null,_userLng=null,_pollTimer=null;
-let googleMapsReady=false,map=null,userMarker=null,powerMarkers=[];
-let userExactLat=null,userExactLng=null,placesAutocomplete=null;
+let _leafletMap=null,_leafletUserMarker=null,_leafletPowerMarkers=[];
+let userExactLat=null,userExactLng=null;
 
 const IC={
   out:`<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="5.5" stroke="currentColor" stroke-width="1.3"/><path d="M7 4V7.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><circle cx="7" cy="10" r=".55" fill="currentColor"/></svg>`,
@@ -2212,15 +2212,14 @@ async function submitSavedPlace(){if(!CU){toast("Sign in to save places","info")
 
 function haversine(lat1,lng1,lat2,lng2){const R=6371,dLat=(lat2-lat1)*Math.PI/180,dLng=(lng2-lng1)*Math.PI/180;const a=Math.sin(dLat/2)**2+Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)**2;return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));}
 function findNearestAreas(lat,lng,count=8){return Object.entries(AREA_COORDS).map(([area,coords])=>({area,dist:haversine(lat,lng,coords.lat,coords.lng)})).sort((a,b)=>a.dist-b.dist).slice(0,count);}
-function reverseGeocode(lat,lng){if(!googleMapsReady)return;const geocoder=new google.maps.Geocoder();geocoder.geocode({location:{lat,lng}},(results,status)=>{if(status==="OK"&&results[0]){const addrComp=results[0].address_components;let precise="";for(let comp of addrComp){if(comp.types.includes("neighborhood")){precise=comp.long_name;break;}else if(comp.types.includes("sublocality")&&!precise){precise=comp.long_name;}else if(comp.types.includes("locality")&&!precise){precise=comp.long_name;}}if(precise){const txt=document.getElementById("geoBtnTxt");txt.textContent=precise.length>12?precise.substring(0,12)+"...":precise;toast(`📍 You are at ${precise}`,"ok");}}});}
+async function reverseGeocode(lat,lng){try{const res=await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&zoom=16&addressdetails=1`,{headers:{"Accept-Language":"en","User-Agent":"NEPAWatch/1.0"}});const data=await res.json();const a=data.address||{};const precise=a.neighbourhood||a.suburb||a.city_district||a.town||a.city||"";if(precise){const txt=document.getElementById("geoBtnTxt");txt.textContent=precise.length>12?precise.substring(0,12)+"...":precise;toast(`📍 You are near ${precise}`,"ok");}}catch(e){}}
 
-async function detectLocation(){const btn=document.getElementById("geoBtn");const txt=document.getElementById("geoBtnTxt");if(!navigator.geolocation){toast("Geolocation not supported","err");return;}txt.textContent="Locating...";btn.disabled=true;const tryGeo=(highAccuracy,timeoutMs)=>new Promise((resolve,reject)=>{navigator.geolocation.getCurrentPosition(resolve,reject,{enableHighAccuracy:highAccuracy,timeout:timeoutMs,maximumAge:highAccuracy?10000:60000});});let pos;try{pos=await tryGeo(true,12000);}catch(e1){try{pos=await tryGeo(false,8000);}catch(e2){const msg=e2.code===1?"Location access denied":e2.code===2?"Could not get location":"Location request timed out";toast(msg,"err");txt.textContent="Locate Me";btn.disabled=false;return;}}const{latitude:lat,longitude:lng,accuracy}=pos.coords;_userLat=lat;_userLng=lng;userExactLat=lat;userExactLng=lng;_nearbyAreas=findNearestAreas(lat,lng,8);const nearest=_nearbyAreas[0]?.area;if(!nearest){toast("Could not match your location to a Lagos area","err");txt.textContent="Locate Me";btn.disabled=false;return;}const sel=document.getElementById("areaFilter");sel.value=nearest;filterArea=nearest;renderFeed("liveFeed");btn.classList.add("active");btn.disabled=false;const accStr=accuracy<100?`±${Math.round(accuracy)}m`:"";toast(`📍 Located near ${nearest}${accStr?" "+accStr:""}`,"ok");txt.textContent=nearest.length>12?nearest.substring(0,12)+"...":nearest;renderNearbyDashboard();document.getElementById('mapContainer').classList.add('show');if(googleMapsReady){showPreciseLocation(lat,lng);reverseGeocode(lat,lng);}if(CU&&PR&&!PR.location_id){const loc=LOCS.find(l=>l.name===nearest&&!l.street);if(loc)await saveLocation(loc);}}
+async function detectLocation(){const btn=document.getElementById("geoBtn");const txt=document.getElementById("geoBtnTxt");if(!navigator.geolocation){toast("Geolocation not supported","err");return;}txt.textContent="Locating...";btn.disabled=true;const tryGeo=(highAccuracy,timeoutMs)=>new Promise((resolve,reject)=>{navigator.geolocation.getCurrentPosition(resolve,reject,{enableHighAccuracy:highAccuracy,timeout:timeoutMs,maximumAge:highAccuracy?10000:60000});});let pos;try{pos=await tryGeo(true,12000);}catch(e1){try{pos=await tryGeo(false,8000);}catch(e2){const msg=e2.code===1?"Location access denied":e2.code===2?"Could not get location":"Location request timed out";toast(msg,"err");txt.textContent="Locate Me";btn.disabled=false;return;}}const{latitude:lat,longitude:lng,accuracy}=pos.coords;_userLat=lat;_userLng=lng;userExactLat=lat;userExactLng=lng;_nearbyAreas=findNearestAreas(lat,lng,8);const nearest=_nearbyAreas[0]?.area;if(!nearest){toast("Could not match your location to a Lagos area","err");txt.textContent="Locate Me";btn.disabled=false;return;}const sel=document.getElementById("areaFilter");sel.value=nearest;filterArea=nearest;renderFeed("liveFeed");btn.classList.add("active");btn.disabled=false;const accStr=accuracy<100?`±${Math.round(accuracy)}m`:"";toast(`📍 Located near ${nearest}${accStr?" "+accStr:""}`,"ok");txt.textContent=nearest.length>12?nearest.substring(0,12)+"...":nearest;renderNearbyDashboard();document.getElementById('mapContainer').classList.add('show');showLeafletLocation(lat,lng);reverseGeocode(lat,lng);if(CU&&PR&&!PR.location_id){const loc=LOCS.find(l=>l.name===nearest&&!l.street);if(loc)await saveLocation(loc);}}
 
-function initGoogleMaps(){googleMapsReady=true;if(userExactLat&&userExactLng){showPreciseLocation(userExactLat,userExactLng);reverseGeocode(userExactLat,userExactLng);}}
-function showPreciseLocation(lat,lng){if(!googleMapsReady)return;const mapDiv=document.getElementById('mapContainer');if(!map){map=new google.maps.Map(mapDiv,{center:{lat,lng},zoom:15,mapTypeControl:false,streetViewControl:false});}else{map.setCenter({lat,lng});map.setZoom(15);}if(userMarker)userMarker.setMap(null);powerMarkers.forEach(m=>m.setMap(null));powerMarkers=[];userMarker=new google.maps.Marker({position:{lat,lng},map,title:"You are here",icon:{path:google.maps.SymbolPath.CIRCLE,scale:10,fillColor:"#4285F4",fillOpacity:1,strokeColor:"white",strokeWeight:2}});const nearby=findNearbyPowerSpots(lat,lng,5);nearby.forEach(spot=>{const marker=new google.maps.Marker({position:spot.coords,map,title:spot.area,icon:{url:spot.status==='on'?'http://maps.google.com/mapfiles/ms/icons/green-dot.png':'http://maps.google.com/mapfiles/ms/icons/red-dot.png'}});const iw=new google.maps.InfoWindow({content:`<div class="map-info"><strong>${spot.area}</strong><br>Power: ${spot.status==='on'?'✅ On':'❌ Out'}<br>${spot.dist<1?(spot.dist*1000).toFixed(0)+'m':spot.dist.toFixed(1)+'km'} away<button onclick="window.open('https://www.google.com/maps/dir/?api=1&origin=${lat},${lng}&destination=${spot.coords.lat},${spot.coords.lng}','_blank')">🧭 Directions</button></div>`});marker.addListener('click',()=>iw.open(map,marker));powerMarkers.push(marker);});}
+function showLeafletLocation(lat,lng){const mapDiv=document.getElementById('mapContainer');if(!mapDiv)return;if(!_leafletMap){_leafletMap=L.map(mapDiv,{zoomControl:true,attributionControl:false}).setView([lat,lng],15);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(_leafletMap);}else{_leafletMap.setView([lat,lng],15);}if(_leafletUserMarker)_leafletUserMarker.remove();_leafletPowerMarkers.forEach(m=>m.remove());_leafletPowerMarkers=[];const userIcon=L.divIcon({className:'',html:'<div style="width:16px;height:16px;background:#4B8EF5;border:3px solid white;border-radius:50%;box-shadow:0 2px 8px rgba(0,0,0,.4)"></div>',iconSize:[16,16],iconAnchor:[8,8]});_leafletUserMarker=L.marker([lat,lng],{icon:userIcon}).addTo(_leafletMap).bindPopup('<strong>You are here</strong>');const nearby=findNearbyPowerSpots(lat,lng,6);nearby.forEach(spot=>{const col=spot.status==='on'?'#AAFF00':spot.status==='out'?'#FF4055':'#888';const icon=L.divIcon({className:'',html:`<div style="width:13px;height:13px;background:${col};border:2px solid rgba(255,255,255,.8);border-radius:50%;box-shadow:0 1px 6px rgba(0,0,0,.5)"></div>`,iconSize:[13,13],iconAnchor:[6,6]});const marker=L.marker([spot.coords.lat,spot.coords.lng],{icon}).addTo(_leafletMap);const distTxt=spot.dist<1?`${(spot.dist*1000).toFixed(0)}m`:`${spot.dist.toFixed(1)}km`;marker.bindPopup(`<strong>${spot.area}</strong><br>Power: ${spot.status==='on'?'✅ On':spot.status==='out'?'❌ Out':'❓ Unknown'}<br>${distTxt} away`);_leafletPowerMarkers.push(marker);});setTimeout(()=>_leafletMap&&_leafletMap.invalidateSize(),200);}
 function findNearbyPowerSpots(lat,lng,limit=5){return Object.entries(AREA_COORDS).map(([area,coords])=>({area,status:getPlaceStatus(area),coords,dist:haversine(lat,lng,coords.lat,coords.lng)})).filter(s=>s.dist<=10).sort((a,b)=>a.dist-b.dist).slice(0,limit);}
 
-function clearLoc(){filterArea="";const sel=document.getElementById("areaFilter");if(sel)sel.value="";document.getElementById("locTag").classList.remove("on");document.getElementById("geoBtn").classList.remove("active");document.getElementById("geoBtnTxt").textContent="Locate Me";_nearbyAreas=[];_userLat=null;_userLng=null;userExactLat=userExactLng=null;document.getElementById('mapContainer').classList.remove('show');if(userMarker)userMarker.setMap(null);powerMarkers.forEach(m=>m.setMap(null));powerMarkers=[];renderNearbyDashboard();renderFeed("liveFeed");if(CU&&PR){PR.location_id=null;PR.location_name=null;PR.location_area=null;PR.location_label=null;sb.from("profiles").update({location_id:null,location_name:null,location_area:null,location_label:null}).eq("id",CU.id).then(()=>{}).catch(()=>{});}}
+function clearLoc(){filterArea="";const sel=document.getElementById("areaFilter");if(sel)sel.value="";document.getElementById("locTag").classList.remove("on");document.getElementById("geoBtn").classList.remove("active");document.getElementById("geoBtnTxt").textContent="Locate Me";_nearbyAreas=[];_userLat=null;_userLng=null;userExactLat=userExactLng=null;document.getElementById('mapContainer').classList.remove('show');if(_leafletUserMarker){_leafletUserMarker.remove();_leafletUserMarker=null;}_leafletPowerMarkers.forEach(m=>m.remove());_leafletPowerMarkers=[];if(_leafletMap){_leafletMap.remove();_leafletMap=null;}renderNearbyDashboard();renderFeed("liveFeed");if(CU&&PR){PR.location_id=null;PR.location_name=null;PR.location_area=null;PR.location_label=null;sb.from("profiles").update({location_id:null,location_name:null,location_area:null,location_label:null}).eq("id",CU.id).then(()=>{}).catch(()=>{});}}
 
 function renderNearbyDashboard(){const el=document.getElementById("nearbyDashboard");if(!_nearbyAreas.length){el.innerHTML="";return;}const cards=_nearbyAreas.slice(0,6).map(({area,dist})=>{const status=getPlaceStatus(area);const statusCls=status==="out"?"nb-status s-out":status==="on"?"nb-status s-on":"nb-status s-unk";const statusTxt=status==="out"?"Power Out":status==="on"?"Power On":"No reports";const statusIco=status==="out"?IC.out:status==="on"?IC.bck:IC.pin;const distStr=dist<1?`${Math.round(dist*1000)}m away`:`${dist.toFixed(1)}km away`;return`<div class="nb-card" onclick="jumpToArea('${area}')"><div class="nb-area">${area}</div><div class="nb-dist">${distStr}</div><div class="${statusCls}">${statusIco}&nbsp;${statusTxt}</div></div>`;}).join("");el.innerHTML=`<div class="slbl">Nearby Areas</div><div class="nearby-grid">${cards}</div>`;}
 
@@ -2406,7 +2405,7 @@ async function submitReport(){if(!mSel){toast("Please select a location","info")
 
 function buildFilter(){const sel=document.getElementById("areaFilter");if(!sel)return;const areas=new Set();LOCS.forEach(l=>areas.add(l.area));sel.innerHTML=`<option value="">All Lagos areas</option>`;[...areas].sort().forEach(a=>{const o=document.createElement("option");o.value=a;o.textContent=a;sel.appendChild(o);});}
 function applyFilter(){filterArea=document.getElementById("areaFilter").value;renderFeed("liveFeed");}
-function toggleSuggestLoc(){const form=document.getElementById("suggestLocForm");const txt=document.getElementById("suggestLocToggleTxt");if(!form)return;const show=form.style.display==="none";form.style.display=show?"block":"none";txt.textContent=show?"Hide":"+ Cannot find your street? Add it for everyone";if(show){setTimeout(()=>{if(googleMapsReady&&!placesAutocomplete){const streetInput=document.getElementById('suggestStreet');placesAutocomplete=new google.maps.places.Autocomplete(streetInput,{types:['address'],componentRestrictions:{country:'NG'},fields:['address_components','formatted_address','geometry']});placesAutocomplete.addListener('place_changed',()=>{const place=placesAutocomplete.getPlace();if(place.geometry){const components=place.address_components;let street='',area='';for(let comp of components){if(comp.types.includes('route'))street=comp.long_name;if(comp.types.includes('sublocality')||comp.types.includes('locality'))area=comp.long_name;}document.getElementById('suggestStreet').value=street||place.formatted_address;if(area)document.getElementById('suggestArea').value=area;}});}},200);}}
+function toggleSuggestLoc(){const form=document.getElementById("suggestLocForm");const txt=document.getElementById("suggestLocToggleTxt");if(!form)return;const show=form.style.display==="none";form.style.display=show?"block":"none";txt.textContent=show?"Hide":"+ Cannot find your street? Add it for everyone";if(show){setTimeout(()=>{const si=document.getElementById("suggestStreet");if(si)si.focus();},80);}}
 async function handleSuggestLoc(){if(!CU){toast("Sign in to add a location","info");closeModal();go("account");return;}const street=(document.getElementById("suggestStreet")?.value||"").trim();const area=(document.getElementById("suggestArea")?.value||"").trim();if(!street){toast("Enter a street name","info");return;}if(!area){toast("Enter the area name","info");return;}const btn=document.querySelector("#suggestLocForm .mconfirm");if(btn){btn.innerHTML='Saving... <span class="spin"></span>';btn.disabled=true;}const newLoc=await submitCustomLocation(street,area);if(btn){btn.innerHTML="Save and Use This Location";btn.disabled=false;}if(newLoc){mSel=newLoc;const mBtn=document.getElementById("mBtn");if(mBtn){mBtn.disabled=false;mBtn.textContent=mType==="out"?`Report — ${newLoc.name}`:`Restored — ${newLoc.name}`;}buildFilter();const q=document.getElementById("mSearch")?.value.trim().toLowerCase()||"";renderMList(q?LOCS.filter(l=>l.label.toLowerCase().includes(q)).slice(0,50):LOCS.slice(0,60));const form=document.getElementById("suggestLocForm");if(form)form.style.display="none";const txt=document.getElementById("suggestLocToggleTxt");if(txt)txt.textContent="+ Cannot find your street? Add it for everyone";}}
 
 function updateBanner(){const b=document.getElementById("mainBanner"),t=document.getElementById("bannerTxt");if(!CU){t.textContent="Sign in to receive email alerts when power changes in your area.";b.classList.add("show");}else if(PR&&!PR.location_id){t.textContent=`Hi ${PR.name} — tap Locate Me or report your street to set your location.`;b.classList.add("show");}else{b.classList.remove("show");}}
@@ -2645,3 +2644,316 @@ async function doPasswordReset(){
     if(btn){errEl.textContent=e.message||"Could not update password.";errEl.classList.add("show");btn.innerHTML="Update Password";btn.disabled=false;}
   }
 }
+
+/* ═══════════════════════════════════════════════════════
+   HOME SEARCH BAR — Leaflet + Nominatim autocomplete
+   ═══════════════════════════════════════════════════════ */
+
+let _hsDebounce=null,_hsNominatimResults=[],_hsOpen=false;
+
+function onHomeSearch(val){
+  const clear=document.getElementById('hsClear');
+  if(clear)clear.style.display=val?'flex':'none';
+  document.getElementById('homeSearchWrap').classList.add('focused');
+  clearTimeout(_hsDebounce);
+  if(!val.trim()){showHomeResults();return;}
+  _hsDebounce=setTimeout(()=>_runHomeSearch(val.trim()),280);
+}
+
+async function _runHomeSearch(q){
+  const el=document.getElementById('hsResults');
+  if(!el)return;
+  el.style.display='block';
+  _hsOpen=true;
+
+  // 1. Local matches from LOCS first (instant)
+  const ql=q.toLowerCase();
+  const local=LOCS.filter(l=>l.label.toLowerCase().includes(ql)).slice(0,5);
+
+  // 2. Nominatim search for Lagos (async)
+  let nomResults=[];
+  try{
+    const url=`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q+', Lagos, Nigeria')}&format=json&limit=5&addressdetails=1&countrycodes=ng&viewbox=2.6,6.2,4.0,6.8&bounded=1`;
+    const res=await fetch(url,{headers:{"Accept-Language":"en","User-Agent":"NEPAWatch/1.0"}});
+    nomResults=await res.json();
+    _hsNominatimResults=nomResults;
+  }catch(e){_hsNominatimResults=[];}
+
+  _renderHomeResults(q,local,nomResults);
+}
+
+function _renderHomeResults(q,local,nomResults){
+  const el=document.getElementById('hsResults');
+  if(!el||!_hsOpen)return;
+  let html='';
+
+  if(local.length){
+    html+=`<div class="hs-section">In NEPAWatch</div>`;
+    html+=local.map(l=>{
+      const st=getPlaceStatus(l.area);
+      const stHtml=st==='out'?'<span class="hs-item-status s-out">Out</span>':st==='on'?'<span class="hs-item-status s-on">On</span>':'';
+      return`<div class="hs-item" onclick="selectHomeLocation('${l.id}')">
+        <div class="hs-item-icon"><svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6 1A2.3 2.3 0 0 0 3.7 3.3C3.7 5.7 6 10.5 6 10.5S8.3 5.7 8.3 3.3A2.3 2.3 0 0 0 6 1z" stroke="currentColor" stroke-width="1.2"/><circle cx="6" cy="3.3" r=".9" fill="currentColor"/></svg></div>
+        <div class="hs-item-body"><div class="hs-item-name">${l.name}</div><div class="hs-item-sub">${l.street?l.area:'Area · Lagos'}</div></div>
+        ${stHtml}
+      </div>`;
+    }).join('');
+  }
+
+  if(nomResults.length){
+    html+=`<div class="hs-section">Map Results</div>`;
+    html+=nomResults.map((r,i)=>{
+      const name=r.name||r.display_name.split(',')[0];
+      const sub=r.display_name.split(',').slice(1,3).join(',').trim();
+      return`<div class="hs-item" onclick="selectNominatimResult(${i})">
+        <div class="hs-item-icon"><svg width="12" height="12" viewBox="0 0 12 12" fill="none"><circle cx="6" cy="6" r="4.5" stroke="currentColor" stroke-width="1.2"/><path d="M4 6h4M6 4v4" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/></svg></div>
+        <div class="hs-item-body"><div class="hs-item-name">${name}</div><div class="hs-item-sub">${sub||'Lagos, Nigeria'}</div></div>
+      </div>`;
+    }).join('');
+  }
+
+  if(!local.length&&!nomResults.length){
+    html=`<div class="hs-empty">No results — try a different street name</div>`;
+  }
+
+  // Always offer "add new location"
+  html+=`<div class="hs-add-row" onclick="openAddFromSearch('${q.replace(/'/g,"\\'")}')">
+    <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M6.5 1v11M1 6.5h11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+    Add "${q}" as a new location
+  </div>`;
+
+  el.innerHTML=html;
+  el.style.display='block';
+}
+
+function showHomeResults(){
+  const q=(document.getElementById('homeSearch')?.value||'').trim();
+  if(!q){
+    // Show top areas
+    const el=document.getElementById('hsResults');
+    if(!el)return;
+    _hsOpen=true;
+    const top=LOCS.filter(l=>!l.street).slice(0,8);
+    let html=`<div class="hs-section">Lagos Areas</div>`;
+    html+=top.map(l=>{
+      const st=getPlaceStatus(l.area);
+      const stHtml=st==='out'?'<span class="hs-item-status s-out">Out</span>':st==='on'?'<span class="hs-item-status s-on">On</span>':'';
+      return`<div class="hs-item" onclick="selectHomeLocation('${l.id}')">
+        <div class="hs-item-icon"><svg width="12" height="12" viewBox="0 0 12 12" fill="none"><rect x="1" y="2" width="10" height="8" rx="1.2" stroke="currentColor" stroke-width="1.2"/></svg></div>
+        <div class="hs-item-body"><div class="hs-item-name">${l.name}</div><div class="hs-item-sub">Area</div></div>
+        ${stHtml}
+      </div>`;
+    }).join('');
+    html+=`<div class="hs-add-row" onclick="openMapPicker()">
+      <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M6.5 1A2.8 2.8 0 0 0 3.7 3.8C3.7 6.6 6.5 12 6.5 12S9.3 6.6 9.3 3.8A2.8 2.8 0 0 0 6.5 1z" stroke="currentColor" stroke-width="1.2"/><circle cx="6.5" cy="3.8" r="1.1" fill="currentColor"/></svg>
+      Pick exact location on map
+    </div>`;
+    el.innerHTML=html;
+    el.style.display='block';
+  } else {
+    _runHomeSearch(q);
+  }
+}
+
+function hideHomeResults(){
+  _hsOpen=false;
+  const el=document.getElementById('hsResults');
+  if(el)el.style.display='none';
+  document.getElementById('homeSearchWrap')?.classList.remove('focused');
+}
+
+function clearHomeSearch(){
+  const inp=document.getElementById('homeSearch');
+  if(inp)inp.value='';
+  const clear=document.getElementById('hsClear');
+  if(clear)clear.style.display='none';
+  hideHomeResults();
+  inp?.focus();
+}
+
+function selectHomeLocation(id){
+  const loc=LOCS.find(l=>l.id===id);
+  if(!loc)return;
+  hideHomeResults();
+  const inp=document.getElementById('homeSearch');
+  if(inp)inp.value=loc.label;
+  // Set filter and jump
+  filterArea=loc.area;
+  const sel=document.getElementById('areaFilter');
+  if(sel)sel.value=loc.area;
+  renderFeed('liveFeed');
+  toast(`📍 Showing reports for ${loc.name}`,'ok');
+  // If logged in, set as their location
+  if(CU&&PR&&!PR.location_id)saveLocation(loc);
+}
+
+function selectNominatimResult(idx){
+  const r=_hsNominatimResults[idx];
+  if(!r)return;
+  hideHomeResults();
+  const lat=parseFloat(r.lat),lng=parseFloat(r.lon);
+  const name=r.name||r.display_name.split(',')[0];
+  const inp=document.getElementById('homeSearch');
+  if(inp)inp.value=name;
+
+  // Find nearest area from AREA_COORDS
+  const nearest=findNearestAreas(lat,lng,1)[0];
+  if(nearest){
+    filterArea=nearest.area;
+    const sel=document.getElementById('areaFilter');
+    if(sel)sel.value=nearest.area;
+    renderFeed('liveFeed');
+    toast(`📍 Showing ${nearest.area} — nearest match for "${name}"`,'ok');
+  }
+
+  // Show on Leaflet map
+  const mapCont=document.getElementById('mapContainer');
+  if(mapCont){mapCont.classList.add('show');showLeafletLocation(lat,lng);}
+}
+
+function openAddFromSearch(streetHint){
+  hideHomeResults();
+  // Pre-fill the "add location" form in the report modal
+  openModal('out');
+  setTimeout(()=>{
+    const ms=document.getElementById('mSearch');
+    if(ms){ms.value=streetHint;filterList();}
+    // Open suggest form
+    const form=document.getElementById('suggestLocForm');
+    const txt=document.getElementById('suggestLocToggleTxt');
+    if(form){
+      form.style.display='block';
+      if(txt)txt.textContent='Hide';
+      const si=document.getElementById('suggestStreet');
+      if(si){si.value=streetHint;si.focus();}
+    }
+  },200);
+}
+
+// Close search results when clicking outside
+document.addEventListener('click',e=>{
+  const wrap=document.getElementById('homeSearchWrap');
+  if(wrap&&!wrap.contains(e.target))hideHomeResults();
+},{passive:true});
+
+
+/* ═══════════════════════════════════════════════════════
+   MAP PICKER — Leaflet interactive location picker
+   ═══════════════════════════════════════════════════════ */
+
+let _mpMap=null,_mpMarker=null,_mpLat=null,_mpLng=null,_mpArea=null;
+
+function openMapPicker(){
+  document.getElementById('mapPickerOverlay').classList.add('open');
+  hideHomeResults();
+  setTimeout(()=>{
+    if(!_mpMap){
+      // Centre on Lagos
+      _mpMap=L.map('mapPickerMap',{zoomControl:true,attributionControl:false}).setView([6.5244,3.3792],12);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(_mpMap);
+      _mpMap.on('click',_onMapPickerClick);
+      // If we already have user location, centre there
+      if(userExactLat&&userExactLng)_mpMap.setView([userExactLat,userExactLng],15);
+    }
+    _mpMap.invalidateSize();
+  },200);
+}
+
+function closeMapPicker(){
+  document.getElementById('mapPickerOverlay').classList.remove('open');
+}
+
+async function _onMapPickerClick(e){
+  const {lat,lng}=e.latlng;
+  _mpLat=lat;_mpLng=lng;
+
+  if(_mpMarker)_mpMarker.remove();
+  const icon=L.divIcon({className:'',html:'<div style="width:22px;height:22px;background:var(--p,#AAFF00);border:3px solid white;border-radius:50%;box-shadow:0 2px 12px rgba(0,0,0,.5);transform:translate(-50%,-50%)"></div>',iconSize:[0,0],iconAnchor:[0,0]});
+  _mpMarker=L.marker([lat,lng],{icon}).addTo(_mpMap);
+
+  // Find nearest area
+  const nearestArr=findNearestAreas(lat,lng,1);
+  _mpArea=nearestArr[0]?.area||null;
+
+  // Reverse geocode with Nominatim
+  let locName=_mpArea||'Selected location';
+  try{
+    const res=await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&zoom=18&addressdetails=1`,{headers:{"Accept-Language":"en","User-Agent":"NEPAWatch/1.0"}});
+    const data=await res.json();
+    const a=data.address||{};
+    locName=a.road||a.neighbourhood||a.suburb||a.city_district||_mpArea||'Selected location';
+  }catch(e){}
+
+  const selEl=document.getElementById('mpSelected');
+  const nameEl=document.getElementById('mpSelectedName');
+  const areaEl=document.getElementById('mpArea');
+  if(selEl)selEl.style.display='block';
+  if(nameEl)nameEl.textContent=locName;
+
+  const btn=document.getElementById('mpConfirmBtn');
+  if(btn){btn.disabled=false;btn.textContent=`Use "${locName.length>24?locName.slice(0,24)+'…':locName}"`;}
+}
+
+async function confirmMapPick(){
+  if(_mpLat===null||_mpLng===null)return;
+
+  // Reverse geocode to get a proper name
+  let streetName='', areaName=_mpArea||'Lagos';
+  try{
+    const res=await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${_mpLat}&lon=${_mpLng}&format=json&zoom=18&addressdetails=1`,{headers:{"Accept-Language":"en","User-Agent":"NEPAWatch/1.0"}});
+    const data=await res.json();
+    const a=data.address||{};
+    streetName=a.road||a.neighbourhood||a.suburb||a.city_district||'';
+    areaName=a.suburb||a.city_district||a.town||a.city||_mpArea||'Lagos';
+  }catch(e){}
+
+  closeMapPicker();
+
+  // Check if already in LOCS
+  const existing=LOCS.find(l=>l.name.toLowerCase()===streetName.toLowerCase()&&l.area.toLowerCase()===areaName.toLowerCase());
+  if(existing){
+    selectHomeLocation(existing.id);
+    return;
+  }
+
+  if(!streetName){
+    // Just use the nearest area
+    if(_mpArea){
+      filterArea=_mpArea;
+      const sel=document.getElementById('areaFilter');
+      if(sel)sel.value=_mpArea;
+      renderFeed('liveFeed');
+      toast(`📍 Showing reports for ${_mpArea}`,'ok');
+    }
+    return;
+  }
+
+  // Show in search bar
+  const inp=document.getElementById('homeSearch');
+  if(inp){inp.value=streetName;const cl=document.getElementById('hsClear');if(cl)cl.style.display='flex';}
+
+  // If logged in, offer to add this location
+  if(CU){
+    const id=await submitCustomLocation(streetName,areaName);
+    if(id){
+      filterArea=areaName;
+      const sel=document.getElementById('areaFilter');
+      if(sel)sel.value=areaName;
+      renderFeed('liveFeed');
+    }
+  } else {
+    // Not logged in — just filter by area
+    if(_mpArea){
+      filterArea=_mpArea;
+      const sel=document.getElementById('areaFilter');
+      if(sel)sel.value=_mpArea;
+      renderFeed('liveFeed');
+      toast(`📍 Showing ${_mpArea} — sign in to save your location`,'info');
+    }
+  }
+}
+
+// Close map picker on overlay click
+document.getElementById('mapPickerOverlay')?.addEventListener('click',e=>{
+  if(e.target===document.getElementById('mapPickerOverlay'))closeMapPicker();
+});
