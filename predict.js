@@ -24,6 +24,17 @@ const AREA_BANDS = {
   "Agege":"D","Mushin":"D","Oshodi/Isolo":"D","Festac Town":"D","Amuwo Odofin":"D",
   "Lagos Island":"D","Obalende/CMS":"D","Apapa":"D","Onikan/Lagos Mainland":"D","Ajah":"D",
   "Alimosho/Ipaja":"E","Ikorodu":"E","Badagry":"E","Ojo/Alaba":"E","Ibeju-Lekki":"E","Epe":"E",
+  // Additional areas not previously in AREA_BANDS
+  "Ajah":"D","Sangotedo":"D","Abraham Adesanya":"D","Awoyaya":"D","Bogije":"E","Abijo":"E",
+  "Lekki Phase 2/Ikota":"B","Chevron/Lekki-Epe Expressway":"B","Igbo Efon/Ilasan":"B",
+  "Osapa London":"B","Agungi":"B","Jakande Estate Lekki":"B","VGC":"B",
+  "Obalende/CMS":"D","Onikan/Lagos Mainland":"D","Lagos Island":"D",
+  "Ebute Metta":"C","Oyingbo":"C","Makoko":"D","Iwaya":"C","Akoka":"C",
+  "FCE Akoka":"C","UNILAG":"C","YABATECH":"C","LUTH":"C",
+  "Festac Town":"D","Amuwo Odofin":"D","Mile 2":"D","Satellite Town":"D",
+  "Apapa":"D","Apapa GRA":"C","Tin Can Island":"D",
+  "Oshodi/Isolo":"D","Mushin":"D","Ilupeju":"C","Okota":"D",
+  "Ikorodu GRA":"D","Agric Ikorodu":"E",
 };
 
 const BAND_BASELINE      = { A:0.18, B:0.28, C:0.42, D:0.58, E:0.74 };
@@ -64,6 +75,74 @@ const PredictHistory = {
   },
 };
 
+/* ─── WEATHER MODULE (Open-Meteo, free, no API key) ─────────────────────── */
+const WeatherState = {
+  code: null,       // WMO weather code
+  rain: 0,          // mm precipitation
+  wind: 0,          // km/h wind
+  lastFetch: 0,
+  FETCH_INTERVAL: 15 * 60 * 1000, // every 15 min
+
+  async refresh() {
+    if (Date.now() - this.lastFetch < this.FETCH_INTERVAL) return;
+    try {
+      const url = 'https://api.open-meteo.com/v1/forecast?latitude=6.5244&longitude=3.3792&current=weathercode,precipitation,windspeed_10m&timezone=Africa%2FLagos';
+      const res = await fetch(url);
+      const d = await res.json();
+      const c = d.current || {};
+      this.code = c.weathercode ?? null;
+      this.rain = c.precipitation ?? 0;
+      this.wind = c.windspeed_10m ?? 0;
+      this.lastFetch = Date.now();
+    } catch(e) { /* silent — model works without weather */ }
+  },
+
+  // Returns outage probability multiplier based on current weather
+  // WMO codes: 51-67 = rain, 80-82 = showers, 95-99 = thunderstorm
+  getRiskMultiplier() {
+    const c = this.code;
+    if (c === null) return 1.0;
+    if (c >= 95) return 1.85;             // thunderstorm — big spike
+    if (c >= 80 || (c >= 51 && c <= 67)) {
+      if (this.rain > 10) return 1.65;    // heavy rain
+      if (this.rain > 3)  return 1.40;    // moderate rain
+      return 1.20;                         // light rain
+    }
+    if (this.wind > 40) return 1.30;      // high winds
+    return 1.0;
+  },
+
+  getLabel() {
+    const c = this.code;
+    if (c === null) return null;
+    if (c >= 95) return '⛈️ Thunderstorm';
+    if (c >= 80) return '🌧️ Rain showers';
+    if (c >= 51 && c <= 67) return `🌧️ Rain (${this.rain}mm)`;
+    if (c >= 1 && c <= 3) return '⛅ Cloudy';
+    if (c === 0) return '☀️ Clear';
+    return null;
+  }
+};
+
+/* ─── RECENT MOMENTUM ────────────────────────────────────────────────────── */
+// If many outages reported recently in this area, probability spikes hard
+// Uses the global `reports` array from app.js
+function getRecentMomentum(area) {
+  if (typeof reports === 'undefined') return { boost: 0, count: 0 };
+  const now = Date.now();
+  const twoHrs = 2 * 3600 * 1000;
+  const recent = reports.filter(r =>
+    (r.area === area || (typeof AREA_PARENT !== 'undefined' && AREA_PARENT[r.area] === area)) &&
+    (now - r.time) < twoHrs
+  );
+  const outCount = recent.filter(r => r.type === 'out').length;
+  const bckCount = recent.filter(r => r.type === 'bck').length;
+  // Net outage pressure
+  const net = outCount - bckCount * 2;
+  const boost = net <= 0 ? 0 : net === 1 ? 0.12 : net === 2 ? 0.22 : net >= 3 ? 0.35 : 0;
+  return { boost, outCount, bckCount };
+}
+
 /* ─── CORE PREDICTION ────────────────────────────────────────────────────── */
 function predictOutage(area, hour, dayOfWeek) {
   const band   = AREA_BANDS[area] || 'C';
@@ -74,13 +153,23 @@ function predictOutage(area, hour, dayOfWeek) {
   const aHist  = PredictHistory.getAreaRate(area);
   let prob, confidence;
   if (hist !== null) {
-    prob=hist*0.55+hProb*0.25+base*dAdj*0.20; confidence='high';
+    prob=hist*0.50+hProb*0.25+base*dAdj*0.25; confidence='high';
   } else if (aHist !== null) {
     prob=aHist*0.35+hProb*0.35+base*dAdj*0.30; confidence='medium';
   } else {
     prob=base*0.45+hProb*0.35+(base*dAdj-base)*0.20; confidence='low';
   }
-  return { prob:Math.min(0.97,Math.max(0.03,prob)), confidence, band, bandSupplyHours:BAND_SUPPLY_HOURS[band] };
+  // Apply weather multiplier (rain/storms → higher risk)
+  const wx = WeatherState.getRiskMultiplier();
+  prob = Math.min(0.97, prob * wx);
+  if (wx > 1.3) confidence = confidence === 'low' ? 'medium' : 'high';
+
+  // Apply recent report momentum (outages reported in last 2hrs boost prob)
+  const { boost } = getRecentMomentum(area);
+  prob = Math.min(0.97, prob + boost);
+  if (boost > 0.15) confidence = 'high';
+
+  return { prob:Math.min(0.97,Math.max(0.03,prob)), confidence, band, bandSupplyHours:BAND_SUPPLY_HOURS[band], weather:WeatherState.getLabel() };
 }
 
 function predictDuration(area, hour) {
@@ -117,6 +206,7 @@ const AIReporter = {
   },
 
   async scan() {
+    await WeatherState.refresh(); // free, cached 15min — rain/storms boost predictions
     const now=new Date(), h=now.getHours(), d=now.getDay();
     for (const area of Object.keys(AREA_BANDS)) {
       const { prob } = predictOutage(area, h, d);
@@ -133,23 +223,57 @@ const AIReporter = {
   async scanRestorations() {
     if (typeof reports==='undefined') return;
     const now=new Date(), h=now.getHours(), d=now.getDay();
+
+    // Case 1: Areas where AI filed an outage and prob has now dropped
     const recentAIOut = reports.filter(r =>
-      r.userId===AI_USER_ID && r.type==='out' && (now-r.time)<4*3600000);
+      r.userId===AI_USER_ID && r.type==='out' && (now-r.time)<6*3600000);
     for (const r of recentAIOut) {
       const { prob } = predictOutage(r.area, h, d);
       if (prob >= AI_RESTORE_THRESH) continue;
-      const alreadyRestored = reports.some(x => x.area===r.area && x.type==='bck' && x.time>r.time);
+      const alreadyRestored = reports.some(x =>
+        (x.area===r.area||(typeof AREA_PARENT!=='undefined'&&(AREA_PARENT[x.area]===r.area||AREA_PARENT[r.area]===x.area)))
+        && x.type==='bck' && x.time>r.time);
       if (alreadyRestored) continue;
+      if (now-(this._cooldowns[r.area+'_bck']||0) < AI_COOLDOWN_MS) continue;
+      this._cooldowns[r.area+'_bck'] = Date.now();
       await this._fire(r.area, 'bck', 1-prob);
+    }
+
+    // Case 2: Areas where HUMAN outage reported but no restoration after 3+ hrs
+    // and current prob model says power should be back — AI files restoration
+    const staleHumanOut = reports.filter(r =>
+      r.userId !== AI_USER_ID && r.type==='out' &&
+      (now-r.time) > 3*3600000 && (now-r.time) < 12*3600000);
+    // Deduplicate by area
+    const staleAreas = [...new Set(staleHumanOut.map(r=>r.area))];
+    for (const area of staleAreas) {
+      const { prob } = predictOutage(area, h, d);
+      if (prob >= AI_RESTORE_THRESH * 1.5) continue; // only if clearly low risk now
+      const alreadyRestored = reports.some(x =>
+        x.area===area && x.type==='bck' &&
+        (now-x.time) < 3*3600000);
+      if (alreadyRestored) continue;
+      const aiAlreadyFiredRestore = reports.some(x =>
+        x.area===area && x.type==='bck' && x.userId===AI_USER_ID &&
+        (now-x.time) < 4*3600000);
+      if (aiAlreadyFiredRestore) continue;
+      if (now-(this._cooldowns[area+'_bck']||0) < AI_COOLDOWN_MS) continue;
+      this._cooldowns[area+'_bck'] = Date.now();
+      await this._fire(area, 'bck', 1-prob);
     }
   },
 
   async _fire(area, type, prob) {
     this._cooldowns[area] = Date.now();
-    const streets = (typeof LAGOS!=='undefined' && LAGOS[area]) ? LAGOS[area] : [];
-    const locName = streets.length
-      ? streets[Math.floor(Math.random()*Math.min(3,streets.length))]
-      : area;
+    // Always use the area name as the location — consistent, findable, no random streets
+    const locName = area;
+
+    // Ensure this area exists in LOCS so it's findable in search and saved places
+    if (typeof LOCS !== 'undefined' && !LOCS.find(l => l.name === area && !l.street)) {
+      if (typeof sl === 'function') {
+        LOCS.push({ id: sl(area), name: area, area, street: null, label: area, custom: false });
+      }
+    }
 
     /* Optimistic local insert */
     const tempId = `ai-${Date.now()}-${Math.random().toString(36).slice(2,6)}`;
