@@ -115,11 +115,11 @@ const WeatherState = {
   getLabel() {
     const c = this.code;
     if (c === null) return null;
-    if (c >= 95) return '⛈️ Thunderstorm';
-    if (c >= 80) return '🌧️ Rain showers';
-    if (c >= 51 && c <= 67) return `🌧️ Rain (${this.rain}mm)`;
-    if (c >= 1 && c <= 3) return '⛅ Cloudy';
-    if (c === 0) return '☀️ Clear';
+    if (c >= 95) return 'Thunderstorm';
+    if (c >= 80) return 'Rain showers';
+    if (c >= 51 && c <= 67) return `Rain (${this.rain}mm)`;
+    if (c >= 1 && c <= 3) return 'Cloudy';
+    if (c === 0) return 'Clear';
     return null;
   }
 };
@@ -301,14 +301,16 @@ const AIReporter = {
     if (typeof reports!=='undefined') {
       reports.unshift({ id:tempId, name:locName, area, type, time:Date.now(), confirms:1, userId:AI_USER_ID, isAI:true, aiProb:prob });
       if (reports.length>100) reports.pop();
-      if (typeof render==='function') render();
+      if (typeof renderStats==='function') renderStats();
+      if (typeof prependReportCard==='function') prependReportCard(reports[0],'liveFeed');
+      if (typeof renderDiscos==='function') renderDiscos();
     }
 
     /* Toast */
     if (typeof toast==='function') {
       const msg = type==='out'
-        ? `🤖 NEPAWatch AI: Outage predicted in ${area}`
-        : `🤖 NEPAWatch AI: Power restored in ${area}`;
+        ? `NEPAWatch AI: Outage predicted in ${area}`
+        : `NEPAWatch AI: Power restored in ${area}`;
       toast(msg, type==='out'?'err':'ok');
     }
 
@@ -438,7 +440,7 @@ function renderPredictPage() {
     <div class="pred-conf" id="predConf"><span class="pred-conf-dot">${cDot}</span><div><div class="pred-conf-title">${cNote}</div></div></div>
 
     <div class="pred-ai-banner">
-      <div class="pred-ai-icon">🤖</div>
+      <div class="pred-ai-icon"><svg width="12" height="12" viewBox="0 0 12 12" fill="none"><circle cx="6" cy="6" r="4.5" stroke="currentColor" stroke-width="1.1"/><path d="M4 7.5L5.5 5 7 7.5M4.7 6.5h2.6" stroke="currentColor" stroke-width="1" stroke-linecap="round"/></svg></div>
       <div class="pred-ai-body">
         <div class="pred-ai-title">NEPAWatch AI is active</div>
         <div class="pred-ai-sub">Auto-reports when probability exceeds ${Math.round(AI_CONFIDENCE_THRESH*100)}% · <strong style="color:var(--p)">${aiCount} AI report${aiCount!==1?'s':''}</strong> filed</div>
@@ -462,17 +464,17 @@ function renderPredictPage() {
     <div class="slbl">How It Works</div>
     <div class="pred-model-card">
       <div class="pred-model-row">
-        <div class="pred-model-ico">🤖</div>
+        <div class="pred-model-ico"><svg width="12" height="12" viewBox="0 0 12 12" fill="none"><circle cx="6" cy="6" r="4.5" stroke="currentColor" stroke-width="1.1"/><path d="M4 7.5L5.5 5 7 7.5M4.7 6.5h2.6" stroke="currentColor" stroke-width="1" stroke-linecap="round"/></svg></div>
         <div><div class="pred-model-title">Auto-reports on your behalf</div>
         <div class="pred-model-text">When the model detects outage probability above ${Math.round(AI_CONFIDENCE_THRESH*100)}% in any Lagos area, NEPAWatch AI automatically files a report — tagged as AI-generated in the live feed. No input needed from anyone.</div></div>
       </div>
       <div class="pred-model-row">
-        <div class="pred-model-ico">📊</div>
+        <div class="pred-model-ico"><svg width="12" height="12" viewBox="0 0 12 12" fill="none"><rect x="1" y="6" width="2" height="4" rx=".5" fill="currentColor"/><rect x="5" y="3.5" width="2" height="6.5" rx=".5" fill="currentColor"/><rect x="9" y="1.5" width="2" height="8.5" rx=".5" fill="currentColor"/></svg></div>
         <div><div class="pred-model-title">Powered by NERC bands + crowd history</div>
         <div class="pred-model-text">Combines SBT tariff band supply targets with hourly demand-spike patterns — peaks at 5am and 7pm (Energy for Growth Hub, 2025). Accuracy improves the more users report.</div></div>
       </div>
       <div class="pred-model-row" style="border-bottom:none">
-        <div class="pred-model-ico">🏆</div>
+        <div class="pred-model-ico"><svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M3 1.5h6v5a3 3 0 0 1-6 0V1.5z" stroke="currentColor" stroke-width="1.1"/><path d="M6 9.5v1.5M4 11h4" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/><path d="M3 3H1.5a1.5 1.5 0 0 0 1.5 1.5M9 3h1.5a1.5 1.5 0 0 1-1.5 1.5" stroke="currentColor" stroke-width="1"/></svg></div>
         <div><div class="pred-model-title">NEPAWatch AI on the leaderboard</div>
         <div class="pred-model-text">AI-filed reports appear under "NEPAWatch AI" on the community leaderboard. Human confirmations on AI reports further improve prediction accuracy over time.</div></div>
       </div>
