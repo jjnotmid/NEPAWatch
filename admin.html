@@ -649,14 +649,39 @@ function addArea() {
 
 // ── USERS ─────────────────────────────────────────────────────
 async function loadUsers() {
+  const tb = document.getElementById('usersTable');
   try {
-    // Fetch ALL profiles — requires admin RLS policy (see admin-rls.sql)
-    const { data, error } = await sb.from('profiles').select('*').order('created_at',{ascending:false}).limit(500);
+    const { data, error, count } = await sb.from('profiles').select('*', { count: 'exact' }).order('created_at',{ascending:false}).limit(500);
     if (error) throw error;
-    allUsers=data||[];
+    allUsers = data || [];
+    // If we only got 1 row (own profile), RLS policy is missing
+    if (allUsers.length <= 1) {
+      // Try a count query to see total
+      const { count: total } = await sb.from('profiles').select('id', { count: 'exact', head: true });
+      if (total && total > allUsers.length) {
+        tb.innerHTML = `<tr><td colspan="6" class="empty-state" style="padding:32px">
+          <div style="font-size:.85rem;font-weight:600;color:var(--am);margin-bottom:10px">⚠️ RLS policy missing — seeing ${allUsers.length} of ${total} users</div>
+          <div style="font-size:.75rem;color:var(--ink2);line-height:1.8;max-width:440px;margin:0 auto">
+            Run <code style="background:var(--bg3);padding:2px 6px;border-radius:4px;font-size:.72rem">admin-rls-FINAL.sql</code> in your 
+            <a href="https://supabase.com/dashboard/project/djurokbkkqrmpafcxlez/sql" target="_blank" style="color:var(--p);text-decoration:underline">Supabase SQL Editor ↗</a>
+            <br>then refresh this page.
+          </div>
+        </td></tr>`;
+        // Still show the 1 user we do have in stats
+        document.getElementById('st-users').textContent = total;
+        return;
+      }
+    }
     filterUsers();
   } catch(e) {
-    document.getElementById('usersTable').innerHTML=`<tr><td colspan="6" class="empty-state">Could not load users — run admin-rls.sql in Supabase first.</td></tr>`;
+    tb.innerHTML = `<tr><td colspan="6" class="empty-state" style="padding:32px">
+      <div style="font-size:.85rem;font-weight:600;color:var(--rd);margin-bottom:10px">❌ Could not load users</div>
+      <div style="font-size:.75rem;color:var(--ink2);line-height:1.8">
+        Run <code style="background:var(--bg3);padding:2px 6px;border-radius:4px">admin-rls-FINAL.sql</code> in your
+        <a href="https://supabase.com/dashboard/project/djurokbkkqrmpafcxlez/sql" target="_blank" style="color:var(--p);text-decoration:underline">Supabase SQL Editor ↗</a>
+        then refresh.<br><small style="color:var(--ink3)">${e.message||''}</small>
+      </div>
+    </td></tr>`;
   }
 }
 function filterUsers() {
