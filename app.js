@@ -2066,7 +2066,7 @@ const AREA_COORDS = {
   // ── TRANSPORT ────────────────────────────────────────────────────
   "Third Mainland Bridge":{lat:6.5020,lng:3.3900},
   "Lekki-Ikoyi Link Bridge":{lat:6.4440,lng:3.4495},
-  "Apapa Port":{lat:6.4480,lng:3.3580},
+  "Apapa Port":{lat:6.4480,lng:3.3640},
   "Tin Can Island Port":{lat:6.4370,lng:3.3110},
   "Ikorodu Bus Terminal":{lat:6.6180,lng:3.5065}
 };
@@ -2074,14 +2074,14 @@ const AREA_COORDS = {
 // Maps child areas → their parent area for "include sub-areas" filtering
 const AREA_PARENT = {
   "UNILAG":"Yaba","YABATECH":"Yaba","FCE Akoka":"Yaba","Iwaya":"Yaba",
-  "Akoka":"Yaba","Makoko":"Yaba","Oyingbo":"Yaba","Ebute Metta":"Yaba",
+  "Akoka":"Yaba","Makoko":"Yaba","Oyingbo":"Yaba",// Ebute Metta is independent
   "Bariga":"Shomolu/Bariga","Shomolu":"Shomolu/Bariga",
   "Gbagada Phase 1":"Gbagada","Gbagada Phase 2":"Gbagada","Ifako Gbagada":"Gbagada","Soluyi":"Gbagada",
-  "Gbagada":"Shomolu/Bariga",
+  // Gbagada is its own major area
   "Allen Avenue":"Ikeja (Allen/Opebi)","Opebi":"Ikeja (Allen/Opebi)",
   "Toyin Street Ikeja":"Ikeja (Allen/Opebi)","Computer Village Ikeja":"Ikeja (Allen/Opebi)",
   "Ikeja City Mall":"Ikeja (Allen/Opebi)","Agidingbi":"Ikeja (Allen/Opebi)",
-  "Alausa/Secretariat":"Ikeja GRA","LASUTH":"Ikeja GRA","Oregun":"Ikeja GRA",
+  "Alausa/Secretariat":"Ikeja (Allen/Opebi)","LASUTH":"Ikeja GRA",// Oregun is independent (near Agidingbi/Ikeja)
   "Magodo Phase 1":"Magodo","Magodo Phase 2":"Magodo",
   "Ojodu Berger":"Ojodu/Omole","Omole Phase 1":"Ojodu/Omole","Omole Phase 2":"Ojodu/Omole",
   "Ketu":"Kosofe/Ketu","Alapere":"Kosofe/Ketu","Ogudu":"Kosofe/Ketu",
@@ -2098,18 +2098,18 @@ const AREA_PARENT = {
   "Osborne Estate":"Ikoyi","Dolphin Estate":"Ikoyi",
   "Balogun Market":"Lagos Island","Marina":"Lagos Island","Broad Street":"Lagos Island",
   "CMS Lagos":"Lagos Island","Tafawa Balewa Square":"Lagos Island","Idumota":"Lagos Island",
-  "Adeniji Adele":"Lagos Island","Obalende/CMS":"Lagos Island","National Theatre":"Lagos Island",
+  "Adeniji Adele":"Lagos Island","Obalende/CMS":"Lagos Island","National Theatre":"Surulere",
   "Nigerian Law School Lagos":"Lagos Island","Lagos Island General Hospital":"Lagos Island",
   "Igbo Efon/Ilasan":"Lekki Phase 2/Ikota","Osapa London":"Lekki Phase 2/Ikota",
   "Agungi":"Lekki Phase 2/Ikota","Jakande Estate Lekki":"Lekki Phase 2/Ikota",
-  "VGC":"Lekki Phase 2/Ikota","Lekki Conservation Centre":"Lekki Phase 2/Ikota",
+  "VGC":"Chevron/Lekki-Epe Expressway","Lekki Conservation Centre":"Lekki Phase 2/Ikota",
   "Abraham Adesanya":"Ajah","Sangotedo":"Ajah","Awoyaya":"Ajah",
   "Bogije":"Ajah","Abijo":"Ajah","Pan-Atlantic University":"Ajah",
   "Apapa GRA":"Apapa","Apapa Port":"Apapa","Tin Can Island":"Apapa",
   "Tin Can Island Port":"Apapa","Kirikiri":"Apapa",
   "Oshodi Market":"Oshodi/Isolo","Isolo":"Oshodi/Isolo","Ejigbo":"Oshodi/Isolo",
   "Mafoluku":"Oshodi/Isolo","Ajao Estate":"Oshodi/Isolo",
-  "Ojuelegba":"Surulere","Iponri":"Surulere","Costain":"Surulere","Eko Hospital Surulere":"Surulere",
+  "Ojuelegba":"Surulere","Iponri":"Surulere","Costain":"Apapa","Eko Hospital Surulere":"Surulere",
   "Amuwo Odofin":"Festac Town","Mile 2":"Festac Town","Alakija":"Festac Town",
   "Satellite Town":"Festac Town","Trade Fair Complex":"Festac Town","Agboju":"Festac Town",
   "Alaba International Market":"Ojo/Alaba","Ajangbadi":"Ojo/Alaba","Iba":"Ojo/Alaba",
@@ -2120,11 +2120,11 @@ const AREA_PARENT = {
   "Ikorodu GRA":"Ikorodu","Agric Ikorodu":"Ikorodu","Imota":"Ikorodu",
   "Igbogbo":"Ikorodu","Bayeku":"Ikorodu","Ikorodu Bus Terminal":"Ikorodu",
   "Eleko":"Ibeju-Lekki",
-  "LUTH":"Yaba","Gbagada General Hospital":"Gbagada","Eko Hospital Surulere":"Surulere",
+  "LUTH":"Yaba","Gbagada General Hospital":"Gbagada",
   "Reddington Hospital VI":"Victoria Island",
-  "Third Mainland Bridge":"Yaba","Lekki-Ikoyi Link Bridge":"Lekki Phase 1",
-  "Murtala Muhammed Airport":"Ikeja GRA","Ilupeju":"Maryland/Anthony",
-  "Mushin":"Oshodi/Isolo","Okota":"Oshodi/Isolo","Ago Palace Way":"Oshodi/Isolo",
+  // Third Mainland Bridge spans water — not a sub-area"Lekki-Ikoyi Link Bridge":"Lekki Phase 1",
+  "Murtala Muhammed Airport":"Ikeja GRA",// Ilupeju is its own area
+  // Mushin is independent// Okota is independent (near Isolo)"Ago Palace Way":"Oshodi/Isolo",
 };
 
 // Returns all area names that match a filter (parent + all its children + self)
@@ -2204,7 +2204,7 @@ async function initAuth(){
   sb.auth.onAuthStateChange(async(event,session)=>{
     if(_inResetFlow)return; // never interfere with the reset form
     CU=session?.user||null;
-    if(CU){if(event==="SIGNED_IN"||event==="USER_UPDATED"||!PR){await loadProfile();}}
+    if(CU){if(event==="SIGNED_IN"||event==="USER_UPDATED"||!PR){await loadProfile();if(event==="SIGNED_IN")_maybeStartTour();}}
     else{PR=null;document.getElementById("locTag").classList.remove("on");}
     updateBanner();renderAccount();if(CU)loadSavedPlaces();
   });
@@ -2213,7 +2213,7 @@ function _resetFormHTML(){return`<div class="auth-wrap"><div class="auth-logo"><
 
 async function loadProfile(){if(!CU)return;try{const{data,error}=await sb.from("profiles").select("*").eq("id",CU.id).single();if(!error&&data){PR=data;if(PR.location_id){document.getElementById("locTag").classList.add("on");document.getElementById("locLabel").textContent=PR.location_label||PR.location_name;}}else if(error&&error.code==="PGRST116"){const name=CU.user_metadata?.name||CU.email.split("@")[0];await sb.from("profiles").upsert({id:CU.id,email:CU.email,name,notif_on:true},{onConflict:"id"});PR={id:CU.id,email:CU.email,name,notif_on:true,location_id:null};}}catch(e){}}
 
-async function doRegister(name,email,pass){const{data,error}=await sb.auth.signUp({email,password:pass,options:{data:{name},emailRedirectTo:APP_URL+"?mode=reset"}});if(error){if(error.message?.toLowerCase().includes("rate limit")||error.message?.toLowerCase().includes("over_email_send_rate_limit"))throw new Error("RATE_LIMIT");throw new Error(error.message);}if(data.user){await sb.from("profiles").upsert({id:data.user.id,email,name,notif_on:true},{onConflict:"id"});}if(data.session){CU=data.user;await loadProfile();renderAccount();updateBanner();toast(`Welcome, ${name}!`,"ok");}sendEmail(email,"Welcome to NEPAWatch Lagos",`Hi ${name},\n\nWelcome to NEPAWatch Lagos!\n\nYou will receive real-time email alerts whenever power goes out or is restored near your street.\n\nOpen the app and set your location to activate alerts.\n\nStay powered,\nNEPAWatch Lagos`,buildEmailHtml({type:'welcome',name,appUrl:APP_URL}));return data;}
+async function doRegister(name,email,pass){const{data,error}=await sb.auth.signUp({email,password:pass,options:{data:{name},emailRedirectTo:APP_URL+"?mode=reset"}});if(error){if(error.message?.toLowerCase().includes("rate limit")||error.message?.toLowerCase().includes("over_email_send_rate_limit"))throw new Error("RATE_LIMIT");throw new Error(error.message);}if(data.user){await sb.from("profiles").upsert({id:data.user.id,email,name,notif_on:true},{onConflict:"id"});}if(data.session){CU=data.user;await loadProfile();renderAccount();updateBanner();toast(`Welcome, ${name}!`,"ok");_maybeStartTour();}sendEmail(email,"Welcome to NEPAWatch Lagos",`Hi ${name},\n\nWelcome to NEPAWatch Lagos!\n\nYou will receive real-time email alerts whenever power goes out or is restored near your street.\n\nOpen the app and set your location to activate alerts.\n\nStay powered,\nNEPAWatch Lagos`,buildEmailHtml({type:'welcome',name,appUrl:APP_URL}));return data;}
 async function doLogin(email,pass){const{data,error}=await sb.auth.signInWithPassword({email,password:pass});if(error)throw new Error(error.message);return data;}
 async function doLogout(){try{await sb.auth.signOut();}catch(e){}CU=null;PR=null;savedPlaces=[];document.getElementById("locTag").classList.remove("on");updateBanner();renderAccount();toast("Signed out","info");}
 
@@ -2230,65 +2230,155 @@ function renderMyPlacesList(){const el=document.getElementById("myPlacesList");i
 
 function jumpToArea(area){if(!area)return;filterArea=area;const sel=document.getElementById("areaFilter");if(sel)sel.value=area;go("home");renderFeed("liveFeed");toast(`Filtered to ${area}`,"info");}
 
-function openPlaceModal(editId){_editPlaceId=editId||null;_placeSel=null;_placeType="home";document.getElementById("placeShTitle").textContent=editId?"Edit Saved Place":"Add Saved Place";document.getElementById("customPlaceName").value="";document.getElementById("placeSearch").value="";if(editId){const existing=savedPlaces.find(p=>p.id===editId);if(existing){_placeType=existing.type||"home";document.getElementById("customPlaceName").value=existing.custom_label||"";const loc=LOCS.find(l=>l.id===existing.location_id)||{id:existing.location_id,name:existing.location_name,area:existing.location_area,label:existing.location_label};_placeSel=loc;document.getElementById("placeSearch").value=existing.location_name||"";}}document.querySelectorAll(".pt-btn").forEach(b=>b.classList.toggle("selected",b.dataset.type===_placeType));renderPlaceList(LOCS.slice(0,60));const btn=document.getElementById("placeBtn");if(_placeSel){btn.disabled=false;btn.textContent=editId?"Save Changes":"Add Place";}else{btn.disabled=true;btn.textContent="Select a location first";}document.getElementById("placeOverlay").classList.add("open");}
+function openPlaceModal(editId){_editPlaceId=editId||null;_placeSel=null;_placeType="home";document.getElementById("placeShTitle").textContent=editId?"Edit Saved Place":"Add Saved Place";document.getElementById("customPlaceName").value="";document.getElementById("placeSearch").value="";if(editId){const existing=savedPlaces.find(p=>p.id===editId);if(existing){_placeType=existing.type||"home";document.getElementById("customPlaceName").value=existing.custom_label||"";const loc=LOCS.find(l=>l.id===existing.location_id)||{id:existing.location_id,name:existing.location_name,area:existing.location_area,label:existing.location_label};_placeSel=loc;document.getElementById("placeSearch").value=existing.location_name||"";}}document.querySelectorAll(".pt-btn").forEach(b=>b.classList.toggle("selected",b.dataset.type===_placeType));_placeNomResults=[];renderPlaceList(LOCS.filter(l=>!l.street).slice(0,15));const btn=document.getElementById("placeBtn");if(_placeSel){btn.disabled=false;btn.textContent=editId?"Save Changes":"Add Place";}else{btn.disabled=true;btn.textContent="Select a location first";}document.getElementById("placeOverlay").classList.add("open");}
 function editSavedPlace(id){openPlaceModal(id);}
-function closePlaceModal(){document.getElementById("placeOverlay").classList.remove("open");_placeSel=null;_placeType="home";_editPlaceId=null;_hidePlaceAddForm();const f=document.getElementById("placeAddCustomWrap");if(f)f.remove();}
+function closePlaceModal(){document.getElementById("placeOverlay").classList.remove("open");_placeSel=null;_placeType="home";_editPlaceId=null;_placeNomResults=[];}
 function selectPlaceType(btn,type){_placeType=type;document.querySelectorAll(".pt-btn").forEach(b=>b.classList.remove("selected"));btn.classList.add("selected");}
+let _placeNomTimer=null,_placeNomResults=[];
 function filterPlaceList(){
+  const q=document.getElementById("placeSearch").value.trim();
+  const el=document.getElementById("placeList");
+  if(!q){
+    // Show top LOCS areas as quick picks
+    renderPlaceList(LOCS.filter(l=>!l.street).slice(0,20));
+    return;
+  }
+  // Instant local match first
+  const local=LOCS.filter(l=>l.label.toLowerCase().includes(q.toLowerCase())).slice(0,5);
+  renderPlaceList(local,true);
+  // Then Nominatim live search
+  clearTimeout(_placeNomTimer);
+  _placeNomTimer=setTimeout(()=>_runPlaceNominatim(q),320);
+}
+
+async function _runPlaceNominatim(q){
+  try{
+    const url=`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q+', Lagos, Nigeria')}&format=json&limit=5&addressdetails=1&countrycodes=ng&viewbox=2.6,6.2,4.0,6.8&bounded=1`;
+    const res=await fetch(url,{headers:{"Accept-Language":"en","User-Agent":"NEPAWatch/1.0"}});
+    const data=await res.json();
+    _placeNomResults=data||[];
+    const local=LOCS.filter(l=>l.label.toLowerCase().includes(q.toLowerCase())).slice(0,3);
+    renderPlaceList(local,false,_placeNomResults);
+  }catch(e){}
+}
+
+// Place add form removed — Nominatim handles location discovery
+function renderPlaceList(locs=[],searching=false,nomResults=[]){
+  const el=document.getElementById("placeList");
+  if(!el)return;
+  let html="";
+  if(locs.length){
+    html+=locs.map(l=>`<div class="mopt ${_placeSel?.id===l.id?"sel":""}" onclick="selectPlaceLoc('${l.id}')"><span>${l.name}</span><span class="mopt-sub">${l.street?l.area:"Area"}</span></div>`).join("");
+  }
+  if(searching){
+    html+=`<div class="mopt" style="color:var(--ink3);cursor:default;font-size:.72rem;justify-content:center"><span class="spin" style="display:inline-block;margin-right:6px"></span>Searching map…</div>`;
+  }
+  if(nomResults.length){
+    if(html)html+=`<div style="font-size:.6rem;letter-spacing:.08em;text-transform:uppercase;color:var(--ink3);padding:6px 14px 2px;font-weight:700">From Map</div>`;
+    html+=nomResults.map((r,i)=>{
+      const name=r.name||r.display_name.split(',')[0];
+      const a=r.address||{};
+      const sub=a.suburb||a.city_district||a.town||"";
+      return`<div class="mopt" onclick="selectPlaceNomResult(${i})">
+        <svg width="11" height="11" viewBox="0 0 11 11" fill="none" style="flex-shrink:0;color:var(--p)"><path d="M5.5 1A2.2 2.2 0 0 0 3.3 3.2C3.3 5.6 5.5 10 5.5 10S7.7 5.6 7.7 3.2A2.2 2.2 0 0 0 5.5 1z" stroke="currentColor" stroke-width="1.1"/><circle cx="5.5" cy="3.2" r=".9" fill="currentColor"/></svg>
+        <span>${name}</span><span class="mopt-sub">${sub}</span>
+      </div>`;
+    }).join("");
+  }
+  if(!html){
+    html=`<div class="mopt" style="color:var(--ink3);cursor:default;justify-content:center;padding:14px;font-size:.72rem">No results found</div>`;
+  }
+  el.innerHTML=html;
+}
+function selectPlaceLoc(id){
+  _placeSel=LOCS.find(l=>l.id===id);
   const q=document.getElementById("placeSearch").value.trim().toLowerCase();
-  if(!q){renderPlaceList(LOCS.slice(0,60));_hidePlaceAddForm();return;}
-  const results=LOCS.filter(l=>l.label.toLowerCase().includes(q)).slice(0,50);
-  renderPlaceList(results);
-  // If no results, show the "add custom" inline option
-  if(results.length===0){_showPlaceAddForm(document.getElementById("placeSearch").value.trim());}
-  else{_hidePlaceAddForm();}
+  renderPlaceList(q?LOCS.filter(l=>l.label.toLowerCase().includes(q)).slice(0,5):[],false,_placeNomResults||[]);
+  const btn=document.getElementById("placeBtn");
+  if(_placeSel){btn.disabled=false;btn.textContent=_editPlaceId?"Save Changes":"Add Place";}
 }
 
-function _showPlaceAddForm(streetHint){
-  let form=document.getElementById("placeAddCustomWrap");
-  if(!form){
-    form=document.createElement("div");
-    form.id="placeAddCustomWrap";
-    form.style.cssText="margin-top:10px;padding:12px;background:var(--pp);border:1px solid var(--pb);border-radius:10px;";
-    form.innerHTML=`<div style="font-size:.68rem;color:var(--ink2);margin-bottom:10px;line-height:1.5;font-weight:600">Can't find your location? Add it and use it now:</div>
-      <input id="placeAddStreet" class="msearch" style="margin-bottom:8px;padding-left:14px" placeholder="Street or estate (e.g. Okiti Road)" autocomplete="off" autocorrect="off" autocapitalize="words" spellcheck="false">
-      <input id="placeAddArea" class="msearch" style="margin-bottom:10px;padding-left:14px" placeholder="Nearest area (e.g. Badagry, Yaba)" autocomplete="off" autocorrect="off" autocapitalize="words" spellcheck="false">
-      <button class="mconfirm bck" style="margin-top:0;font-size:.78rem;padding:10px" onclick="handleAddCustomForPlace()">Add & Select This Location</button>`;
-    const placeList=document.getElementById("placeList");
-    placeList.parentNode.insertBefore(form,placeList.nextSibling);
+async function selectPlaceNomResult(idx){
+  const r=_placeNomResults[idx];
+  if(!r)return;
+  const lat=parseFloat(r.lat),lng=parseFloat(r.lon);
+  const name=r.name||r.display_name.split(',')[0];
+  const a=r.address||{};
+  const area=a.suburb||a.city_district||a.town||findNearestAreas(lat,lng,1)[0]?.area||'Lagos';
+
+  // Update search input to show picked name
+  const inp=document.getElementById("placeSearch");
+  if(inp)inp.value=name;
+
+  // Snap to existing LOCS entry if within 200m
+  const snapped=_findDupLoc(lat,lng,200);
+  if(snapped){
+    _placeSel=snapped;
+  } else {
+    // Create/reuse custom location entry (in LOCS only, no DB yet — DB write happens on save)
+    const tempId="nom-"+Date.now();
+    _placeSel={id:tempId,name,area,street:name,label:`${name} — ${area}`,custom:true,lat,lng,_nomPending:true};
+    // Pre-register in LOCS so submitSavedPlace can find it
+    if(!LOCS.find(l=>l.id===tempId))LOCS.unshift(_placeSel);
   }
-  form.style.display="block";
-  const streetInp=document.getElementById("placeAddStreet");
-  if(streetInp&&streetHint&&!streetInp.value)streetInp.value=streetHint;
-}
 
-function _hidePlaceAddForm(){
-  const form=document.getElementById("placeAddCustomWrap");
-  if(form)form.style.display="none";
+  const btn=document.getElementById("placeBtn");
+  if(btn){btn.disabled=false;btn.textContent=_editPlaceId?"Save Changes":"Add Place";}
+  renderPlaceList([_placeSel],false);
 }
-
-async function handleAddCustomForPlace(){
-  if(!CU){toast("Sign in to add a location","info");closePlaceModal();go("account");return;}
-  const street=(document.getElementById("placeAddStreet")?.value||"").trim();
-  const area=(document.getElementById("placeAddArea")?.value||"").trim();
-  if(!street){toast("Enter a street name","info");return;}
-  if(!area){toast("Enter the area name","info");return;}
-  const btn=document.querySelector("#placeAddCustomWrap .mconfirm");
-  if(btn){btn.innerHTML='Saving... <span class="spin"></span>';btn.disabled=true;}
-  const newLoc=await submitCustomLocation(street,area);
-  if(btn){btn.innerHTML="Add & Select This Location";btn.disabled=false;}
-  if(newLoc){
-    _placeSel=newLoc;
-    const placeBtn=document.getElementById("placeBtn");
-    if(placeBtn){placeBtn.disabled=false;placeBtn.textContent=_editPlaceId?"Save Changes":"Add Place";}
-    _hidePlaceAddForm();
-    document.getElementById("placeSearch").value=newLoc.name;
-    renderPlaceList(LOCS.filter(l=>l.label.toLowerCase().includes(newLoc.name.toLowerCase())).slice(0,20));
+function promptSaveArea(area){
+  if(!area)return;
+  if(!CU){
+    toast("Sign in to save areas","info");
+    go("account");
+    return;
+  }
+  // Pre-fill the saved places modal with this area already selected
+  const areaLoc=LOCS.find(l=>l.name===area&&!l.street)||LOCS.find(l=>l.area===area&&!l.street);
+  openPlaceModal();
+  if(areaLoc){
+    setTimeout(()=>{
+      _placeSel=areaLoc;
+      const inp=document.getElementById("placeSearch");
+      if(inp)inp.value=areaLoc.name;
+      renderPlaceList([areaLoc]);
+      const btn=document.getElementById("placeBtn");
+      if(btn){btn.disabled=false;btn.textContent="Add Place";}
+    },100);
+  } else {
+    // Pre-fill the search
+    setTimeout(()=>{
+      const inp=document.getElementById("placeSearch");
+      if(inp){inp.value=area;filterPlaceList();}
+    },100);
   }
 }
-function renderPlaceList(locs){const el=document.getElementById("placeList");if(!locs.length){el.innerHTML=`<div class="mopt" style="color:var(--ink3);cursor:default;justify-content:center;padding:14px;font-size:.72rem">No results — type your location below to add it</div>`;return;}el.innerHTML=locs.map(l=>`<div class="mopt ${_placeSel?.id===l.id?"sel":""}" onclick="selectPlaceLoc('${l.id}')"><span>${l.name}</span><span class="mopt-sub">${l.street?l.area:"Area"}</span></div>`).join("");}
-function selectPlaceLoc(id){_placeSel=LOCS.find(l=>l.id===id);const q=document.getElementById("placeSearch").value.trim().toLowerCase();renderPlaceList(q?LOCS.filter(l=>l.label.toLowerCase().includes(q)).slice(0,50):LOCS.slice(0,60));const btn=document.getElementById("placeBtn");if(_placeSel){btn.disabled=false;btn.textContent=_editPlaceId?"Save Changes":"Add Place";}}
-async function submitSavedPlace(){if(!CU){toast("Sign in to save places","info");closePlaceModal();go("account");return;}if(!_placeSel){toast("Select a location","info");return;}const customLabel=document.getElementById("customPlaceName").value.trim()||null;const btn=document.getElementById("placeBtn");btn.innerHTML=`Saving... <span class="spin"></span>`;btn.disabled=true;const placeObj={id:_editPlaceId||null,type:_placeType,custom_label:customLabel,location_id:_placeSel.id,location_name:_placeSel.name,location_area:_placeSel.area,location_label:_placeSel.label,notif_on:true};const saved=await savePlaceToDB(placeObj);if(saved){if(_editPlaceId){const idx=savedPlaces.findIndex(p=>p.id===_editPlaceId);if(idx!==-1)savedPlaces[idx]={...savedPlaces[idx],...saved};}else{savedPlaces.push(saved);}renderSavedPlacesHome();renderMyPlacesList();toast(_editPlaceId?"Place updated":"Place saved","ok");}btn.innerHTML=_editPlaceId?"Save Changes":"Add Place";btn.disabled=false;closePlaceModal();}
+
+async function submitSavedPlace(){
+  if(!CU){toast("Sign in to save places","info");closePlaceModal();go("account");return;}
+  if(!_placeSel){toast("Select a location","info");return;}
+  const customLabel=document.getElementById("customPlaceName").value.trim()||null;
+  const btn=document.getElementById("placeBtn");
+  btn.innerHTML=`Saving... <span class="spin"></span>`;btn.disabled=true;
+
+  // If this came from Nominatim (not in DB yet), write it to custom_locations first
+  let loc=_placeSel;
+  if(loc._nomPending&&loc.lat&&loc.lng){
+    const saved=await submitCustomLocation(loc.name,loc.area,loc.lat,loc.lng);
+    if(saved)loc=saved;
+  }
+
+  const placeObj={id:_editPlaceId||null,type:_placeType,custom_label:customLabel,
+    location_id:loc.id,location_name:loc.name,location_area:loc.area,location_label:loc.label,notif_on:true};
+  const saved=await savePlaceToDB(placeObj);
+  if(saved){
+    if(_editPlaceId){const idx=savedPlaces.findIndex(p=>p.id===_editPlaceId);if(idx!==-1)savedPlaces[idx]={...savedPlaces[idx],...saved};}
+    else{savedPlaces.push(saved);}
+    renderSavedPlacesHome();renderMyPlacesList();toast(_editPlaceId?"Place updated":"Place saved ✓","ok");
+  }
+  btn.innerHTML=_editPlaceId?"Save Changes":"Add Place";btn.disabled=false;
+  closePlaceModal();
+}
 
 function haversine(lat1,lng1,lat2,lng2){const R=6371,dLat=(lat2-lat1)*Math.PI/180,dLng=(lng2-lng1)*Math.PI/180;const a=Math.sin(dLat/2)**2+Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)**2;return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));}
 function findNearestAreas(lat,lng,count=8){
@@ -2349,7 +2439,7 @@ async function loadReports(){
   try{
     const todayStart=new Date();todayStart.setHours(0,0,0,0);
     const[{data:recentData,error:e1},{data:todayData,error:e2}]=await Promise.all([
-      sb.from("reports").select("id,user_id,location_name,location_area,type,confirms,created_at").order("created_at",{ascending:false}).limit(100),
+      sb.from("reports").select("id,user_id,location_name,location_area,type,confirms,created_at").order("created_at",{ascending:false}).limit(200),
       sb.from("reports").select("id,user_id,location_name,location_area,type,confirms,created_at").gte("created_at",todayStart.toISOString()).order("created_at",{ascending:false}).limit(500)
     ]);
     if(e1&&e2)throw e1;
@@ -2363,7 +2453,7 @@ async function loadReports(){
   render();if(_nearbyAreas.length)renderNearbyDashboard();
 }
 
-async function pollReports(){try{const{data,error}=await sb.from("reports").select("id,user_id,location_name,location_area,type,confirms,created_at").order("created_at",{ascending:false}).limit(100);if(error||!data)return;const dbReports=data.map(r=>({id:r.id,name:r.location_name,area:r.location_area,type:r.type,time:new Date(r.created_at).getTime(),confirms:r.confirms||1,userId:r.user_id,isAI:r.user_id===AI_USER_ID}));const pending=reports.filter(r=>String(r.id).startsWith("local-")||String(r.id).startsWith("ai-"));const newList=[...pending,...dbReports];const oldIds=reports.filter(r=>!String(r.id).startsWith("local-")&&!String(r.id).startsWith("ai-")).map(r=>r.id+r.confirms).join(",");const newIds=dbReports.map(r=>r.id+r.confirms).join(",");if(oldIds!==newIds){reports=newList;render();if(_nearbyAreas.length)renderNearbyDashboard();renderSavedPlacesHome();renderMyPlacesList();}}catch(e){}}
+async function pollReports(){try{const{data,error}=await sb.from("reports").select("id,user_id,location_name,location_area,type,confirms,created_at").order("created_at",{ascending:false}).limit(200);if(error||!data)return;const dbReports=data.map(r=>({id:r.id,name:r.location_name,area:r.location_area,type:r.type,time:new Date(r.created_at).getTime(),confirms:r.confirms||1,userId:r.user_id,isAI:r.user_id===AI_USER_ID}));const pending=reports.filter(r=>String(r.id).startsWith("local-")||String(r.id).startsWith("ai-"));const newList=[...pending,...dbReports];const oldIds=reports.filter(r=>!String(r.id).startsWith("local-")&&!String(r.id).startsWith("ai-")).map(r=>r.id+r.confirms).join(",");const newIds=dbReports.map(r=>r.id+r.confirms).join(",");if(oldIds!==newIds){reports=newList;render();if(_nearbyAreas.length)renderNearbyDashboard();renderSavedPlacesHome();renderMyPlacesList();}}catch(e){}}
 
 function startPolling(){
   if(_pollTimer)clearInterval(_pollTimer);
@@ -2372,7 +2462,7 @@ function startPolling(){
   window._fullSyncTimer=setInterval(()=>{loadReports().catch(()=>{});},60000);
 }
 
-async function pushReport(loc,type){if(!CU){toast("Sign in to submit a report","info");go("account");return;}const tid="local-"+Date.now();reports.unshift({id:tid,name:loc.name,area:loc.area,type,time:Date.now(),confirms:1});if(reports.length>100)reports.pop();render();try{const{data,error}=await sb.from("reports").insert({user_id:CU.id,location_name:loc.name,location_area:loc.area,type,confirms:1}).select().single();if(error){const idx=reports.findIndex(r=>r.id===tid);if(idx!==-1)reports.splice(idx,1);render();toast(`Could not save report: ${error.message}`,"err");return;}const idx=reports.findIndex(r=>r.id===tid);if(idx!==-1)reports[idx]={id:data.id,name:data.location_name,area:data.location_area,type:data.type,time:new Date(data.created_at).getTime(),confirms:data.confirms||1,userId:data.user_id};render();toast(type==="out"?`Outage reported — ${loc.name}`:`Power restored — ${loc.name}`,type==="out"?"err":"ok");if(PR&&!PR.location_id)await saveLocation(loc);await sendAreaAlerts(loc.name,loc.area,type);setTimeout(loadReports,2000);}catch(e){const idx=reports.findIndex(r=>r.id===tid);if(idx!==-1)reports.splice(idx,1);render();toast("Could not save report — check your connection","err");}}
+async function pushReport(loc,type){if(!CU){toast("Sign in to submit a report","info");go("account");return;}const tid="local-"+Date.now();reports.unshift({id:tid,name:loc.name,area:loc.area,type,time:Date.now(),confirms:1});if(reports.length>200)reports.pop();render();try{const{data,error}=await sb.from("reports").insert({user_id:CU.id,location_name:loc.name,location_area:loc.area,type,confirms:1}).select().single();if(error){const idx=reports.findIndex(r=>r.id===tid);if(idx!==-1)reports.splice(idx,1);render();toast(`Could not save report: ${error.message}`,"err");return;}const idx=reports.findIndex(r=>r.id===tid);if(idx!==-1)reports[idx]={id:data.id,name:data.location_name,area:data.location_area,type:data.type,time:new Date(data.created_at).getTime(),confirms:data.confirms||1,userId:data.user_id};render();toast(type==="out"?`Outage reported — ${loc.name}`:`Power restored — ${loc.name}`,type==="out"?"err":"ok");if(PR&&!PR.location_id)await saveLocation(loc);await sendAreaAlerts(loc.name,loc.area,type);setTimeout(loadReports,2000);}catch(e){const idx=reports.findIndex(r=>r.id===tid);if(idx!==-1)reports.splice(idx,1);render();toast("Could not save report — check your connection","err");}}
 
 async function addConfirm(repId) {
   const r = reports.find(x => x.id === repId);
@@ -2502,7 +2592,7 @@ async function sendEmail(to, subject, body, htmlBody) {
     });
   } catch(e) {}
 }
-async function sendAreaAlerts(repName,repArea,repType){if(!repArea)return;const _aKey=repArea+'|'+repType;const _now=Date.now();if(_alertCooldowns[_aKey]&&(_now-_alertCooldowns[_aKey])<ALERT_COOLDOWN_MS)return;_alertCooldowns[_aKey]=_now;try{const subject=repType==="out"?`Power Outage — ${repArea}, Lagos`:`Power Restored — ${repArea}, Lagos`;const time=new Date().toLocaleTimeString("en-NG",{hour:"2-digit",minute:"2-digit"});const body=`${repType==="out"?"Power outage":"Power restored"} near ${repName}, ${repArea}.\n\nTime: ${time}\n\nSee live updates: ${APP_URL}\n\n— NEPAWatch Lagos`;const alertHtml=buildEmailHtml({type:repType,area:repArea,street:repName,time,appUrl:APP_URL});let edgeSent=false;try{const res=await fetch(EMAIL_FN,{method:"POST",headers:{"Content-Type":"application/json","apikey":SUPA_ANON,"Authorization":`Bearer ${SUPA_ANON}`},body:JSON.stringify({mode:"area_alert",area:repArea,repName,repType,subject,body,html:alertHtml,time})});if(res.ok){const json=await res.json().catch(()=>({}));const count=json.sent||0;edgeSent=true;if(count>0){emailLog.unshift({subject,to:`${count} watcher${count!==1?"s":""} in ${repArea}`,time});if(emailLog.length>8)emailLog.pop();}}}catch(fe){}if(CU&&savedPlaces.length){const matchingPlaces=savedPlaces.filter(p=>p.location_area===repArea&&p.notif_on!==false);if(matchingPlaces.length&&CU.email&&!edgeSent){const placeNames=matchingPlaces.map(p=>getPlaceDisplayName(p)).join(", ");const placeHtml=buildEmailHtml({type:repType,area:repArea,street:repName,time,places:placeNames,appUrl:APP_URL});await sendEmail(CU.email,subject,body,placeHtml);emailLog.unshift({subject,to:CU.email+"  (saved place)",time});if(emailLog.length>8)emailLog.pop();toast("Alert sent for your saved place","ok");if(document.getElementById("page-account").classList.contains("active"))renderAccount();}}else if(!edgeSent&&CU&&PR&&PR.location_area===repArea&&PR.notif_on&&CU.email){const userHtml=buildEmailHtml({type:repType,area:repArea,street:repName,time,appUrl:APP_URL});await sendEmail(CU.email,subject,body,userHtml);emailLog.unshift({subject,to:CU.email,time});if(emailLog.length>8)emailLog.pop();toast("Alert sent to your email","ok");if(document.getElementById("page-account").classList.contains("active"))renderAccount();}}catch(e){}}
+async function sendAreaAlerts(repName,repArea,repType){if(!repArea)return;const _aKey=repArea+'|'+repType;const _now=Date.now();if(_alertCooldowns[_aKey]&&(_now-_alertCooldowns[_aKey])<ALERT_COOLDOWN_MS)return;_alertCooldowns[_aKey]=_now;try{const subject=repType==="out"?`Power Outage — ${repArea}, Lagos`:`Power Restored — ${repArea}, Lagos`;const time=new Date().toLocaleTimeString("en-NG",{hour:"2-digit",minute:"2-digit"});const body=`${repType==="out"?"Power outage":"Power restored"} near ${repName}, ${repArea}.\n\nTime: ${time}\n\nSee live updates: ${APP_URL}\n\n— NEPAWatch Lagos`;const alertHtml=buildEmailHtml({type:repType,area:repArea,street:repName,time,appUrl:APP_URL});let edgeSent=false;try{const res=await fetch(EMAIL_FN,{method:"POST",headers:{"Content-Type":"application/json","apikey":SUPA_ANON,"Authorization":`Bearer ${SUPA_ANON}`},body:JSON.stringify({mode:"area_alert",area:repArea,repName,repType,subject,body,html:alertHtml,time})});if(res.ok){const json=await res.json().catch(()=>({}));const count=json.sent||0;edgeSent=true;if(count>0){emailLog.unshift({subject,to:`${count} watcher${count!==1?"s":""} in ${repArea}`,time});if(emailLog.length>8)emailLog.pop();}}}catch(fe){}if(CU&&savedPlaces.length){const matchingPlaces=savedPlaces.filter(p=>(areaMatches(repArea,p.location_area)||areaMatches(p.location_area,repArea))&&p.notif_on!==false);if(matchingPlaces.length&&CU.email&&!edgeSent){const placeNames=matchingPlaces.map(p=>getPlaceDisplayName(p)).join(", ");const placeHtml=buildEmailHtml({type:repType,area:repArea,street:repName,time,places:placeNames,appUrl:APP_URL});await sendEmail(CU.email,subject,body,placeHtml);emailLog.unshift({subject,to:CU.email+"  (saved place)",time});if(emailLog.length>8)emailLog.pop();toast("Alert sent for your saved place","ok");if(document.getElementById("page-account").classList.contains("active"))renderAccount();}}else if(!edgeSent&&CU&&PR&&(areaMatches(repArea,PR.location_area)||areaMatches(PR.location_area,repArea))&&PR.notif_on&&CU.email){const userHtml=buildEmailHtml({type:repType,area:repArea,street:repName,time,appUrl:APP_URL});await sendEmail(CU.email,subject,body,userHtml);emailLog.unshift({subject,to:CU.email,time});if(emailLog.length>8)emailLog.pop();toast("Alert sent to your email","ok");if(document.getElementById("page-account").classList.contains("active"))renderAccount();}}catch(e){}}
 
 function openModal(type){mType=type;mSel=null;document.getElementById("shTitle").textContent=type==="out"?"Report Power Outage":"Report Power Restored";document.getElementById("shDesc").textContent=type==="out"?"Search your street or area in Lagos.":"Great news! Tell your community.";const btn=document.getElementById("mBtn");btn.textContent=type==="out"?"Confirm Outage":"Confirm Restored";btn.className="mconfirm "+(type==="out"?"out":"bck");btn.disabled=true;document.getElementById("mSearch").value="";if(PR?.location_id){mSel=LOCS.find(l=>l.id===PR.location_id)||null;if(mSel){btn.disabled=false;btn.textContent=type==="out"?`Report — ${mSel.name}`:`Restored — ${mSel.name}`;}}renderMList(LOCS.slice(0,60));document.getElementById("repOverlay").classList.add("open");}
 function closeModal(){document.getElementById("repOverlay").classList.remove("open");mType=null;mSel=null;}
@@ -2577,6 +2667,9 @@ function renderFeed(id="liveFeed", aF=null){
       <div class="fc-r">
         <div class="fc-time">${ago(r.time)} ago</div>
         ${confirmBtn}
+        <button class="save-area-btn" onclick="promptSaveArea('${r.area.replace(/'/g,'\\&apos;')}')" title="Save this area">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 1.5h8a.5.5 0 0 1 .5.5v8.5L6 8.5 1.5 10.5V2a.5.5 0 0 1 .5-.5z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>
+        </button>
       </div>
     </div>`;
   }).join("");
@@ -2675,10 +2768,10 @@ function go(page){
   if(page==="account")renderAccount();
 }
 
-function render(){renderStats();renderFeed("liveFeed");renderDiscos();if(_mpMap&&document.getElementById('mapPickerOverlay')?.classList.contains('open'))_mpDrawPowerDots();}
+function render(){renderStats();renderFeed("liveFeed");renderDiscos();if(_mpMap&&document.getElementById("mapPickerOverlay")?.classList.contains("open"))_mpDrawPowerDots();}
 
 let _rtChannel=null,_recentAlerts=new Set(),_rtWatchdog=null;
-function startRealtime(){try{if(_rtChannel){try{sb.removeChannel(_rtChannel);}catch(e){}} _rtChannel=sb.channel("realtime-reports-"+Date.now()).on("postgres_changes",{event:"INSERT",schema:"public",table:"reports"},payload=>{try{const r=payload.new;if(!r||reports.find(x=>String(x.id)===String(r.id)))return;reports.unshift({id:String(r.id),name:String(r.location_name||""),area:String(r.location_area||""),type:String(r.type||""),time:new Date(r.created_at).getTime(),confirms:Number(r.confirms)||1,userId:r.user_id,isAI:r.user_id===AI_USER_ID});if(reports.length>100)reports.pop();render();if(_nearbyAreas.length)renderNearbyDashboard();renderSavedPlacesHome();renderMyPlacesList();if(r.user_id&&r.user_id!==CU?.id&&r.user_id!==AI_USER_ID){const alertKey=r.id+r.type;if(!_recentAlerts.has(alertKey)){_recentAlerts.add(alertKey);setTimeout(()=>_recentAlerts.delete(alertKey),30000);sendAreaAlerts(r.location_name,r.location_area,r.type);}}}catch(e){}}).on("postgres_changes",{event:"UPDATE",schema:"public",table:"reports"},payload=>{try{const r=payload.new;const existing=reports.find(x=>String(x.id)===String(r.id));if(existing){existing.confirms=Number(r.confirms)||1;renderFeed("liveFeed");renderFeed("myFeed",PR?.location_area||null);}}catch(e){}}).subscribe(status=>{
+function startRealtime(){try{if(_rtChannel){try{sb.removeChannel(_rtChannel);}catch(e){}} _rtChannel=sb.channel("realtime-reports-"+Date.now()).on("postgres_changes",{event:"INSERT",schema:"public",table:"reports"},payload=>{try{const r=payload.new;if(!r||reports.find(x=>String(x.id)===String(r.id)))return;reports.unshift({id:String(r.id),name:String(r.location_name||""),area:String(r.location_area||""),type:String(r.type||""),time:new Date(r.created_at).getTime(),confirms:Number(r.confirms)||1,userId:r.user_id,isAI:r.user_id===AI_USER_ID});if(reports.length>200)reports.pop();render();if(_nearbyAreas.length)renderNearbyDashboard();renderSavedPlacesHome();renderMyPlacesList();if(r.user_id&&r.user_id!==CU?.id){const alertKey=r.id+r.type;if(!_recentAlerts.has(alertKey)){_recentAlerts.add(alertKey);setTimeout(()=>_recentAlerts.delete(alertKey),30000);sendAreaAlerts(r.location_name,r.location_area,r.type);}}}catch(e){}}).on("postgres_changes",{event:"UPDATE",schema:"public",table:"reports"},payload=>{try{const r=payload.new;const existing=reports.find(x=>String(x.id)===String(r.id));if(existing){existing.confirms=Number(r.confirms)||1;renderFeed("liveFeed");renderFeed("myFeed",PR?.location_area||null);}}catch(e){}}).subscribe(status=>{
     // If realtime drops, restart it after 5s
     if(status==='CHANNEL_ERROR'||status==='TIMED_OUT'){
       clearTimeout(_rtWatchdog);
@@ -2870,10 +2963,7 @@ function showHomeResults(){
         ${stHtml}
       </div>`;
     }).join('');
-    html+=`<div class="hs-add-row" onclick="openMapPicker()">
-      <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M6.5 1A2.8 2.8 0 0 0 3.7 3.8C3.7 6.6 6.5 12 6.5 12S9.3 6.6 9.3 3.8A2.8 2.8 0 0 0 6.5 1z" stroke="currentColor" stroke-width="1.2"/><circle cx="6.5" cy="3.8" r="1.1" fill="currentColor"/></svg>
-      Pick exact location on map
-    </div>`;
+
     el.innerHTML=html;
     el.style.display='block';
   } else {
@@ -2902,15 +2992,23 @@ function selectHomeLocation(id){
   if(!loc)return;
   hideHomeResults();
   const inp=document.getElementById('homeSearch');
-  if(inp)inp.value=loc.label;
-  // Set filter and jump
-  filterArea=loc.area;
+  if(inp){inp.value='';} // clear search bar — loc tag shows watching area
+  // Set filter using parent area so sub-areas all show
+  const parent=AREA_PARENT?.[loc.area]||loc.area;
+  filterArea=parent;
   const sel=document.getElementById('areaFilter');
-  if(sel)sel.value=loc.area;
+  if(sel)sel.value=parent;
   renderFeed('liveFeed');
-  toast(`📍 Showing reports for ${loc.name}`,'ok');
-  // If logged in, set as their location
-  if(CU&&PR&&!PR.location_id)saveLocation(loc);
+  // Always update the watching tag
+  const locTag=document.getElementById('locTag');
+  const locLabel=document.getElementById('locLabel');
+  if(locTag)locTag.classList.add('on');
+  if(locLabel)locLabel.textContent=loc.street?`${loc.name}, ${loc.area}`:loc.name;
+  const clear=document.getElementById('hsClear');
+  if(clear)clear.style.display='none';
+  toast(`📍 Now watching ${loc.street?loc.name+', '+loc.area:loc.name}`,'ok');
+  // Save to DB if logged in
+  if(CU)saveLocation(loc);
 }
 
 async function selectNominatimResult(idx){
@@ -2919,38 +3017,42 @@ async function selectNominatimResult(idx){
   hideHomeResults();
   const lat=parseFloat(r.lat),lng=parseFloat(r.lon);
   const name=r.name||r.display_name.split(',')[0];
+
+  // Clear search bar — watching tag will show the area
   const inp=document.getElementById('homeSearch');
-  if(inp)inp.value=name;
+  if(inp)inp.value='';
+  const cl=document.getElementById('hsClear');
+  if(cl)cl.style.display='none';
 
   // Snap to existing LOCS within 200m first
   const snapped=_findDupLoc(lat,lng,200);
-  if(snapped){
-    selectHomeLocation(snapped.id);
-    toast(`📍 Matched to "${snapped.name}" — same location`,'ok');
-    return;
-  }
+  if(snapped){ selectHomeLocation(snapped.id); return; }
 
-  // Find nearest area from AREA_COORDS
+  // Find nearest area, prefer parent for broader report coverage
   const nearest=findNearestAreas(lat,lng,1)[0];
-  if(nearest){
-    filterArea=nearest.area;
-    const sel=document.getElementById('areaFilter');
-    if(sel)sel.value=nearest.area;
-    renderFeed('liveFeed');
-  }
+  const area=nearest?.area||'Lagos';
+  const parent=AREA_PARENT?.[area]||area;
+  filterArea=parent;
+  const sel=document.getElementById('areaFilter');
+  if(sel)sel.value=parent;
+  renderFeed('liveFeed');
+
+  // Update watching tag immediately (no need to be logged in)
+  const locTag=document.getElementById('locTag');
+  const locLabel=document.getElementById('locLabel');
+  if(locTag)locTag.classList.add('on');
+  if(locLabel)locLabel.textContent=name!==area?`${name}, ${area}`:area;
+  toast(`📍 Now watching ${name!==area?name+', '+area:area}`,'ok');
 
   // Show on Leaflet map
-  const mapCont=document.getElementById('mapContainer');
-  if(mapCont){mapCont.classList.add('show');showLeafletLocation(lat,lng);}
+  _showMap();showLeafletLocation(lat,lng);
 
-  // If logged in and no location set, offer to save with coords
-  if(CU&&PR&&!PR.location_id&&nearest){
+  // If logged in, save to profile with coords
+  if(CU){
     const a=r.address||{};
-    const areaName=a.suburb||a.city_district||nearest.area;
+    const areaName=a.suburb||a.city_district||area;
     const newLoc=await submitCustomLocation(name,areaName,lat,lng);
-    if(newLoc){await saveLocation(newLoc);}
-  } else {
-    toast(`📍 Showing ${nearest?.area||name}`,'ok');
+    if(newLoc)await saveLocation(newLoc);
   }
 }
 
@@ -2984,8 +3086,12 @@ document.addEventListener('click',e=>{
    MAP PICKER — Leaflet interactive location picker
    ═══════════════════════════════════════════════════════ */
 
-let _mpMap=null,_mpMarker=null,_mpLat=null,_mpLng=null,_mpArea=null,_mpCurrentName='';
 
+
+/* ═══════════════════════════════════════════════════════
+   MAP PICKER — auto-locates + shows green/red power dots
+   ═══════════════════════════════════════════════════════ */
+let _mpMap=null,_mpMarker=null,_mpLat=null,_mpLng=null,_mpArea=null,_mpCurrentName='';
 let _mpPowerMarkers=[];
 
 function mpOnNameEdit(val){
@@ -3004,20 +3110,21 @@ function openMapPicker(){
       _mpMap.on('click',_onMapPickerClick);
     }
     _mpMap.invalidateSize();
-    // Always try to get fresh GPS location when map opens
     _mpAutoLocate();
   },220);
 }
 
+function closeMapPicker(){
+  document.getElementById('mapPickerOverlay').classList.remove('open');
+}
+
 async function _mpAutoLocate(){
-  // If we already have coords from Locate Me, use them immediately
   if(userExactLat&&userExactLng){
     _mpMap.setView([userExactLat,userExactLng],15);
     _mpPlaceUserPin(userExactLat,userExactLng);
     _mpDrawPowerDots();
     return;
   }
-  // Otherwise request GPS
   if(!navigator.geolocation)return;
   const loadEl=document.getElementById('mpLocatingMsg');
   if(loadEl)loadEl.style.display='flex';
@@ -3029,7 +3136,6 @@ async function _mpAutoLocate(){
     _mpPlaceUserPin(lat,lng);
     _mpDrawPowerDots();
   }catch(e){
-    // GPS denied/failed — just show Lagos overview with all power dots
     _mpMap.setView([6.5244,3.3792],12);
     _mpDrawPowerDots();
   }finally{
@@ -3047,7 +3153,6 @@ function _mpPlaceUserPin(lat,lng){
   _mpMarker=L.marker([lat,lng],{icon,zIndexOffset:1000}).addTo(_mpMap);
   _mpMarker.bindPopup('<strong>You are here</strong>').openPopup();
   _mpLat=lat;_mpLng=lng;
-  // Auto-fill location name
   _mpReverseAndFill(lat,lng);
 }
 
@@ -3071,13 +3176,11 @@ async function _mpReverseAndFill(lat,lng){
 }
 
 function _mpDrawPowerDots(){
-  // Remove old dots
   _mpPowerMarkers.forEach(m=>m.remove());
   _mpPowerMarkers=[];
-  // Draw a dot for every area in AREA_COORDS
   Object.entries(AREA_COORDS).forEach(([area,coords])=>{
     const status=getPlaceStatus(area);
-    if(status==='unk')return; // only show areas with actual reports
+    if(status==='unk')return;
     const col=status==='on'?'#AAFF00':'#FF4055';
     const glow=status==='on'?'rgba(170,255,0,.5)':'rgba(255,64,85,.5)';
     const label=status==='on'?'✅ Power on':'❌ Power out';
@@ -3088,21 +3191,13 @@ function _mpDrawPowerDots(){
   });
 }
 
-function closeMapPicker(){
-  document.getElementById('mapPickerOverlay').classList.remove('open');
-  // Keep map alive so reopening is instant, just close the sheet
-}
-
 async function _onMapPickerClick(e){
   const {lat,lng}=e.latlng;
-  // Reuse the same pin/fill logic — user tapped a different spot
   _mpPlaceUserPin(lat,lng);
 }
 
 async function confirmMapPick(){
   if(_mpLat===null||_mpLng===null)return;
-
-  // Use the name the user typed (or the one we reverse-geocoded)
   let streetName=_mpCurrentName||'', areaName=_mpArea||'Lagos';
   if(!streetName){
     try{
@@ -3113,54 +3208,20 @@ async function confirmMapPick(){
       areaName=a.suburb||a.city_district||a.town||a.city||_mpArea||'Lagos';
     }catch(e){}
   }
-
   closeMapPicker();
-
-  // Check if already in LOCS
   const existing=LOCS.find(l=>l.name.toLowerCase()===streetName.toLowerCase()&&l.area.toLowerCase()===areaName.toLowerCase());
-  if(existing){
-    selectHomeLocation(existing.id);
-    return;
-  }
-
-  if(!streetName){
-    // Just use the nearest area
-    if(_mpArea){
-      filterArea=_mpArea;
-      const sel=document.getElementById('areaFilter');
-      if(sel)sel.value=_mpArea;
-      renderFeed('liveFeed');
-      toast(`📍 Showing reports for ${_mpArea}`,'ok');
-    }
-    return;
-  }
-
-  // Show in search bar
-  const inp=document.getElementById('homeSearch');
-  if(inp){inp.value=streetName;const cl=document.getElementById('hsClear');if(cl)cl.style.display='flex';}
-
-  // If logged in, offer to add this location
-  if(CU){
-    const id=await submitCustomLocation(streetName,areaName,_mpLat,_mpLng);
-    if(id){
-      filterArea=areaName;
-      const sel=document.getElementById('areaFilter');
-      if(sel)sel.value=areaName;
-      renderFeed('liveFeed');
-    }
-  } else {
-    // Not logged in — just filter by area
-    if(_mpArea){
-      filterArea=_mpArea;
-      const sel=document.getElementById('areaFilter');
-      if(sel)sel.value=_mpArea;
-      renderFeed('liveFeed');
-      toast(`📍 Showing ${_mpArea} — sign in to save your location`,'info');
-    }
+  if(existing){selectHomeLocation(existing.id);return;}
+  const snapped=_findDupLoc(_mpLat,_mpLng,180);
+  if(snapped){selectHomeLocation(snapped.id);return;}
+  if(streetName&&CU){
+    const newLoc=await submitCustomLocation(streetName,areaName,_mpLat,_mpLng);
+    if(newLoc)selectHomeLocation(newLoc.id);
+  } else if(_mpArea){
+    const areaLoc=LOCS.find(l=>l.name===_mpArea&&!l.street);
+    if(areaLoc)selectHomeLocation(areaLoc.id);
   }
 }
 
-// Close map picker on overlay click
 document.getElementById('mapPickerOverlay')?.addEventListener('click',e=>{
   if(e.target===document.getElementById('mapPickerOverlay'))closeMapPicker();
 });
@@ -3169,3 +3230,144 @@ document.getElementById('mapPickerOverlay')?.addEventListener('click',e=>{
 function _showMap(){const w=document.getElementById('mapWrap');if(w)w.style.display='block';}
 function _hideMap(){const w=document.getElementById('mapWrap');if(w)w.style.display='none';}
 function dismissMap(){_hideMap();if(_leafletMap){_leafletMap.remove();_leafletMap=null;_leafletUserMarker=null;_leafletPowerMarkers=[];}}
+
+
+/* ═══════════════════════════════════════════════════════
+   ONBOARDING TOUR — shows first time a user logs in
+   ═══════════════════════════════════════════════════════ */
+const TOUR_KEY = 'nw_tour_done_v1';
+
+const TOUR_STEPS = [
+  {
+    target: '#page-home',        // whole home page
+    spotlight: null,             // no spotlight — just intro card
+    title: "Welcome to NEPAWatch 👋",
+    body: "Real-time power reports for Lagos, crowdsourced by your neighbours. Let's show you around quickly.",
+    position: 'center',
+  },
+  {
+    target: '#homeSearch',
+    title: "Search your area",
+    body: "Type your street or estate and tap it — the feed instantly shows all power reports nearby, including sub-areas.",
+    position: 'below',
+  },
+  {
+    target: '#geoBtn',
+    title: "Or let us find you",
+    body: "Tap Locate Me and we'll use GPS to find your exact location and filter reports automatically.",
+    position: 'below',
+  },
+  {
+    target: '.rep-btns, #repBtns, .action-btns',
+    title: "Report power changes",
+    body: "Seen a blackout or power restored? Tap Light Don Go or Light Don Come to let your community know instantly.",
+    position: 'above',
+  },
+  {
+    target: '.nav-btn[data-page="myarea"], [onclick*="myarea"]',
+    title: "Save places for alerts",
+    body: "Go to My Area to save Home, Work, or School. You'll get email alerts the moment power changes there.",
+    position: 'above',
+  },
+  {
+    target: '.nav-btn[data-page="account"], [onclick*="account"]',
+    title: "Control your alerts",
+    body: "In Account you can turn email alerts on/off and see your watching area. That's it — you're ready!",
+    position: 'above',
+    last: true,
+  },
+];
+
+let _tourStep = 0;
+let _tourEl = null;
+
+function startTour() {
+  if (localStorage.getItem(TOUR_KEY)) return; // already seen
+  _tourStep = 0;
+  _showTourStep();
+}
+
+function _showTourStep() {
+  _clearTourEl();
+  const step = TOUR_STEPS[_tourStep];
+  if (!step) { _endTour(); return; }
+
+  const overlay = document.createElement('div');
+  overlay.className = 'onb-overlay';
+  overlay.id = 'onbOverlay';
+
+  // Find target element for spotlight
+  let targetEl = null;
+  if (step.target && step.position !== 'center') {
+    targetEl = document.querySelector(step.target);
+  }
+
+  // Spotlight box
+  let spotStyle = '';
+  let tooltipStyle = '';
+  if (targetEl) {
+    const r = targetEl.getBoundingClientRect();
+    const pad = 8;
+    spotStyle = `top:${r.top - pad}px;left:${r.left - pad}px;width:${r.width + pad*2}px;height:${r.height + pad*2}px`;
+
+    // Position tooltip below or above
+    if (step.position === 'below') {
+      const top = Math.min(r.bottom + 16, window.innerHeight - 220);
+      const left = Math.max(16, Math.min(r.left, window.innerWidth - 286));
+      tooltipStyle = `top:${top}px;left:${left}px`;
+    } else if (step.position === 'above') {
+      const top = Math.max(16, r.top - 16 - 200);
+      const left = Math.max(16, Math.min(r.left, window.innerWidth - 286));
+      tooltipStyle = `top:${top}px;left:${left}px`;
+    }
+    overlay.innerHTML = `<div class="onb-spotlight" style="${spotStyle}"></div>`;
+  } else {
+    // Center tooltip on screen
+    tooltipStyle = `top:50%;left:50%;transform:translate(-50%,-50%)`;
+    // Dark overlay with no spotlight cutout — just a dimmed screen
+    overlay.style.background = 'rgba(0,0,0,.72)';
+    overlay.style.pointerEvents = 'all';
+  }
+
+  const isLast = step.last || _tourStep === TOUR_STEPS.length - 1;
+  const tooltip = document.createElement('div');
+  tooltip.className = 'onb-tooltip';
+  tooltip.style.cssText = tooltipStyle;
+  tooltip.innerHTML = `
+    <div class="onb-step">Step ${_tourStep + 1} of ${TOUR_STEPS.length}</div>
+    <h4>${step.title}</h4>
+    <p>${step.body}</p>
+    <div class="onb-btns">
+      <button class="onb-next" onclick="_tourNext()">${isLast ? "Let's go! 🚀" : "Next →"}</button>
+      ${!isLast ? `<button class="onb-skip" onclick="_endTour()">Skip tour</button>` : ''}
+    </div>`;
+
+  overlay.appendChild(tooltip);
+  document.body.appendChild(overlay);
+  _tourEl = overlay;
+
+  // Scroll target into view
+  if (targetEl) targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+function _tourNext() {
+  _tourStep++;
+  _showTourStep();
+}
+
+function _endTour() {
+  _clearTourEl();
+  localStorage.setItem(TOUR_KEY, '1');
+}
+
+function _clearTourEl() {
+  if (_tourEl) { _tourEl.remove(); _tourEl = null; }
+  document.getElementById('onbOverlay')?.remove();
+}
+
+// Auto-start tour after first login — called from doLogin/doRegister success
+function _maybeStartTour() {
+  if (!localStorage.getItem(TOUR_KEY)) {
+    setTimeout(startTour, 800); // small delay so UI settles
+  }
+}
