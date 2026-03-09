@@ -2866,7 +2866,7 @@ function renderProfile(el){const locText=PR.location_label||PR.location_name||"N
     pushSt==='ios-needs-install'?`<a href="https://support.apple.com/guide/iphone/bookmark-favorite-webpages-iph42ab2f3a7/ios" target="_blank" style="font-size:.65rem;font-weight:600;color:var(--p);background:var(--pp);border:1px solid var(--pb);border-radius:6px;padding:4px 9px;cursor:pointer;text-decoration:none">How?</a>`:
     `<button class="toggle ${pushSt==='enabled'?'on':''}" onclick="togglePushNotif()"></button>`;
 el.innerHTML=`<div class="ph"><h2>Account</h2><p>Manage your alerts and locations</p></div><div class="profile-card"><div class="pc-top"><div class="pc-av">${(PR.name||"?")[0].toUpperCase()}</div><div><div class="pc-name">${PR.name||"User"}</div><div class="pc-email">${PR.email||CU.email}</div></div></div><div class="pc-row"><div class="pc-rl-wrap"><div class="pc-ico"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1A3 3 0 0 0 4 4C4 7.5 7 12 7 12S10 7.5 10 4A3 3 0 0 0 7 1z" stroke="currentColor" stroke-width="1.3"/><circle cx="7" cy="4" r="1.2" fill="currentColor"/></svg></div><div><div class="pc-rl">Watching area</div><div class="pc-rs">${locText}</div></div></div>${PR.location_id?`<button onclick="clearLoc()" style="font-size:.65rem;font-weight:600;color:var(--ink3);background:none;border:1px solid var(--bd);border-radius:6px;padding:4px 9px;cursor:pointer">Clear</button>`:""}</div><div class="pc-row"><div class="pc-rl-wrap"><div class="pc-ico"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M1.5 7L7 1.5L12.5 7V12.5H9V9H5V12.5H1.5V7Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg></div><div><div class="pc-rl">Saved Places</div><div class="pc-rs">${savedCount} place${savedCount!==1?"s":""} saved</div></div></div><button onclick="go('myarea')" style="font-size:.65rem;font-weight:600;color:var(--p);background:var(--pp);border:1px solid var(--pb);border-radius:6px;padding:4px 9px;cursor:pointer">Manage</button></div><div class="pc-row"><div class="pc-rl-wrap"><div class="pc-ico"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="1" y="2.5" width="12" height="9" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M1 5L7 8.5L13 5" stroke="currentColor" stroke-width="1.3"/></svg></div><div><div class="pc-rl">Email Alerts</div><div class="pc-rs">${notifOn?"On — receiving alerts":"Off — tap to enable"}</div></div></div><button class="toggle ${notifOn?"on":""}" id="notifToggle" onclick="toggleNotif()"></button></div>
-<div class="pc-row"><div class="pc-rl-wrap"><div class="pc-ico"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1.5L5 5H2.5l2 2-1 3.5L7 8.5 9.5 10.5l-1-3.5 2-2H8L7 1.5z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg></div><div><div class="pc-rl">Push Notifications</div><div class="pc-rs" id="pushStatusTxt">${pushStatusText}</div></div></div>${pushBtn}</div>${pushSt==='enabled'?`<div class="pc-row" style="padding-top:6px;padding-bottom:6px"><button id="testPushBtn" onclick="testPushNotification()" style="width:100%;background:var(--pp);border:1px solid var(--pb);color:var(--p);border-radius:8px;padding:9px;font-size:.75rem;font-weight:700;cursor:pointer;letter-spacing:.01em">Send test notification</button></div>`:''}<div class="pc-row"><div class="pc-rl-wrap"><div class="pc-ico"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="5" r="3" stroke="currentColor" stroke-width="1.3"/><path d="M1.5 13c0-3 2.5-4.5 5.5-4.5s5.5 1.5 5.5 4.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></div><div><div class="pc-rl">Alert address</div><div class="pc-rs">${CU.email}</div></div></div></div>${emailLog.length?`<div class="email-log"><div class="email-log-hd">Recent Alerts Sent</div>${emailLog.map(e=>`<div class="ei"><div class="ei-s">${e.subject}</div><div class="ei-m">${e.to} &middot; ${e.time}</div></div>`).join("")}</div>`:""}<button class="logout-btn" onclick="doLogout()">Sign Out</button></div>`;}
+<div class="pc-row"><div class="pc-rl-wrap"><div class="pc-ico"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1.5L5 5H2.5l2 2-1 3.5L7 8.5 9.5 10.5l-1-3.5 2-2H8L7 1.5z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg></div><div><div class="pc-rl">Push Notifications</div><div class="pc-rs" id="pushStatusTxt">${pushStatusText}</div></div></div>${pushBtn}</div><div class="pc-row"><div class="pc-rl-wrap"><div class="pc-ico"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="5" r="3" stroke="currentColor" stroke-width="1.3"/><path d="M1.5 13c0-3 2.5-4.5 5.5-4.5s5.5 1.5 5.5 4.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></div><div><div class="pc-rl">Alert address</div><div class="pc-rs">${CU.email}</div></div></div></div>${emailLog.length?`<div class="email-log"><div class="email-log-hd">Recent Alerts Sent</div>${emailLog.map(e=>`<div class="ei"><div class="ei-s">${e.subject}</div><div class="ei-m">${e.to} &middot; ${e.time}</div></div>`).join("")}</div>`:""}<button class="logout-btn" onclick="doLogout()">Sign Out</button></div>`;}
 
 /* ━━━ PATCH 3: go() — handles predict page + widget refresh ━━━ */
 function go(page){
@@ -2946,31 +2946,6 @@ async function disablePush() {
   } catch(e) { toast('Could not disable push', 'err'); }
 }
 
-async function testPushNotification() {
-  if (!_pushSubscription) { toast('Enable push notifications first', 'info'); return; }
-  const btn = document.getElementById('testPushBtn');
-  if (btn) { btn.textContent = 'Sending…'; btn.disabled = true; }
-  try {
-    const res = await fetch(EMAIL_FN, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'apikey': SUPA_ANON, 'Authorization': `Bearer ${SUPA_ANON}` },
-      body: JSON.stringify({
-        mode: 'test_push',
-        userId: CU.id,
-      }),
-    });
-    const json = await res.json().catch(() => ({}));
-    if (res.ok && json.pushSent > 0) {
-      toast('Test notification sent — check your device', 'ok');
-    } else {
-      toast('Push delivery failed: ' + (json.error || 'check edge function logs'), 'err');
-      console.error('[Push] test result:', json);
-    }
-  } catch(e) {
-    toast('Could not reach edge function: ' + e.message, 'err');
-  }
-  if (btn) { btn.textContent = 'Send test notification'; btn.disabled = false; }
-}
 
 async function _savePushSub(sub) {
   if (!CU || !sub) return;
