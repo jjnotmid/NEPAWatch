@@ -284,6 +284,28 @@ const AIReporter = {
   },
 
   async _fire(area, type, prob) {
+    // ── Dedup guard: never file same type for same area within 1 hour ──
+    const dedupKey = area + '|' + type;
+    const lastFired = this._lastFired?.[dedupKey] || 0;
+    if (Date.now() - lastFired < 60 * 60 * 1000) {
+      console.log(`[NEPAWatch AI] Skipping ${type} for ${area} — filed less than 1 hour ago`);
+      return;
+    }
+    // Also check existing reports in DB/memory for same area+type in last hour
+    if (typeof reports !== 'undefined') {
+      const recentSame = reports.some(r =>
+        r.area === area && r.type === type &&
+        (Date.now() - r.time) < 60 * 60 * 1000
+      );
+      if (recentSame) {
+        this._areaState[area] = type; // keep state in sync
+        console.log(`[NEPAWatch AI] Skipping ${type} for ${area} — recent report already exists`);
+        return;
+      }
+    }
+    if (!this._lastFired) this._lastFired = {};
+    this._lastFired[dedupKey] = Date.now();
+
     // Update state machine — this is the source of truth
     this._areaState[area] = type;
     // Always use the area name as the location — consistent, findable, no random streets
@@ -346,12 +368,20 @@ const AIReporter = {
 
   _replaceLocal(tempId, dbRow, prob) {
     if (typeof reports==='undefined') return;
-    const idx = reports.findIndex(r=>r.id===tempId);
-    if (idx!==-1) reports[idx] = {
+    const confirmed = {
       id: String(dbRow.id), name: dbRow.location_name, area: dbRow.location_area,
       type: dbRow.type, time: new Date(dbRow.created_at).getTime(),
       confirms: dbRow.confirms||1, userId: AI_USER_ID, isAI:true, aiProb:prob,
     };
+    const idx = reports.findIndex(r=>r.id===tempId);
+    if (idx !== -1) {
+      // Replace the temp entry with the confirmed DB row
+      reports[idx] = confirmed;
+    } else {
+      // pollReports already cleared the temp entry — add the confirmed row if not already present
+      const alreadyIn = reports.some(r => String(r.id) === String(dbRow.id));
+      if (!alreadyIn) reports.unshift(confirmed);
+    }
     if (typeof render==='function') render();
     if (typeof renderSavedPlacesHome==='function') renderSavedPlacesHome();
     if (typeof renderMyPlacesList==='function') renderMyPlacesList();
