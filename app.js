@@ -3361,7 +3361,7 @@ document.addEventListener('click',e=>{
 /* ═══════════════════════════════════════════════════════
    MAP PICKER — auto-locates + shows green/red power dots
    ═══════════════════════════════════════════════════════ */
-let _mpMap=null,_mpMarker=null,_mpLat=null,_mpLng=null,_mpArea=null,_mpCurrentName='';
+let _mpMap=null,_mpMarker=null,_mpLat=null,_mpLng=null,_mpArea=null,_mpCurrentName='',_mpCurrentArea='';
 let _mpPowerMarkers=[];
 
 function mpOnNameEdit(val){
@@ -3430,19 +3430,24 @@ async function _mpReverseAndFill(lat,lng){
   const nearestArr=findNearestAreas(lat,lng,1);
   _mpArea=nearestArr[0]?.area||null;
   let locName=_mpArea||'Your location';
+  let locArea=_mpArea||'Lagos';
   try{
     const res=await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&zoom=18&addressdetails=1`,{headers:{"Accept-Language":"en","User-Agent":"NEPAWatch/1.0"}});
     const data=await res.json();
     const a=data.address||{};
     locName=a.road||a.neighbourhood||a.suburb||a.city_district||_mpArea||'Your location';
+    locArea=a.suburb||a.city_district||a.town||a.neighbourhood||_mpArea||'Lagos';
   }catch(e){}
   const selEl=document.getElementById('mpSelected');
   const nameEl=document.getElementById('mpSelectedName');
+  const areaEl=document.getElementById('mpSelectedArea');
   if(selEl)selEl.style.display='block';
-  if(nameEl)nameEl.value=locName;
+  if(nameEl){nameEl.value=locName;nameEl.select();}
+  if(areaEl)areaEl.value=locArea;
   _mpCurrentName=locName;
+  _mpCurrentArea=locArea;
   const btn=document.getElementById('mpConfirmBtn');
-  if(btn){btn.disabled=false;btn.textContent='Use This Location';}
+  if(btn){btn.disabled=false;btn.textContent='Save This Location';}
 }
 
 function _mpDrawPowerDots(){
@@ -3468,27 +3473,62 @@ async function _onMapPickerClick(e){
 
 async function confirmMapPick(){
   if(_mpLat===null||_mpLng===null)return;
-  let streetName=_mpCurrentName||'', areaName=_mpArea||'Lagos';
-  if(!streetName){
-    try{
-      const res=await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${_mpLat}&lon=${_mpLng}&format=json&zoom=18&addressdetails=1`,{headers:{"Accept-Language":"en","User-Agent":"NEPAWatch/1.0"}});
-      const data=await res.json();
-      const a=data.address||{};
-      streetName=a.road||a.neighbourhood||a.suburb||a.city_district||'';
-      areaName=a.suburb||a.city_district||a.town||a.city||_mpArea||'Lagos';
-    }catch(e){}
-  }
+
+  // Read the (possibly user-edited) values straight from the inputs
+  const nameEl=document.getElementById('mpSelectedName');
+  const areaEl=document.getElementById('mpSelectedArea');
+  const streetName=(nameEl?.value||_mpCurrentName||'').trim();
+  const areaName=(areaEl?.value||_mpCurrentArea||_mpArea||'Lagos').trim();
+
+  if(!streetName){toast('Please enter a location name','info');nameEl?.focus();return;}
+
+  const btn=document.getElementById('mpConfirmBtn');
+  if(btn){btn.textContent='Saving…';btn.disabled=true;}
+
   closeMapPicker();
-  const existing=LOCS.find(l=>l.name.toLowerCase()===streetName.toLowerCase()&&l.area.toLowerCase()===areaName.toLowerCase());
-  if(existing){selectHomeLocation(existing.id);return;}
-  const snapped=_findDupLoc(_mpLat,_mpLng,180);
-  if(snapped){selectHomeLocation(snapped.id);return;}
-  if(streetName&&CU){
+
+  // Check if an identical name+area already exists — no duplicates
+  const existing=LOCS.find(l=>
+    l.name.toLowerCase()===streetName.toLowerCase()&&
+    (l.area||'').toLowerCase()===areaName.toLowerCase()
+  );
+  if(existing){
+    toast(`Using existing location: ${streetName}`,'ok');
+    selectHomeLocation(existing.id);
+    return;
+  }
+
+  // Check for a nearby duplicate within 150m (same physical spot, different name)
+  const snapped=_findDupLoc(_mpLat,_mpLng,150);
+  if(snapped){
+    // Snapped to existing but user gave a new name — update the name in Supabase
+    if(CU&&snapped.custom&&streetName!==snapped.name){
+      try{
+        await sb.from('custom_locations').update({street_name:streetName,area_name:areaName}).eq('id',snapped.id);
+        snapped.name=streetName;snapped.street=streetName;snapped.area=areaName;
+        snapped.label=`${streetName} — ${areaName}`;
+        toast(`Location renamed to "${streetName}"`,'ok');
+      }catch(e){}
+    }
+    selectHomeLocation(snapped.id);
+    return;
+  }
+
+  // Brand new location — save to Supabase custom_locations and add to LOCS
+  if(CU){
     const newLoc=await submitCustomLocation(streetName,areaName,_mpLat,_mpLng);
-    if(newLoc)selectHomeLocation(newLoc.id);
-  } else if(_mpArea){
-    const areaLoc=LOCS.find(l=>l.name===_mpArea&&!l.street);
-    if(areaLoc)selectHomeLocation(areaLoc.id);
+    if(newLoc){
+      toast(`"${streetName}" added to locations`,'ok');
+      await saveLocation(newLoc);
+    }
+  } else {
+    // Not logged in — add to LOCS in memory only so the session works
+    const tempId='local-mp-'+Date.now();
+    const tempLoc={id:tempId,name:streetName,area:areaName,street:streetName,
+      label:`${streetName} — ${areaName}`,custom:true,lat:_mpLat,lng:_mpLng};
+    LOCS.unshift(tempLoc);
+    selectHomeLocation(tempId);
+    toast(`Watching ${streetName} — sign in to save permanently`,'info');
   }
 }
 
