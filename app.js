@@ -2219,7 +2219,7 @@ function _resetFormHTML(){return`<div class="auth-wrap"><div class="auth-logo"><
 
 async function loadProfile(){if(!CU)return;try{const{data,error}=await sb.from("profiles").select("*").eq("id",CU.id).single();if(!error&&data){PR=data;if(PR.location_id){document.getElementById("locTag").classList.add("on");document.getElementById("locLabel").textContent=PR.location_label||PR.location_name;}}else if(error&&error.code==="PGRST116"){const name=CU.user_metadata?.name||CU.email.split("@")[0];await sb.from("profiles").upsert({id:CU.id,email:CU.email,name,notif_on:true},{onConflict:"id"});PR={id:CU.id,email:CU.email,name,notif_on:true,location_id:null};}}catch(e){}}
 
-async function doRegister(name,email,pass){const{data,error}=await sb.auth.signUp({email,password:pass,options:{data:{name},emailRedirectTo:APP_URL+"?mode=reset"}});if(error){if(error.message?.toLowerCase().includes("rate limit")||error.message?.toLowerCase().includes("over_email_send_rate_limit"))throw new Error("RATE_LIMIT");throw new Error(error.message);}if(data.user){await sb.from("profiles").upsert({id:data.user.id,email,name,notif_on:true},{onConflict:"id"});}if(data.session){CU=data.user;await loadProfile();renderAccount();updateBanner();toast(`Welcome, ${name}!`,"ok");_maybeStartTour();}sendEmail(email,"Welcome to NEPAWatch Lagos",`Hi ${name},\n\nWelcome to NEPAWatch Lagos!\n\nEnable push notifications in the app to get instant alerts whenever power goes out or is restored near your street.\n\nEmail alerts are also available as a backup if push notifications are off.\n\nOpen the app and set your location to activate alerts.\n\nStay powered,\nNEPAWatch Lagos`,buildEmailHtml({type:'welcome',name,appUrl:APP_URL}));return data;}
+async function doRegister(name,email,pass){const{data,error}=await sb.auth.signUp({email,password:pass,options:{data:{name},emailRedirectTo:APP_URL+"?mode=reset"}});if(error){if(error.message?.toLowerCase().includes("rate limit")||error.message?.toLowerCase().includes("over_email_send_rate_limit"))throw new Error("RATE_LIMIT");throw new Error(error.message);}if(data.user){await sb.from("profiles").upsert({id:data.user.id,email,name,notif_on:true},{onConflict:"id"});}if(data.session){CU=data.user;await loadProfile();renderAccount();updateBanner();toast(`Welcome, ${name}!`,"ok");_maybeStartTour();}sendEmail(email,"Welcome to NEPAWatch Lagos",`Hi ${name},\n\nWelcome to NEPAWatch Lagos!\n\nYou will receive real-time email alerts whenever power goes out or is restored near your street.\n\nOpen the app and set your location to activate alerts.\n\nStay powered,\nNEPAWatch Lagos`,buildEmailHtml({type:'welcome',name,appUrl:APP_URL}));return data;}
 async function doLogin(email,pass){const{data,error}=await sb.auth.signInWithPassword({email,password:pass});if(error)throw new Error(error.message);return data;}
 async function doLogout(){try{await sb.auth.signOut();}catch(e){}CU=null;PR=null;savedPlaces=[];document.getElementById("locTag").classList.remove("on");updateBanner();renderAccount();toast("Signed out","info");}
 
@@ -2436,7 +2436,7 @@ function renderNearbyDashboard(){const el=document.getElementById("nearbyDashboa
 async function loadUserCount(){try{const{count,error}=await sb.from("profiles").select("id",{count:"exact",head:true});if(!error&&count!=null){_userCount=count;const pill=document.getElementById("userCountPill");const num=document.getElementById("userCountNum");if(pill&&num&&count>=2){num.textContent=count.toLocaleString();pill.style.display="flex";}}}catch(e){}}
 
 async function saveLocation(loc){if(!CU)return;const u={location_id:loc.id,location_name:loc.name,location_area:loc.area,location_label:loc.label};try{await sb.from("profiles").update(u).eq("id",CU.id);}catch(e){}PR={...PR,...u};document.getElementById("locTag").classList.add("on");document.getElementById("locLabel").textContent=loc.label;updateBanner();toast(`Location set — ${loc.name}`,"ok");}
-async function toggleNotif(){if(!CU||!PR)return;const next=!PR.notif_on;try{await sb.from("profiles").update({notif_on:next}).eq("id",CU.id);}catch(e){}PR.notif_on=next;const btn=document.getElementById("notifToggle");if(btn)btn.classList.toggle("on",next);toast(next?"Email fallback enabled — used if push fails":"Email fallback disabled","info");renderAccount();}
+async function toggleNotif(){if(!CU||!PR)return;const next=!PR.notif_on;try{await sb.from("profiles").update({notif_on:next}).eq("id",CU.id);}catch(e){}PR.notif_on=next;const btn=document.getElementById("notifToggle");if(btn)btn.classList.toggle("on",next);toast(next?"Email alerts enabled":"Email alerts disabled","info");renderAccount();}
 async function togglePushNotif(){const status=getPushStatus();if(status==='enabled'){await disablePush();}else if(status==='blocked'){toast('Notifications blocked — go to browser Settings and allow notifications for this site','info');}else if(status==='ios-needs-install'){toast('On iPhone, add NEPAWatch to your Home Screen first: Safari › Share › Add to Home Screen','info');}else if(status==='unsupported'){toast('Push notifications are not supported in this browser','info');}else{await requestPushPermission();}}
 
 async function loadCustomLocations(){try{const{data,error}=await sb.from("custom_locations").select("*").order("created_at",{ascending:true});if(!error&&data&&data.length){data.forEach(loc=>{if(!LOCS.find(l=>l.id===loc.id)){LOCS.unshift({id:loc.id,name:loc.street_name,area:loc.area_name,street:loc.street_name,label:`${loc.street_name} — ${loc.area_name}`,custom:true,lat:loc.lat||null,lng:loc.lng||null});}else{const ex=LOCS.find(l=>l.id===loc.id);if(ex&&!ex.lat&&loc.lat){ex.lat=loc.lat;ex.lng=loc.lng;}}});buildFilter();}}catch(e){}}
@@ -2473,7 +2473,13 @@ function startPolling(){
   window._fullSyncTimer=setInterval(()=>{loadReports().catch(()=>{});},60000);
 }
 
-async function pushReport(loc,type){if(!CU){toast("Sign in to submit a report","info");go("account");return;}const tid="local-"+Date.now();reports.unshift({id:tid,name:loc.name,area:loc.area,type,time:Date.now(),confirms:1});if(reports.length>200)reports.pop();render();try{const{data,error}=await sb.from("reports").insert({user_id:CU.id,location_name:loc.name,location_area:loc.area,type,confirms:1}).select().single();if(error){const idx=reports.findIndex(r=>r.id===tid);if(idx!==-1)reports.splice(idx,1);render();toast(`Could not save report: ${error.message}`,"err");return;}const idx=reports.findIndex(r=>r.id===tid);if(idx!==-1)reports[idx]={id:data.id,name:data.location_name,area:data.location_area,type:data.type,time:new Date(data.created_at).getTime(),confirms:data.confirms||1,userId:data.user_id};render();toast(type==="out"?`Outage reported — ${loc.name}`:`Power restored — ${loc.name}`,type==="out"?"err":"ok");if(PR&&!PR.location_id)await saveLocation(loc);await sendAreaAlerts(loc.name,loc.area,type);setTimeout(loadReports,2000);}catch(e){const idx=reports.findIndex(r=>r.id===tid);if(idx!==-1)reports.splice(idx,1);render();toast("Could not save report — check your connection","err");}}
+async function pushReport(loc,type){
+  if(!CU){toast("Sign in to submit a report","info");go("account");return;}
+  // ── FAKE REPORT DETECTION: max 4 reports per user in 10 minutes ──
+  const tenMin=10*60*1000;const now=Date.now();
+  const recentOwn=reports.filter(r=>r.userId===CU.id&&(now-r.time)<tenMin);
+  if(recentOwn.length>=4){toast("You're reporting too fast — please wait a few minutes","info");return;}
+  const tid="local-"+Date.now();reports.unshift({id:tid,name:loc.name,area:loc.area,type,time:Date.now(),confirms:1});if(reports.length>200)reports.pop();render();try{const{data,error}=await sb.from("reports").insert({user_id:CU.id,location_name:loc.name,location_area:loc.area,type,confirms:1}).select().single();if(error){const idx=reports.findIndex(r=>r.id===tid);if(idx!==-1)reports.splice(idx,1);render();toast(`Could not save report: ${error.message}`,"err");return;}const idx=reports.findIndex(r=>r.id===tid);if(idx!==-1)reports[idx]={id:data.id,name:data.location_name,area:data.location_area,type:data.type,time:new Date(data.created_at).getTime(),confirms:data.confirms||1,userId:data.user_id};render();toast(type==="out"?`Outage reported — ${loc.name}`:`Power restored — ${loc.name}`,type==="out"?"err":"ok");if(PR&&!PR.location_id)await saveLocation(loc);await sendAreaAlerts(loc.name,loc.area,type);setTimeout(loadReports,2000);}catch(e){const idx=reports.findIndex(r=>r.id===tid);if(idx!==-1)reports.splice(idx,1);render();toast("Could not save report — check your connection","err");}}
 
 async function addConfirm(repId) {
   const r = reports.find(x => x.id === repId);
@@ -2499,6 +2505,209 @@ async function addConfirm(repId) {
   }
   renderFeed("liveFeed");
   toast("Confirmation added", "ok");
+}
+
+
+// ══════════════════════════════════════════════════════════════════
+// FEATURE: WRONG REPORT VOTING
+// ══════════════════════════════════════════════════════════════════
+const _wrongVotes = new Map(); // reportId → Set of userIds who voted wrong
+
+async function markReportWrong(repId) {
+  if (!CU) { toast("Sign in to flag reports", "info"); return; }
+  const r = reports.find(x => x.id === repId);
+  if (!r) return;
+  if (r.userId === CU.id) { toast("You cannot flag your own report", "info"); return; }
+  if (!_wrongVotes.has(repId)) _wrongVotes.set(repId, new Set());
+  const voters = _wrongVotes.get(repId);
+  if (voters.has(CU.id)) { toast("Already flagged", "info"); return; }
+  voters.add(CU.id);
+  r.wrongVotes = (r.wrongVotes || 0) + 1;
+  toast("Report flagged as inaccurate", "info");
+  // If 3+ wrong votes, visually dim and persist flag
+  if (r.wrongVotes >= 3) {
+    r.flagged = true;
+    const isReal = !String(repId).startsWith("local-") && !String(repId).startsWith("s") && !String(repId).startsWith("ai-");
+    if (isReal) {
+      try { await sb.from("reports").update({ wrong_votes: r.wrongVotes }).eq("id", repId); } catch(e) {}
+    }
+    toast("Report flagged — it will be reviewed", "info");
+  }
+  renderFeed("liveFeed");
+}
+
+// ══════════════════════════════════════════════════════════════════
+// FEATURE: AREA RELIABILITY SCORE
+// ══════════════════════════════════════════════════════════════════
+function getAreaReliability(area) {
+  const thirtyDays = 30 * 24 * 3600 * 1000;
+  const now = Date.now();
+  const areaReps = reports.filter(r =>
+    (r.area === area || (AREA_PARENT[r.area] === area)) &&
+    (now - r.time) < thirtyDays
+  );
+  if (areaReps.length < 2) return null;
+  const outCount = areaReps.filter(r => r.type === "out").length;
+  const bckCount = areaReps.filter(r => r.type === "bck").length;
+  const total = outCount + bckCount;
+  // Score: 100% = all restored, 0% = all out. Net reliability.
+  const score = Math.max(5, Math.min(98, Math.round(100 - (outCount / total) * 100)));
+  const grade = score >= 85 ? "A" : score >= 70 ? "B" : score >= 50 ? "C" : score >= 30 ? "D" : "F";
+  const color = score >= 85 ? "var(--p)" : score >= 70 ? "#69F0AE" : score >= 50 ? "var(--am)" : "var(--rd)";
+  return { score, grade, color, total };
+}
+
+// ══════════════════════════════════════════════════════════════════
+// FEATURE: OUTAGE DURATION TIMER
+// ══════════════════════════════════════════════════════════════════
+let _durationTimerInterval = null;
+
+function getOutageSince(area) {
+  if (!area) return null;
+  // Find latest report for this area (exact + children)
+  const relevant = reports.filter(r =>
+    r.area === area || (AREA_PARENT[r.area] === area)
+  ).sort((a, b) => b.time - a.time);
+  if (!relevant.length) return null;
+  const latest = relevant[0];
+  if (latest.type !== "out") return null;
+  return latest.time;
+}
+
+function formatDuration(ms) {
+  const totalMin = Math.floor(ms / 60000);
+  const hrs = Math.floor(totalMin / 60);
+  const min = totalMin % 60;
+  if (hrs === 0) return `${min}m`;
+  return `${hrs}h ${min}m`;
+}
+
+function startDurationTimer() {
+  if (_durationTimerInterval) clearInterval(_durationTimerInterval);
+  _durationTimerInterval = setInterval(tickDurationTimers, 30000);
+  tickDurationTimers();
+}
+
+function tickDurationTimers() {
+  document.querySelectorAll("[data-outage-since]").forEach(el => {
+    const since = parseInt(el.dataset.outageSince);
+    if (!since) return;
+    el.textContent = "Out for " + formatDuration(Date.now() - since);
+  });
+}
+
+// ══════════════════════════════════════════════════════════════════
+// FEATURE: SCHEDULED OUTAGE ANNOUNCEMENTS (loaded from Supabase)
+// ══════════════════════════════════════════════════════════════════
+let scheduledAnnouncements = [];
+
+async function loadAnnouncements() {
+  try {
+    const { data, error } = await sb.from("announcements")
+      .select("*").order("scheduled_for", { ascending: true })
+      .gte("scheduled_for", new Date(Date.now() - 24 * 3600 * 1000).toISOString());
+    if (!error && data) scheduledAnnouncements = data;
+    renderAnnouncements();
+  } catch(e) {}
+}
+
+function renderAnnouncements() {
+  const el = document.getElementById("announcementsBanner");
+  if (!el) return;
+  if (!scheduledAnnouncements.length) { el.innerHTML = ""; el.style.display = "none"; return; }
+  const now = Date.now();
+  const active = scheduledAnnouncements.filter(a => {
+    const sf = new Date(a.scheduled_for).getTime();
+    const end = a.ends_at ? new Date(a.ends_at).getTime() : sf + 8 * 3600000;
+    return sf <= now + 2 * 3600000 && end >= now; // show up to 2h before
+  });
+  if (!active.length) { el.innerHTML = ""; el.style.display = "none"; return; }
+  el.style.display = "block";
+  el.innerHTML = active.map(a => {
+    const sf = new Date(a.scheduled_for);
+    const timeStr = sf.toLocaleTimeString("en-NG", { hour: "2-digit", minute: "2-digit" });
+    const dateStr = sf.toLocaleDateString("en-NG", { weekday: "short", month: "short", day: "numeric" });
+    const isNow = new Date(a.scheduled_for).getTime() <= now;
+    return `<div class="ann-card ${isNow ? "ann-active" : ""}">
+      <div class="ann-icon"><svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M6.5 1.5L1 11.5H12L6.5 1.5Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M6.5 5V8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><circle cx="6.5" cy="9.5" r=".6" fill="currentColor"/></svg></div>
+      <div class="ann-body">
+        <div class="ann-title">${isNow ? "Ongoing" : "Scheduled"} Outage — ${a.area || "Multiple Areas"}</div>
+        <div class="ann-sub">${a.message} · ${isNow ? "Started" : ""} ${dateStr} ${timeStr}</div>
+      </div>
+    </div>`;
+  }).join("");
+}
+
+// ══════════════════════════════════════════════════════════════════
+// FEATURE: WHATSAPP SHARE
+// ══════════════════════════════════════════════════════════════════
+function shareToWhatsApp(repId) {
+  const r = reports.find(x => x.id === repId);
+  if (!r) return;
+  const isOut = r.type === "out";
+  const timeStr = new Date(r.time).toLocaleTimeString("en-NG", { hour: "2-digit", minute: "2-digit" });
+  const msg = isOut
+    ? `⚡ Power outage reported at ${r.name}, ${r.area} as of ${timeStr}.\n\nCheck & track live on NEPAWatch Lagos 👇\n${APP_URL}`
+    : `✅ Power restored at ${r.name}, ${r.area} as of ${timeStr}.\n\nTrack live power updates on NEPAWatch Lagos 👇\n${APP_URL}`;
+  window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, "_blank");
+}
+
+// ══════════════════════════════════════════════════════════════════
+// FEATURE: PER-AREA POWER HISTORY MODAL
+// ══════════════════════════════════════════════════════════════════
+function showAreaHistory(area) {
+  const modal = document.getElementById("areaHistoryModal");
+  const title = document.getElementById("ahTitle");
+  const body  = document.getElementById("ahBody");
+  if (!modal) return;
+  title.textContent = area;
+
+  // Get last 7 days of reports for this area
+  const now = Date.now();
+  const dayMs = 86400000;
+  const days = [];
+  for (let i = 6; i >= 0; i--) {
+    const dayStart = now - i * dayMs;
+    const dayEnd   = dayStart + dayMs;
+    const d = new Date(dayStart);
+    const label = i === 0 ? "Today" : d.toLocaleDateString("en-NG", { weekday: "short", month: "short", day: "numeric" });
+    const dayReps = reports.filter(r =>
+      (r.area === area || AREA_PARENT[r.area] === area) &&
+      r.time >= dayStart && r.time < dayEnd
+    );
+    const outN = dayReps.filter(r => r.type === "out").length;
+    const bckN = dayReps.filter(r => r.type === "bck").length;
+    // Estimate supply hours: assume 12h base, deduct 3h per net outage
+    const estHrs = dayReps.length
+      ? Math.max(0, Math.min(24, 12 - outN * 3 + bckN * 1.5))
+      : null;
+    days.push({ label, outN, bckN, estHrs, total: dayReps.length });
+  }
+
+  const rel = getAreaReliability(area);
+  const relHtml = rel
+    ? `<div class="ah-rel" style="color:${rel.color}">Grade ${rel.grade} — ${rel.score}% reliable (30 days)</div>`
+    : `<div class="ah-rel" style="color:var(--ink3)">Not enough data for reliability score</div>`;
+
+  body.innerHTML = relHtml + `<div class="ah-bars">` + days.map(d => {
+    const pct = d.estHrs !== null ? (d.estHrs / 24) * 100 : 0;
+    const color = d.estHrs === null ? "var(--ink3)" : d.estHrs > 16 ? "var(--p)" : d.estHrs > 8 ? "var(--am)" : "var(--rd)";
+    return `<div class="ah-bar-col">
+      <div class="ah-bar-wrap"><div class="ah-bar-fill" style="height:${pct}%;background:${color}"></div></div>
+      <div class="ah-bar-hrs" style="color:${color}">${d.estHrs !== null ? d.estHrs.toFixed(0) + "h" : "—"}</div>
+      <div class="ah-bar-label">${d.label.split(" ")[0]}</div>
+      ${d.total ? `<div class="ah-bar-reps">${d.total} rep${d.total !== 1 ? "s" : ""}</div>` : ""}
+    </div>`;
+  }).join("") + `</div>
+  <div class="ah-detail">` + days.map(d =>
+    `<div class="ah-row"><span class="ah-day">${d.label}</span><span class="ah-out" style="color:var(--rd)">${d.outN} out</span><span class="ah-bck" style="color:var(--p)">${d.bckN} restored</span></div>`
+  ).join("") + `</div>`;
+
+  modal.classList.add("open");
+}
+
+function closeAreaHistory() {
+  document.getElementById("areaHistoryModal")?.classList.remove("open");
 }
 
 function seedFallback(){reports=[{id:"s1",name:"Adeola Odeku Street",area:"Victoria Island",type:"out",time:Date.now()-7*60000,confirms:14},{id:"s2",name:"Allen Avenue",area:"Ikeja (Allen/Opebi)",type:"out",time:Date.now()-22*60000,confirms:9},{id:"s3",name:"Admiralty Way",area:"Lekki Phase 1",type:"bck",time:Date.now()-5*60000,confirms:18},{id:"s4",name:"Adeniran Ogunsanya St",area:"Surulere",type:"out",time:Date.now()-35*60000,confirms:6},{id:"s5",name:"Bourdillon Road",area:"Ikoyi",type:"bck",time:Date.now()-12*60000,confirms:11},{id:"s6",name:"Agege Motor Road",area:"Mushin",type:"out",time:Date.now()-55*60000,confirms:7},{id:"s7",name:"Agric Road Ikorodu",area:"Ikorodu",type:"out",time:Date.now()-80*60000,confirms:4},{id:"s8",name:"Badore Road",area:"Ajah",type:"bck",time:Date.now()-10*60000,confirms:8}];}
@@ -2659,76 +2868,11 @@ async function sendEmail(to, subject, body, htmlBody) {
   } catch(e) {}
 }
 async function sendAreaAlerts(repName,repArea,repType){if(!repArea)return;
-
-  // ── STEP 1: Local foreground notification (instant, no network needed) ──
+  // Fire local push notification for foreground-invisible users
   const pushTitle=repType==='out'?`Power Outage — ${repArea}`:`Power Restored — ${repArea}`;
-  const pushBody=repType==='out'?`Outage reported near ${repName}, ${repArea}.`:`Power is back near ${repName}, ${repArea}.`;
+  const pushBody=repType==='out'?`Outage near ${repName}. Tap to confirm.`:`Power back near ${repName}. Tap to confirm.`;
   _localNotify(pushTitle, pushBody, repType);
-
-  // ── Cooldown guard ──
-  const _aKey=repArea+'|'+repType;
-  const _now=Date.now();
-  if(_alertCooldowns[_aKey]&&(_now-_alertCooldowns[_aKey])<ALERT_COOLDOWN_MS)return;
-  _alertCooldowns[_aKey]=_now;
-
-  try {
-    const subject=repType==="out"?`Power Outage — ${repArea}, Lagos`:`Power Restored — ${repArea}, Lagos`;
-    const time=new Date().toLocaleTimeString("en-NG",{hour:"2-digit",minute:"2-digit"});
-    const body=`${repType==="out"?"Power outage":"Power restored"} near ${repName}, ${repArea}.\n\nTime: ${time}\n\nSee live updates: ${APP_URL}\n\n— NEPAWatch Lagos`;
-    const alertHtml=buildEmailHtml({type:repType,area:repArea,street:repName,time,appUrl:APP_URL});
-
-    // ── STEP 2: Push notifications — HIGHEST PRIORITY, always attempt first ──
-    // The edge function sends push to ALL subscribers in the area server-side.
-    // Track push delivery result to decide if email fallback is needed.
-    let pushSent=0;
-    let pushFailed=false;
-    try {
-      const res=await fetch(EMAIL_FN,{
-        method:"POST",
-        headers:{"Content-Type":"application/json","apikey":SUPA_ANON,"Authorization":`Bearer ${SUPA_ANON}`},
-        body:JSON.stringify({mode:"area_push",area:repArea,repName,repType,subject,body,time})
-      });
-      if(res.ok){
-        const json=await res.json().catch(()=>({}));
-        pushSent=json.pushSent||0;
-        pushFailed=json.pushFailed===true;
-        if(pushSent>0){
-          const logEntry={subject,to:`${pushSent} device${pushSent!==1?"s":""} in ${repArea} (push)`,time};
-          emailLog.unshift(logEntry);
-          if(emailLog.length>8)emailLog.pop();
-        }
-      } else { pushFailed=true; }
-    } catch(fe){ pushFailed=true; }
-
-    // ── STEP 3: Email — fallback only ──
-    // Send email to a user only if:
-    //   (a) they have notif_on=true (email alerts enabled), AND
-    //   (b) push was not delivered to them (push disabled or push failed)
-    // Never send email if push was successfully delivered.
-
-    const userHasPush=!!_pushSubscription; // current user's push status
-    const needsEmailFallback=pushFailed||(pushSent===0&&!userHasPush);
-
-    if(needsEmailFallback&&CU&&savedPlaces.length){
-      const matchingPlaces=savedPlaces.filter(p=>(areaMatches(repArea,p.location_area)||areaMatches(p.location_area,repArea))&&p.notif_on!==false);
-      if(matchingPlaces.length&&CU.email){
-        const placeNames=matchingPlaces.map(p=>getPlaceDisplayName(p)).join(", ");
-        const placeHtml=buildEmailHtml({type:repType,area:repArea,street:repName,time,places:placeNames,appUrl:APP_URL});
-        await sendEmail(CU.email,subject,body,placeHtml);
-        emailLog.unshift({subject,to:CU.email+" (email fallback)",time});
-        if(emailLog.length>8)emailLog.pop();
-        if(document.getElementById("page-account").classList.contains("active"))renderAccount();
-      }
-    } else if(needsEmailFallback&&CU&&PR&&(areaMatches(repArea,PR.location_area)||areaMatches(PR.location_area,repArea))&&PR.notif_on&&CU.email){
-      const userHtml=buildEmailHtml({type:repType,area:repArea,street:repName,time,appUrl:APP_URL});
-      await sendEmail(CU.email,subject,body,userHtml);
-      emailLog.unshift({subject,to:CU.email+" (email fallback)",time});
-      if(emailLog.length>8)emailLog.pop();
-      if(document.getElementById("page-account").classList.contains("active"))renderAccount();
-    }
-
-  } catch(e){}
-}
+const _aKey=repArea+'|'+repType;const _now=Date.now();if(_alertCooldowns[_aKey]&&(_now-_alertCooldowns[_aKey])<ALERT_COOLDOWN_MS)return;_alertCooldowns[_aKey]=_now;try{const subject=repType==="out"?`Power Outage — ${repArea}, Lagos`:`Power Restored — ${repArea}, Lagos`;const time=new Date().toLocaleTimeString("en-NG",{hour:"2-digit",minute:"2-digit"});const body=`${repType==="out"?"Power outage":"Power restored"} near ${repName}, ${repArea}.\n\nTime: ${time}\n\nSee live updates: ${APP_URL}\n\n— NEPAWatch Lagos`;const alertHtml=buildEmailHtml({type:repType,area:repArea,street:repName,time,appUrl:APP_URL});let edgeSent=false;try{const res=await fetch(EMAIL_FN,{method:"POST",headers:{"Content-Type":"application/json","apikey":SUPA_ANON,"Authorization":`Bearer ${SUPA_ANON}`},body:JSON.stringify({mode:"area_alert",area:repArea,repName,repType,subject,body,html:alertHtml,time,confirmRequest:true})});if(res.ok){const json=await res.json().catch(()=>({}));const count=json.sent||0;edgeSent=true;if(count>0){emailLog.unshift({subject,to:`${count} watcher${count!==1?"s":""} in ${repArea}`,time});if(emailLog.length>8)emailLog.pop();}}}catch(fe){}if(CU&&savedPlaces.length){const matchingPlaces=savedPlaces.filter(p=>(areaMatches(repArea,p.location_area)||areaMatches(p.location_area,repArea))&&p.notif_on!==false);if(matchingPlaces.length&&CU.email&&!edgeSent){const placeNames=matchingPlaces.map(p=>getPlaceDisplayName(p)).join(", ");const placeHtml=buildEmailHtml({type:repType,area:repArea,street:repName,time,places:placeNames,appUrl:APP_URL});await sendEmail(CU.email,subject,body,placeHtml);emailLog.unshift({subject,to:CU.email+"  (saved place)",time});if(emailLog.length>8)emailLog.pop();toast("Alert sent for your saved place","ok");if(document.getElementById("page-account").classList.contains("active"))renderAccount();}}else if(!edgeSent&&CU&&PR&&(areaMatches(repArea,PR.location_area)||areaMatches(PR.location_area,repArea))&&PR.notif_on&&CU.email){const userHtml=buildEmailHtml({type:repType,area:repArea,street:repName,time,appUrl:APP_URL});await sendEmail(CU.email,subject,body,userHtml);emailLog.unshift({subject,to:CU.email,time});if(emailLog.length>8)emailLog.pop();toast("Alert sent to your email","ok");if(document.getElementById("page-account").classList.contains("active"))renderAccount();}}catch(e){}}
 
 function openModal(type){mType=type;mSel=null;document.getElementById("shTitle").textContent=type==="out"?"Report Power Outage":"Report Power Restored";document.getElementById("shDesc").textContent=type==="out"?"Search your street or area in Lagos.":"Great news! Tell your community.";const btn=document.getElementById("mBtn");btn.textContent=type==="out"?"Confirm Outage":"Confirm Restored";btn.className="mconfirm "+(type==="out"?"out":"bck");btn.disabled=true;document.getElementById("mSearch").value="";if(PR?.location_id){mSel=LOCS.find(l=>l.id===PR.location_id)||null;if(mSel){btn.disabled=false;btn.textContent=type==="out"?`Report — ${mSel.name}`:`Restored — ${mSel.name}`;}}renderMList(LOCS.slice(0,60));document.getElementById("repOverlay").classList.add("open");}
 function closeModal(){document.getElementById("repOverlay").classList.remove("open");mType=null;mSel=null;}
@@ -2760,9 +2904,22 @@ function toggleSuggestLoc(){const form=document.getElementById("suggestLocForm")
 async function handleSuggestLoc(){if(!CU){toast("Sign in to add a location","info");closeModal();go("account");return;}const street=(document.getElementById("suggestStreet")?.value||"").trim();const area=(document.getElementById("suggestArea")?.value||"").trim();if(!street){toast("Enter a street name","info");return;}if(!area){toast("Enter the area name","info");return;}const btn=document.querySelector("#suggestLocForm .mconfirm");if(btn){btn.innerHTML='Checking location... <span class="spin"></span>';btn.disabled=true;}// submitCustomLocation now geocodes + deduplicates automatically
 const newLoc=await submitCustomLocation(street,area);if(btn){btn.innerHTML="Save and Use This Location";btn.disabled=false;}if(newLoc){mSel=newLoc;const mBtn=document.getElementById("mBtn");if(mBtn){mBtn.disabled=false;mBtn.textContent=mType==="out"?`Report — ${newLoc.name}`:`Restored — ${newLoc.name}`;}buildFilter();const q=document.getElementById("mSearch")?.value.trim().toLowerCase()||"";renderMList(q?LOCS.filter(l=>l.label.toLowerCase().includes(q)).slice(0,50):LOCS.slice(0,60));const form=document.getElementById("suggestLocForm");if(form)form.style.display="none";const txt=document.getElementById("suggestLocToggleTxt");if(txt)txt.textContent="+ Cannot find your street? Add it for everyone";}}
 
-function updateBanner(){const b=document.getElementById("mainBanner"),t=document.getElementById("bannerTxt");if(!CU){t.textContent="Sign in to receive real-time push alerts when power changes in your area.";b.classList.add("show");}else if(PR&&!PR.location_id){t.textContent=`Hi ${PR.name} — tap Locate Me or report your street to set your location.`;b.classList.add("show");}else{b.classList.remove("show");}}
+function updateBanner(){const b=document.getElementById("mainBanner"),t=document.getElementById("bannerTxt");if(!CU){t.textContent="Sign in to receive email alerts when power changes in your area.";b.classList.add("show");}else if(PR&&!PR.location_id){t.textContent=`Hi ${PR.name} — tap Locate Me or report your street to set your location.`;b.classList.add("show");}else{b.classList.remove("show");}}
 
-function ago(ts){const d=Math.floor((Date.now()-ts)/1000);if(d<60)return`${d}s`;if(d<3600)return`${Math.floor(d/60)}m`;return`${Math.floor(d/3600)}h`;}
+function ago(ts){
+  const d=Math.floor((Date.now()-ts)/1000);
+  if(d<60)return`${d}s`;
+  if(d<3600)return`${Math.floor(d/60)}m`;
+  if(d<86400)return`${Math.floor(d/3600)}h`;
+  // Older than today — show actual date + time
+  const dt=new Date(ts);
+  const today=new Date();today.setHours(0,0,0,0);
+  const yesterday=new Date(today);yesterday.setDate(today.getDate()-1);
+  if(dt>=yesterday){
+    return`Yesterday ${dt.toLocaleTimeString('en-NG',{hour:'2-digit',minute:'2-digit'})}`;
+  }
+  return dt.toLocaleDateString('en-NG',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
+}
 function areaStatus(a){const r=reports.filter(x=>x.area===a);if(!r.length)return"unknown";return r[0].type==="out"?"out":"on";}
 
 function todayReports(){const midnight=new Date();midnight.setHours(0,0,0,0);return reports.filter(r=>r.time>=midnight.getTime());}
@@ -2795,20 +2952,32 @@ function _buildReportCard(r, i=0){
   const isAI=r.isAI||r.userId===AI_USER_ID;
   const aiBadge=isAI?`<div class="fc-ai-badge">${IC.ai}&nbsp;NEPAWatch AI</div>`:'';
   const isOwn = CU && r.userId === CU.id;
+  const isFlagged = r.flagged || (r.wrongVotes || 0) >= 3;
   const confirmBtn = isOwn ? '' : `<button class="same-btn" onclick="addConfirm('${r.id}')">${IC.chk} Same</button>`;
-  return`<div class="fc ${r.type}" data-rid="${r.id}" style="animation-delay:${i*30}ms">
+  const wrongBtn = isOwn ? '' : `<button class="wrong-btn" onclick="markReportWrong('${r.id}')" title="Flag as inaccurate">${(r.wrongVotes||0)>0?`<span class="wrong-count">${r.wrongVotes}</span>`:''}<svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 2L8 8M8 2L2 8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></button>`;
+  const waBtn = `<button class="wa-btn" onclick="shareToWhatsApp('${r.id}')" title="Share on WhatsApp"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M5.5 1A4.5 4.5 0 0 0 1.5 7.2L1 10l2.8-.5A4.5 4.5 0 1 0 5.5 1z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg></button>`;
+  const rel = getAreaReliability(r.area);
+  const relBadge = rel ? `<span class="rel-badge" style="color:${rel.color}" title="${rel.score}% reliable (30d)">${rel.grade}</span>` : '';
+  const since = r.type === 'out' ? r.time : null;
+  const timerHtml = since ? `<div class="fc-timer" data-outage-since="${since}">Out for ${formatDuration(Date.now()-since)}</div>` : '';
+  const flaggedCls = isFlagged ? ' fc-flagged' : '';
+  return`<div class="fc ${r.type}${flaggedCls}" data-rid="${r.id}" style="animation-delay:${i*30}ms">
     <div class="fc-bar"></div>
     <div class="fc-dot">${r.type==="out"?IC.out:IC.bck}</div>
     <div class="fc-body">
-      <div class="fc-loc">${r.name}</div>
-      <div class="fc-area">${r.area}</div>
+      <div class="fc-loc">${r.name}${relBadge}</div>
+      <div class="fc-area" onclick="showAreaHistory('${r.area.replace(/'/g,"\'")}');" style="cursor:pointer;text-decoration:underline dotted">${r.area}</div>
+      ${timerHtml}
       <div class="fc-meta" data-confirms="${r.id}">${r.confirms} confirmation${r.confirms!==1?"s":""}</div>
+      ${isFlagged?'<div class="fc-flagged-note">Flagged as potentially inaccurate</div>':''}
       ${aiBadge}
     </div>
     <div class="fc-r">
       <div class="fc-time">${ago(r.time)} ago</div>
       ${confirmBtn}
-      <button class="save-area-btn" onclick="promptSaveArea('${r.area.replace(/'/g,'\\&apos;')}')" title="Save this area">
+      ${wrongBtn}
+      ${waBtn}
+      <button class="save-area-btn" onclick="promptSaveArea('${r.area.replace(/'/g,'\&apos;')}')" title="Save this area">
         <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 1.5h8a.5.5 0 0 1 .5.5v8.5L6 8.5 1.5 10.5V2a.5.5 0 0 1 .5-.5z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>
       </button>
     </div>
@@ -2912,7 +3081,7 @@ function renderAccount(){const el=document.getElementById("authWrap");if(CU&&PR)
 
 const LOGO_IMG_TAG=`<img src="logo.jpg" alt="NEPAWatch" style="width:100%;height:100%;object-fit:cover;border-radius:8px">`;
 
-function renderAuthForm(el,mode){el.innerHTML=`<div class="auth-wrap"><div class="auth-logo"><div class="auth-logo-icon">${LOGO_IMG_TAG}</div><span class="auth-logo-name">NEPA<em>Watch</em></span></div><h2>${mode==="login"?"Welcome back":mode==="forgot"?"Reset password":"Join NEPAWatch"}</h2><p class="auth-sub">${mode==="login"?"Sign in to report outages and get real-time push alerts.":mode==="forgot"?"Enter your email to receive a password reset link.":"Get free real-time push alerts for your Lagos street."}</p><div class="msg err" id="authErr"></div><div class="msg ok" id="authOk"></div>${mode==="register"?`<div class="fld"><label>Your Name</label><input id="inp-name" type="text" placeholder="e.g. Chidi" autocomplete="name"></div>`:""}<div class="fld"><label>Email</label><input id="inp-email" type="email" placeholder="you@example.com" autocomplete="email"></div>${mode!=="forgot"?`<div class="fld"><label>Password</label><input id="inp-pass" type="password" placeholder="Min 6 characters" autocomplete="${mode==="login"?"current-password":"new-password"}"><button type="button" class="pw-eye-btn" onclick="appTogglePw(this)" tabindex="-1"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M1 8C2.5 5 5 3.5 8 3.5C11 3.5 13.5 5 15 8C13.5 11 11 12.5 8 12.5C5 12.5 2.5 11 1 8Z" stroke="currentColor" stroke-width="1.3"/><circle cx="8" cy="8" r="2.2" stroke="currentColor" stroke-width="1.3"/></svg></button></div>`:""}<button class="auth-btn" id="authBtn" onclick="handleAuth('${mode}')">${mode==="login"?"Sign In":mode==="forgot"?"Send Reset Link":"Create Account"}</button><div class="auth-switch">${mode==="login"?`No account? <a onclick="renderAuthForm(document.getElementById('authWrap'),'register')">Register free</a><br><span style="display:block;margin-top:8px"><a onclick="renderAuthForm(document.getElementById('authWrap'),'forgot')">Forgot password?</a></span>`:mode==="register"?`Have an account? <a onclick="renderAuthForm(document.getElementById('authWrap'),'login')">Sign in</a>`:`Remember it? <a onclick="renderAuthForm(document.getElementById('authWrap'),'login')">Back to sign in</a>`}</div></div>`;setTimeout(()=>{el.querySelectorAll("input").forEach(inp=>inp.addEventListener("keydown",e=>{if(e.key==="Enter")handleAuth(mode);}));},80);}
+function renderAuthForm(el,mode){el.innerHTML=`<div class="auth-wrap"><div class="auth-logo"><div class="auth-logo-icon">${LOGO_IMG_TAG}</div><span class="auth-logo-name">NEPA<em>Watch</em></span></div><h2>${mode==="login"?"Welcome back":mode==="forgot"?"Reset password":"Join NEPAWatch"}</h2><p class="auth-sub">${mode==="login"?"Sign in to report outages and get email alerts.":mode==="forgot"?"Enter your email to receive a password reset link.":"Get free real-time power alerts for your Lagos street."}</p><div class="msg err" id="authErr"></div><div class="msg ok" id="authOk"></div>${mode==="register"?`<div class="fld"><label>Your Name</label><input id="inp-name" type="text" placeholder="e.g. Chidi" autocomplete="name"></div>`:""}<div class="fld"><label>Email</label><input id="inp-email" type="email" placeholder="you@example.com" autocomplete="email"></div>${mode!=="forgot"?`<div class="fld"><label>Password</label><input id="inp-pass" type="password" placeholder="Min 6 characters" autocomplete="${mode==="login"?"current-password":"new-password"}"><button type="button" class="pw-eye-btn" onclick="appTogglePw(this)" tabindex="-1"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M1 8C2.5 5 5 3.5 8 3.5C11 3.5 13.5 5 15 8C13.5 11 11 12.5 8 12.5C5 12.5 2.5 11 1 8Z" stroke="currentColor" stroke-width="1.3"/><circle cx="8" cy="8" r="2.2" stroke="currentColor" stroke-width="1.3"/></svg></button></div>`:""}<button class="auth-btn" id="authBtn" onclick="handleAuth('${mode}')">${mode==="login"?"Sign In":mode==="forgot"?"Send Reset Link":"Create Account"}</button><div class="auth-switch">${mode==="login"?`No account? <a onclick="renderAuthForm(document.getElementById('authWrap'),'register')">Register free</a><br><span style="display:block;margin-top:8px"><a onclick="renderAuthForm(document.getElementById('authWrap'),'forgot')">Forgot password?</a></span>`:mode==="register"?`Have an account? <a onclick="renderAuthForm(document.getElementById('authWrap'),'login')">Sign in</a>`:`Remember it? <a onclick="renderAuthForm(document.getElementById('authWrap'),'login')">Back to sign in</a>`}</div></div>`;setTimeout(()=>{el.querySelectorAll("input").forEach(inp=>inp.addEventListener("keydown",e=>{if(e.key==="Enter")handleAuth(mode);}));},80);}
 
 async function handleAuth(mode){const errEl=document.getElementById("authErr"),okEl=document.getElementById("authOk"),btn=document.getElementById("authBtn");const email=(document.getElementById("inp-email")?.value||"").trim();const pass=document.getElementById("inp-pass")?.value||"";const name=(document.getElementById("inp-name")?.value||"").trim();errEl.classList.remove("show");okEl.classList.remove("show");if(!email||!email.includes("@")||!email.includes(".")){errEl.textContent="Please enter a valid email address.";errEl.classList.add("show");return;}if(mode!=="forgot"&&pass.length<6){errEl.textContent="Password must be at least 6 characters.";errEl.classList.add("show");return;}if(mode==="register"&&!name){errEl.textContent="Please enter your name.";errEl.classList.add("show");return;}btn.innerHTML=`${mode==="login"?"Signing in":mode==="forgot"?"Sending link":"Creating account"}&nbsp;<span class="spin"></span>`;btn.disabled=true;try{if(mode==="register"){await doRegister(name,email,pass);okEl.textContent="Account created! Check your email to confirm, then sign in.";okEl.classList.add("show");btn.innerHTML="Create Account";btn.disabled=false;setTimeout(()=>renderAuthForm(document.getElementById("authWrap"),"login"),2800);}else if(mode==="forgot"){await sb.auth.resetPasswordForEmail(email,{redirectTo:APP_URL+"?mode=reset"});okEl.textContent="Reset link sent! Check your inbox (and spam folder).";okEl.classList.add("show");btn.innerHTML="Send Reset Link";btn.disabled=false;}else{await doLogin(email,pass);}}catch(e){let msg=e.message||"Something went wrong.";if(msg.toLowerCase().includes("invalid login")||msg.toLowerCase().includes("invalid credentials"))msg="Incorrect email or password. Please try again.";if(msg.toLowerCase().includes("email not confirmed"))msg="Please confirm your email first — check your inbox.";if(msg.toLowerCase().includes("already registered")||msg.toLowerCase().includes("user already registered"))msg="This email is already registered. Please sign in instead.";if(msg==="RATE_LIMIT"||msg.toLowerCase().includes("rate limit"))msg="Too many sign-up attempts. Please wait about 1 hour before trying again.";errEl.textContent=msg;errEl.classList.add("show");btn.innerHTML=mode==="login"?"Sign In":mode==="forgot"?"Send Reset Link":"Create Account";btn.disabled=false;}}
 
@@ -2929,8 +3098,8 @@ function renderProfile(el){const locText=PR.location_label||PR.location_name||"N
   const pushBtn=pushSt==='unsupported'?'':
     pushSt==='ios-needs-install'?`<a href="https://support.apple.com/guide/iphone/bookmark-favorite-webpages-iph42ab2f3a7/ios" target="_blank" style="font-size:.65rem;font-weight:600;color:var(--p);background:var(--pp);border:1px solid var(--pb);border-radius:6px;padding:4px 9px;cursor:pointer;text-decoration:none">How?</a>`:
     `<button class="toggle ${pushSt==='enabled'?'on':''}" onclick="togglePushNotif()"></button>`;
-el.innerHTML=`<div class="ph"><h2>Account</h2><p>Manage your alerts and locations</p></div><div class="profile-card"><div class="pc-top"><div class="pc-av">${(PR.name||"?")[0].toUpperCase()}</div><div><div class="pc-name">${PR.name||"User"}</div><div class="pc-email">${PR.email||CU.email}</div></div></div><div class="pc-row"><div class="pc-rl-wrap"><div class="pc-ico"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1A3 3 0 0 0 4 4C4 7.5 7 12 7 12S10 7.5 10 4A3 3 0 0 0 7 1z" stroke="currentColor" stroke-width="1.3"/><circle cx="7" cy="4" r="1.2" fill="currentColor"/></svg></div><div><div class="pc-rl">Watching area</div><div class="pc-rs">${locText}</div></div></div>${PR.location_id?`<button onclick="clearLoc()" style="font-size:.65rem;font-weight:600;color:var(--ink3);background:none;border:1px solid var(--bd);border-radius:6px;padding:4px 9px;cursor:pointer">Clear</button>`:""}</div><div class="pc-row"><div class="pc-rl-wrap"><div class="pc-ico"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M1.5 7L7 1.5L12.5 7V12.5H9V9H5V12.5H1.5V7Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg></div><div><div class="pc-rl">Saved Places</div><div class="pc-rs">${savedCount} place${savedCount!==1?"s":""} saved</div></div></div><button onclick="go('myarea')" style="font-size:.65rem;font-weight:600;color:var(--p);background:var(--pp);border:1px solid var(--pb);border-radius:6px;padding:4px 9px;cursor:pointer">Manage</button></div><div class="pc-row"><div class="pc-rl-wrap"><div class="pc-ico"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="1" y="2.5" width="12" height="9" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M1 5L7 8.5L13 5" stroke="currentColor" stroke-width="1.3"/></svg></div><div><div class="pc-rl">Email Fallback</div><div class="pc-rs">${notifOn?"On — backup if push fails":"Off — enable as push backup"}</div></div></div><button class="toggle ${notifOn?"on":""}" id="notifToggle" onclick="toggleNotif()"></button></div>
-<div class="pc-row"><div class="pc-rl-wrap"><div class="pc-ico"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1.5L5 5H2.5l2 2-1 3.5L7 8.5 9.5 10.5l-1-3.5 2-2H8L7 1.5z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg></div><div><div class="pc-rl">Push Notifications</div><div class="pc-rs" id="pushStatusTxt">${pushStatusText}</div></div></div>${pushBtn}</div><div class="pc-row"><div class="pc-rl-wrap"><div class="pc-ico"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="5" r="3" stroke="currentColor" stroke-width="1.3"/><path d="M1.5 13c0-3 2.5-4.5 5.5-4.5s5.5 1.5 5.5 4.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></div><div><div class="pc-rl">Alert address</div><div class="pc-rs">${CU.email}</div></div></div></div>${emailLog.length?`<div class="email-log"><div class="email-log-hd">Recent Alerts Sent</div>${emailLog.map(e=>`<div class="ei"><div class="ei-s">${e.subject}</div><div class="ei-m">${e.to} &middot; ${e.time}</div></div>`).join("")}</div>`:""}<button class="logout-btn" onclick="doLogout()">Sign Out</button></div>`;}
+el.innerHTML=`<div class="ph"><h2>Account</h2><p>Manage your alerts and locations</p></div><div class="profile-card"><div class="pc-top"><div class="pc-av">${(PR.name||"?")[0].toUpperCase()}</div><div><div class="pc-name">${PR.name||"User"}</div><div class="pc-email">${PR.email||CU.email}</div></div></div><div class="pc-row"><div class="pc-rl-wrap"><div class="pc-ico"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1A3 3 0 0 0 4 4C4 7.5 7 12 7 12S10 7.5 10 4A3 3 0 0 0 7 1z" stroke="currentColor" stroke-width="1.3"/><circle cx="7" cy="4" r="1.2" fill="currentColor"/></svg></div><div><div class="pc-rl">Watching area</div><div class="pc-rs">${locText}</div></div></div>${PR.location_id?`<button onclick="clearLoc()" style="font-size:.65rem;font-weight:600;color:var(--ink3);background:none;border:1px solid var(--bd);border-radius:6px;padding:4px 9px;cursor:pointer">Clear</button>`:""}</div><div class="pc-row"><div class="pc-rl-wrap"><div class="pc-ico"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M1.5 7L7 1.5L12.5 7V12.5H9V9H5V12.5H1.5V7Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg></div><div><div class="pc-rl">Saved Places</div><div class="pc-rs">${savedCount} place${savedCount!==1?"s":""} saved</div></div></div><button onclick="go('myarea')" style="font-size:.65rem;font-weight:600;color:var(--p);background:var(--pp);border:1px solid var(--pb);border-radius:6px;padding:4px 9px;cursor:pointer">Manage</button></div><div class="pc-row"><div class="pc-rl-wrap"><div class="pc-ico"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="1" y="2.5" width="12" height="9" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M1 5L7 8.5L13 5" stroke="currentColor" stroke-width="1.3"/></svg></div><div><div class="pc-rl">Email Alerts</div><div class="pc-rs">${notifOn?"On — receiving alerts":"Off — tap to enable"}</div></div></div><button class="toggle ${notifOn?"on":""}" id="notifToggle" onclick="toggleNotif()"></button></div>
+<div class="pc-row"><div class="pc-rl-wrap"><div class="pc-ico"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1.5L5 5H2.5l2 2-1 3.5L7 8.5 9.5 10.5l-1-3.5 2-2H8L7 1.5z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg></div><div><div class="pc-rl">Push Notifications</div><div class="pc-rs" id="pushStatusTxt">${pushStatusText}</div></div></div>${pushBtn}</div>${pushSt==='enabled'?`<div class="pc-row" style="padding-top:6px;padding-bottom:6px"><button id="testPushBtn" onclick="testPushNotification()" style="width:100%;background:var(--pp);border:1px solid var(--pb);color:var(--p);border-radius:8px;padding:9px;font-size:.75rem;font-weight:700;cursor:pointer;letter-spacing:.01em">Send test notification</button></div>`:''}<div class="pc-row"><div class="pc-rl-wrap"><div class="pc-ico"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="5" r="3" stroke="currentColor" stroke-width="1.3"/><path d="M1.5 13c0-3 2.5-4.5 5.5-4.5s5.5 1.5 5.5 4.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></div><div><div class="pc-rl">Alert address</div><div class="pc-rs">${CU.email}</div></div></div></div>${emailLog.length?`<div class="email-log"><div class="email-log-hd">Recent Alerts Sent</div>${emailLog.map(e=>`<div class="ei"><div class="ei-s">${e.subject}</div><div class="ei-m">${e.to} &middot; ${e.time}</div></div>`).join("")}</div>`:""}<button class="logout-btn" onclick="doLogout()">Sign Out</button></div>`;}
 
 /* ━━━ PATCH 3: go() — handles predict page + widget refresh ━━━ */
 function go(page){
@@ -3010,6 +3179,31 @@ async function disablePush() {
   } catch(e) { toast('Could not disable push', 'err'); }
 }
 
+async function testPushNotification() {
+  if (!_pushSubscription) { toast('Enable push notifications first', 'info'); return; }
+  const btn = document.getElementById('testPushBtn');
+  if (btn) { btn.textContent = 'Sending…'; btn.disabled = true; }
+  try {
+    const res = await fetch(EMAIL_FN, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'apikey': SUPA_ANON, 'Authorization': `Bearer ${SUPA_ANON}` },
+      body: JSON.stringify({
+        mode: 'test_push',
+        userId: CU.id,
+      }),
+    });
+    const json = await res.json().catch(() => ({}));
+    if (res.ok && json.pushSent > 0) {
+      toast('Test notification sent — check your device', 'ok');
+    } else {
+      toast('Push delivery failed: ' + (json.error || 'check edge function logs'), 'err');
+      console.error('[Push] test result:', json);
+    }
+  } catch(e) {
+    toast('Could not reach edge function: ' + e.message, 'err');
+  }
+  if (btn) { btn.textContent = 'Send test notification'; btn.disabled = false; }
+}
 
 async function _savePushSub(sub) {
   if (!CU || !sub) return;
@@ -3076,10 +3270,96 @@ if ('serviceWorker' in navigator) {
   });
 }
 
-function render(){renderStats();renderFeed("liveFeed");renderDiscos();if(_mpMap&&document.getElementById("mapPickerOverlay")?.classList.contains("open"))_mpDrawPowerDots();}
+function render(){renderStats();renderFeed("liveFeed");renderDiscos();tickDurationTimers();if(_mpMap&&document.getElementById("mapPickerOverlay")?.classList.contains("open"))_mpDrawPowerDots();}
+
+// ── ALWAYS-ON BACKGROUND LOCATION ─────────────────────────────────────────
+let _bgWatchId = null;
+function startBackgroundLocation() {
+  if (!navigator.geolocation) return;
+  if (_bgWatchId !== null) return; // already watching
+  _bgWatchId = navigator.geolocation.watchPosition(
+    (pos) => {
+      const { latitude: lat, longitude: lng } = pos.coords;
+      // Update internal coords silently — no UI change unless user hasn't set area yet
+      if (lat && lng) {
+        _userLat = lat; _userLng = lng;
+        userExactLat = lat; userExactLng = lng;
+        const nearby = findNearestAreas(lat, lng, 5);
+        if (nearby.length) {
+          _nearbyAreas = nearby;
+          // If signed in and no area set yet, auto-set silently
+          if (CU && PR && !PR.location_id) {
+            const nearest = nearby[0]?.area;
+            if (nearest) {
+              const loc = LOCS.find(l => l.area === nearest && !l.street);
+              if (loc) saveLocation(loc);
+            }
+          }
+        }
+      }
+    },
+    () => { /* silent fail — user may have denied */ },
+    { enableHighAccuracy: false, maximumAge: 60000, timeout: 30000 }
+  );
+}
+
+// ── CONFIRM REPORT POPUP ───────────────────────────────────────────────────
+let _confirmRepId = null;
+const _confirmedReports = new Set(); // track what user already confirmed/dismissed
+
+function showConfirmPopup(rep) {
+  // Don't show if: user is the reporter, already confirmed/dismissed, no login
+  if (!CU) return;
+  if (rep.userId === CU.id) return;
+  if (_confirmedReports.has(rep.id)) return;
+  // Only show if user is in the same area family
+  const userArea = PR?.location_area || (_nearbyAreas[0]?.area);
+  if (!userArea) return;
+  if (!areaMatches(rep.area, userArea) && !areaMatches(userArea, rep.area)) return;
+
+  _confirmRepId = rep.id;
+  const isOut = rep.type === 'out';
+  const icon = isOut ? IC.out : IC.bck;
+  document.getElementById('confirmTitle').textContent = isOut ? 'Outage reported near you' : 'Power restored near you';
+  document.getElementById('confirmSub').textContent = `Can you confirm this?`;
+  document.getElementById('confirmBody').innerHTML =
+    `<div style="display:flex;align-items:center;gap:10px;padding:12px 14px;background:${isOut?'rgba(255,64,85,.08)':'rgba(170,255,0,.07)'};border-radius:10px;border:1px solid ${isOut?'rgba(255,64,85,.2)':'rgba(170,255,0,.2)'}">
+      <span style="flex-shrink:0">${icon}</span>
+      <div>
+        <div style="font-weight:600;font-size:.88rem;color:${isOut?'var(--rd)':'var(--p)'}">${rep.name}</div>
+        <div style="font-size:.74rem;color:var(--ink3);margin-top:2px">${rep.area} &middot; just now</div>
+      </div>
+    </div>
+    <p style="font-size:.78rem;color:var(--ink3);margin:12px 0 0;line-height:1.6">
+      ${isOut ? 'Is power actually out near you right now?' : 'Has power actually been restored near you?'} Your confirmation helps the community trust this report.
+    </p>`;
+  const btn = document.getElementById('confirmYesBtn');
+  btn.textContent = isOut ? 'Yes, power is out here' : 'Yes, power is back here';
+  btn.className = `mconfirm ${isOut ? 'out' : 'bck'}`;
+  document.getElementById('confirmOverlay').classList.add('open');
+  // Auto-dismiss after 30s if user ignores it
+  setTimeout(() => dismissConfirm(), 30000);
+}
+
+async function submitConfirm() {
+  if (!_confirmRepId) return;
+  _confirmedReports.add(_confirmRepId);
+  document.getElementById('confirmOverlay').classList.remove('open');
+  // Reuse the existing confirmReport function
+  await confirmReport(_confirmRepId);
+  toast('Thanks for confirming!', 'ok');
+  _confirmRepId = null;
+}
+
+function dismissConfirm() {
+  if (_confirmRepId) _confirmedReports.add(_confirmRepId);
+  document.getElementById('confirmOverlay').classList.remove('open');
+  _confirmRepId = null;
+}
 
 let _rtChannel=null,_recentAlerts=new Set(),_rtWatchdog=null;
-function startRealtime(){try{if(_rtChannel){try{sb.removeChannel(_rtChannel);}catch(e){}} _rtChannel=sb.channel("realtime-reports-"+Date.now()).on("postgres_changes",{event:"INSERT",schema:"public",table:"reports"},payload=>{try{const r=payload.new;if(!r||reports.find(x=>String(x.id)===String(r.id)))return;const newRep={id:String(r.id),name:String(r.location_name||""),area:String(r.location_area||""),type:String(r.type||""),time:new Date(r.created_at).getTime(),confirms:Number(r.confirms)||1,userId:r.user_id,isAI:r.user_id===AI_USER_ID};reports.unshift(newRep);if(reports.length>200)reports.pop();renderStats();prependReportCard(newRep,"liveFeed");renderDiscos();if(_nearbyAreas.length)renderNearbyDashboard();renderSavedPlacesHome();renderMyPlacesList();if(r.user_id&&r.user_id!==CU?.id){const alertKey=r.id+r.type;if(!_recentAlerts.has(alertKey)){_recentAlerts.add(alertKey);setTimeout(()=>_recentAlerts.delete(alertKey),30000);sendAreaAlerts(r.location_name,r.location_area,r.type);}}}catch(e){}}).on("postgres_changes",{event:"UPDATE",schema:"public",table:"reports"},payload=>{try{const r=payload.new;const existing=reports.find(x=>String(x.id)===String(r.id));if(existing){existing.confirms=Number(r.confirms)||1;const confirmsEl=document.querySelector(`[data-confirms="${existing.id}"]`);if(confirmsEl)confirmsEl.textContent=`${existing.confirms} confirmation${existing.confirms!==1?"s":""}`;else{renderFeed("liveFeed");renderFeed("myFeed",PR?.location_area||null);}}}catch(e){}}).subscribe(status=>{
+function startRealtime(){try{if(_rtChannel){try{sb.removeChannel(_rtChannel);}catch(e){}} _rtChannel=sb.channel("realtime-reports-"+Date.now()).on("postgres_changes",{event:"INSERT",schema:"public",table:"reports"},payload=>{try{const r=payload.new;if(!r||reports.find(x=>String(x.id)===String(r.id)))return;const newRep={id:String(r.id),name:String(r.location_name||""),area:String(r.location_area||""),type:String(r.type||""),time:new Date(r.created_at).getTime(),confirms:Number(r.confirms)||1,userId:r.user_id,isAI:r.user_id===AI_USER_ID};reports.unshift(newRep);if(reports.length>200)reports.pop();renderStats();prependReportCard(newRep,"liveFeed");renderDiscos();if(_nearbyAreas.length)renderNearbyDashboard();renderSavedPlacesHome();renderMyPlacesList();if(r.user_id&&r.user_id!==CU?.id){const alertKey=r.id+r.type;if(!_recentAlerts.has(alertKey)){_recentAlerts.add(alertKey);setTimeout(()=>_recentAlerts.delete(alertKey),30000);sendAreaAlerts(r.location_name,r.location_area,r.type);}}// Show in-app confirm popup for reports in user's area
+setTimeout(()=>showConfirmPopup(newRep),800);}catch(e){}}).on("postgres_changes",{event:"UPDATE",schema:"public",table:"reports"},payload=>{try{const r=payload.new;const existing=reports.find(x=>String(x.id)===String(r.id));if(existing){existing.confirms=Number(r.confirms)||1;const confirmsEl=document.querySelector(`[data-confirms="${existing.id}"]`);if(confirmsEl)confirmsEl.textContent=`${existing.confirms} confirmation${existing.confirms!==1?"s":""}`;else{renderFeed("liveFeed");renderFeed("myFeed",PR?.location_area||null);}}}catch(e){}}).subscribe(status=>{
     // If realtime drops, restart it after 5s
     if(status==='CHANNEL_ERROR'||status==='TIMED_OUT'){
       clearTimeout(_rtWatchdog);
@@ -3095,6 +3375,8 @@ window.addEventListener("load",async()=>{
   buildFilter();
   document.getElementById("repOverlay").addEventListener("click",e=>{if(e.target===document.getElementById("repOverlay"))closeModal();});
   document.getElementById("placeOverlay").addEventListener("click",e=>{if(e.target===document.getElementById("placeOverlay"))closePlaceModal();});
+  document.getElementById("confirmOverlay")?.addEventListener("click",e=>{if(e.target===document.getElementById("confirmOverlay"))dismissConfirm();});
+  document.getElementById("areaHistoryModal")?.addEventListener("click",e=>{if(e.target===document.getElementById("areaHistoryModal"))closeAreaHistory();});
 
   // Detect recovery token BEFORE getSessionFromUrl clears the hash
   const urlParams=new URLSearchParams(window.location.search);
@@ -3128,6 +3410,9 @@ window.addEventListener("load",async()=>{
   startPolling();
   renderMyArea();
   initPush();
+  startBackgroundLocation();
+  startDurationTimer();
+  loadAnnouncements();
   if(typeof AIReporter!=='undefined'){
     await AIReporter.loadHistory();
     AIReporter.start();
