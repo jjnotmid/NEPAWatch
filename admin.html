@@ -763,10 +763,24 @@ function filterReports() {
 async function deleteReport(id) {
   if(!confirm('Delete this report? Cannot be undone.'))return;
   try {
-    await sb.from('reports').delete().eq('id',id);
-    allReports=allReports.filter(r=>r.id!=id);
-    toast('Deleted','ok'); renderDashReports(); filterReports(); buildAreaStatus(); renderAreas(); loadStats();
-  } catch(e){toast('Delete failed','err');}
+    const { error, data } = await sb.from('reports').delete().eq('id', id).select();
+    if (error) {
+      console.error('[deleteReport] error:', error);
+      if (error.code === '42501' || error.message?.toLowerCase().includes('rls') || error.message?.toLowerCase().includes('policy')) {
+        toast('Delete blocked by RLS policy — make sure you are signed in as admin or run the RLS SQL fix', 'err');
+      } else {
+        toast('Delete failed: ' + (error.message || error.code), 'err');
+      }
+      return;
+    }
+    // Supabase delete with RLS may silently return 0 rows without error
+    allReports = allReports.filter(r => r.id != id);
+    toast('Report deleted', 'ok');
+    renderDashReports(); filterReports(); buildAreaStatus(); renderAreas(); loadStats();
+  } catch(e) {
+    console.error('[deleteReport] exception:', e);
+    toast('Delete failed: ' + (e?.message || 'unknown error'), 'err');
+  }
 }
 
 // ── CONFIRMATIONS ─────────────────────────────────────────────

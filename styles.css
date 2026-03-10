@@ -231,10 +231,11 @@ nav{
 .fc-loc{font-size:.85rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--ink)}
 .fc-area{font-size:.66rem;color:var(--p);font-weight:600;margin-top:2px;opacity:.8}
 .fc-meta{font-size:.6rem;color:var(--ink3);margin-top:2px}
-.fc-r{display:flex;flex-direction:column;align-items:flex-end;gap:5px;flex-shrink:0}
-.fc-time{font-size:.58rem;color:var(--ink3);white-space:nowrap}
+.fc-r{display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0;min-width:0}
+.fc-time{font-size:.58rem;color:var(--ink3);white-space:nowrap;margin-bottom:1px}
+.fc-actions{display:flex;flex-direction:row;align-items:center;gap:4px;flex-wrap:nowrap}
 .same-btn{
-  font-size:.61rem;font-weight:700;padding:5px 10px;border-radius:50px;
+  font-size:.65rem;font-weight:700;padding:5px 10px;border-radius:50px;
   border:1px solid var(--bd);background:transparent;color:var(--ink3);
   cursor:pointer;transition:all .15s;display:flex;align-items:center;gap:4px;white-space:nowrap;
 }
@@ -553,12 +554,12 @@ nav{
 
 /* ── Save-area button on report cards ── */
 .save-area-btn{
-  background:none;border:none;padding:0;cursor:pointer;
-  font-size:.58rem;font-weight:600;letter-spacing:.02em;
+  background:none;border:none;padding:5px 6px;cursor:pointer;
+  border-radius:6px;font-size:.58rem;font-weight:600;letter-spacing:.02em;
   color:rgba(120,210,100,.55);
-  transition:color .15s;white-space:nowrap;
+  transition:color .15s,background .15s;white-space:nowrap;display:flex;align-items:center;
 }
-.save-area-btn:hover{color:#7ed87e;}
+.save-area-btn:hover{color:#7ed87e;background:rgba(120,210,100,.08);}
 .save-area-btn:active{color:var(--p);}
 
 /* ── First-login onboarding tour ── */
@@ -567,21 +568,21 @@ nav{
 
 /* ── WRONG VOTE BUTTON ── */
 .wrong-btn{
-  background:none;border:none;cursor:pointer;padding:4px 5px;border-radius:5px;
+  background:none;border:none;cursor:pointer;padding:5px 6px;border-radius:6px;
   color:var(--ink3);display:flex;align-items:center;gap:3px;transition:color .15s,background .15s;
-  font-size:.62rem;
+  font-size:.64rem;
 }
-.wrong-btn:hover{color:var(--rd);background:rgba(255,64,85,.08);}
-.wrong-count{font-size:.58rem;color:var(--rd);font-weight:700;}
+.wrong-btn:hover{color:var(--rd);background:rgba(255,64,85,.1);}
+.wrong-count{font-size:.6rem;color:var(--rd);font-weight:700;}
 .fc-flagged{opacity:.6;}
 .fc-flagged-note{font-size:.62rem;color:var(--am);margin-top:2px;font-style:italic;}
 
 /* ── WHATSAPP SHARE BUTTON ── */
 .wa-btn{
-  background:none;border:none;cursor:pointer;padding:4px 5px;border-radius:5px;
+  background:none;border:none;cursor:pointer;padding:5px 6px;border-radius:6px;
   color:var(--ink3);display:flex;align-items:center;transition:color .15s,background .15s;
 }
-.wa-btn:hover{color:#25D366;background:rgba(37,211,102,.08);}
+.wa-btn:hover{color:#25D366;background:rgba(37,211,102,.1);}
 
 /* ── RELIABILITY BADGE ── */
 .rel-badge{

@@ -2763,8 +2763,19 @@ function buildEmailHtml({type='info', name='', area='', street='', time='', plac
     [data-ogsc] .card, [data-ogsb] .card { background-color: #0F1511 !important; }
     [data-ogsc] .card-header, [data-ogsb] .card-header { background-color: #080C09 !important; }
     [data-ogsc] .card-body-inner, [data-ogsb] .card-body-inner { background-color: #141C16 !important; }
-    /* Apple Mail / iOS dark mode support */
-    @media (prefers-color-scheme: dark) {
+    /* Always-dark: works for both light and dark system themes */
+    @media screen {
+      body { background-color: #07090A !important; }
+      .outer-wrap { background-color: #07090A !important; }
+      .card { background-color: #0F1511 !important; border-color: #1C271E !important; }
+      .card-header { background-color: #080C09 !important; border-color: #1C271E !important; }
+      .card-body-inner { background-color: #141C16 !important; border-color: #1C271E !important; }
+      .footer-row { border-color: #1C271E !important; }
+      h1 { color: #E6EDE8 !important; }
+      .logo-text { color: #E6EDE8 !important; }
+    }
+    /* Prevent light-mode email clients (Apple Mail, iOS) from flipping to light */
+    @media (prefers-color-scheme: light) {
       body { background-color: #07090A !important; }
       .outer-wrap { background-color: #07090A !important; }
       .card { background-color: #0F1511 !important; border-color: #1C271E !important; }
@@ -2853,26 +2864,28 @@ async function sendEmail(to, subject, body, htmlBody) {
   if (!to || !subject) return;
   const html = htmlBody || null;
   try {
-    await fetch(EMAIL_FN, {
+    const res = await fetch(EMAIL_FN, {
       method: 'POST',
       headers: {'Content-Type': 'application/json', 'apikey': SUPA_ANON, 'Authorization': `Bearer ${SUPA_ANON}`},
-      // Send html in every possible field name the edge function might read
-      body: JSON.stringify({to, subject,
-        body: html || body,   // if edge fn passes body straight to Resend as html
-        text: body,           // plain text fallback
-        html: html || body,   // explicit html field
-        htmlBody: html || body,
-        mode: 'direct'
+      body: JSON.stringify({
+        mode: 'single',
+        to,
+        subject,
+        html: html || `<pre style="font-family:sans-serif;white-space:pre-wrap">${body}</pre>`,
       })
     });
-  } catch(e) {}
+    if (!res.ok) {
+      const txt = await res.text().catch(() => '');
+      console.warn('[sendEmail] edge fn error', res.status, txt.slice(0, 200));
+    }
+  } catch(e) { console.warn('[sendEmail] fetch error', e?.message); }
 }
 async function sendAreaAlerts(repName,repArea,repType){if(!repArea)return;
   // Fire local push notification for foreground-invisible users
   const pushTitle=repType==='out'?`Power Outage — ${repArea}`:`Power Restored — ${repArea}`;
   const pushBody=repType==='out'?`Outage near ${repName}. Tap to confirm.`:`Power back near ${repName}. Tap to confirm.`;
   _localNotify(pushTitle, pushBody, repType);
-const _aKey=repArea+'|'+repType;const _now=Date.now();if(_alertCooldowns[_aKey]&&(_now-_alertCooldowns[_aKey])<ALERT_COOLDOWN_MS)return;_alertCooldowns[_aKey]=_now;try{const subject=repType==="out"?`Power Outage — ${repArea}, Lagos`:`Power Restored — ${repArea}, Lagos`;const time=new Date().toLocaleTimeString("en-NG",{hour:"2-digit",minute:"2-digit"});const body=`${repType==="out"?"Power outage":"Power restored"} near ${repName}, ${repArea}.\n\nTime: ${time}\n\nSee live updates: ${APP_URL}\n\n— NEPAWatch Lagos`;const alertHtml=buildEmailHtml({type:repType,area:repArea,street:repName,time,appUrl:APP_URL});let edgeSent=false;try{const res=await fetch(EMAIL_FN,{method:"POST",headers:{"Content-Type":"application/json","apikey":SUPA_ANON,"Authorization":`Bearer ${SUPA_ANON}`},body:JSON.stringify({mode:"area_alert",area:repArea,repName,repType,subject,body,html:alertHtml,time,confirmRequest:true})});if(res.ok){const json=await res.json().catch(()=>({}));const count=json.sent||0;edgeSent=true;if(count>0){emailLog.unshift({subject,to:`${count} watcher${count!==1?"s":""} in ${repArea}`,time});if(emailLog.length>8)emailLog.pop();}}}catch(fe){}if(CU&&savedPlaces.length){const matchingPlaces=savedPlaces.filter(p=>(areaMatches(repArea,p.location_area)||areaMatches(p.location_area,repArea))&&p.notif_on!==false);if(matchingPlaces.length&&CU.email&&!edgeSent){const placeNames=matchingPlaces.map(p=>getPlaceDisplayName(p)).join(", ");const placeHtml=buildEmailHtml({type:repType,area:repArea,street:repName,time,places:placeNames,appUrl:APP_URL});await sendEmail(CU.email,subject,body,placeHtml);emailLog.unshift({subject,to:CU.email+"  (saved place)",time});if(emailLog.length>8)emailLog.pop();toast("Alert sent for your saved place","ok");if(document.getElementById("page-account").classList.contains("active"))renderAccount();}}else if(!edgeSent&&CU&&PR&&(areaMatches(repArea,PR.location_area)||areaMatches(PR.location_area,repArea))&&PR.notif_on&&CU.email){const userHtml=buildEmailHtml({type:repType,area:repArea,street:repName,time,appUrl:APP_URL});await sendEmail(CU.email,subject,body,userHtml);emailLog.unshift({subject,to:CU.email,time});if(emailLog.length>8)emailLog.pop();toast("Alert sent to your email","ok");if(document.getElementById("page-account").classList.contains("active"))renderAccount();}}catch(e){}}
+const _aKey=repArea+'|'+repType;const _now=Date.now();if(_alertCooldowns[_aKey]&&(_now-_alertCooldowns[_aKey])<ALERT_COOLDOWN_MS)return;_alertCooldowns[_aKey]=_now;try{const subject=repType==="out"?`Power Outage — ${repArea}, Lagos`:`Power Restored — ${repArea}, Lagos`;const time=new Date().toLocaleTimeString("en-NG",{hour:"2-digit",minute:"2-digit"});const body=`${repType==="out"?"Power outage":"Power restored"} near ${repName}, ${repArea}.\n\nTime: ${time}\n\nSee live updates: ${APP_URL}\n\n— NEPAWatch Lagos`;const alertHtml=buildEmailHtml({type:repType,area:repArea,street:repName,time,appUrl:APP_URL});let edgeSent=false;try{const res=await fetch(EMAIL_FN,{method:"POST",headers:{"Content-Type":"application/json","apikey":SUPA_ANON,"Authorization":`Bearer ${SUPA_ANON}`},body:JSON.stringify({mode:"area_alert",area:repArea,repName,repType,subject,body,html:alertHtml,time,confirmRequest:true})});if(res.ok){const json=await res.json().catch(()=>({}));const count=(json.sent||0)+(json.pushSent||0);edgeSent=count>0;if(count>0){emailLog.unshift({subject,to:`${count} watcher${count!==1?"s":""} in ${repArea}`,time});if(emailLog.length>8)emailLog.pop();}}}catch(fe){}if(CU&&savedPlaces.length){const matchingPlaces=savedPlaces.filter(p=>(areaMatches(repArea,p.location_area)||areaMatches(p.location_area,repArea))&&p.notif_on!==false);if(matchingPlaces.length&&CU.email&&!edgeSent){const placeNames=matchingPlaces.map(p=>getPlaceDisplayName(p)).join(", ");const placeHtml=buildEmailHtml({type:repType,area:repArea,street:repName,time,places:placeNames,appUrl:APP_URL});await sendEmail(CU.email,subject,body,placeHtml);emailLog.unshift({subject,to:CU.email+"  (saved place)",time});if(emailLog.length>8)emailLog.pop();toast("Alert sent for your saved place","ok");if(document.getElementById("page-account").classList.contains("active"))renderAccount();}}else if(!edgeSent&&CU&&PR&&(areaMatches(repArea,PR.location_area)||areaMatches(PR.location_area,repArea))&&PR.notif_on&&CU.email){const userHtml=buildEmailHtml({type:repType,area:repArea,street:repName,time,appUrl:APP_URL});await sendEmail(CU.email,subject,body,userHtml);emailLog.unshift({subject,to:CU.email,time});if(emailLog.length>8)emailLog.pop();toast("Alert sent to your email","ok");if(document.getElementById("page-account").classList.contains("active"))renderAccount();}}catch(e){}}
 
 function openModal(type){mType=type;mSel=null;document.getElementById("shTitle").textContent=type==="out"?"Report Power Outage":"Report Power Restored";document.getElementById("shDesc").textContent=type==="out"?"Search your street or area in Lagos.":"Great news! Tell your community.";const btn=document.getElementById("mBtn");btn.textContent=type==="out"?"Confirm Outage":"Confirm Restored";btn.className="mconfirm "+(type==="out"?"out":"bck");btn.disabled=true;document.getElementById("mSearch").value="";if(PR?.location_id){mSel=LOCS.find(l=>l.id===PR.location_id)||null;if(mSel){btn.disabled=false;btn.textContent=type==="out"?`Report — ${mSel.name}`:`Restored — ${mSel.name}`;}}renderMList(LOCS.slice(0,60));document.getElementById("repOverlay").classList.add("open");}
 function closeModal(){document.getElementById("repOverlay").classList.remove("open");mType=null;mSel=null;}
@@ -2974,12 +2987,14 @@ function _buildReportCard(r, i=0){
     </div>
     <div class="fc-r">
       <div class="fc-time">${ago(r.time)} ago</div>
-      ${confirmBtn}
-      ${wrongBtn}
-      ${waBtn}
-      <button class="save-area-btn" onclick="promptSaveArea('${r.area.replace(/'/g,'\&apos;')}')" title="Save this area">
-        <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 1.5h8a.5.5 0 0 1 .5.5v8.5L6 8.5 1.5 10.5V2a.5.5 0 0 1 .5-.5z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>
-      </button>
+      <div class="fc-actions">
+        ${confirmBtn}
+        ${wrongBtn}
+        ${waBtn}
+        <button class="save-area-btn" onclick="promptSaveArea('${r.area.replace(/'/g,'\&apos;')}')" title="Save this area">
+          <svg width="13" height="13" viewBox="0 0 12 12" fill="none"><path d="M2 1.5h8a.5.5 0 0 1 .5.5v8.5L6 8.5 1.5 10.5V2a.5.5 0 0 1 .5-.5z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>
+        </button>
+      </div>
     </div>
   </div>`;
 }
