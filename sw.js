@@ -1,9 +1,10 @@
 /* =====================================================
-   NEPAWatch Lagos — Service Worker v1.1.0
+   NEPAWatch Lagos — Service Worker v1.2.0
    !! BUMP VERSION STRING ON EVERY DEPLOY !!
    ===================================================== */
-const VERSION = 'v1.1.0';
+const VERSION = 'v1.2.0';
 const CACHE   = `nepawatch-${VERSION}`;
+const OFFLINE_KEY = 'nw-offline-state';
 
 const PRECACHE = [
   '/',
@@ -32,18 +33,34 @@ self.addEventListener('activate', event => {
 self.addEventListener('fetch', event => {
   const { request } = event;
   const url = new URL(request.url);
-  if (url.origin !== self.location.origin) return;
-  event.respondWith(
-    fetch(request)
-      .then(response => {
-        if (response && response.status === 200 && request.method === 'GET') {
-          const clone = response.clone();
-          caches.open(CACHE).then(cache => cache.put(request, clone));
-        }
-        return response;
+
+  // Always network-first for Supabase API calls
+  if (url.hostname.includes('supabase.co') || url.hostname.includes('open-meteo.com')) {
+    event.respondWith(
+      fetch(request).catch(() => new Response('{"error":"offline"}', {
+        headers: { 'Content-Type': 'application/json' }
+      }))
+    );
+    return;
+  }
+
+  // App shell: cache-first, fall back to network, update cache in background
+  if (url.origin === self.location.origin) {
+    event.respondWith(
+      caches.match(request).then(cached => {
+        const networkFetch = fetch(request).then(response => {
+          if (response && response.status === 200 && request.method === 'GET') {
+            const clone = response.clone();
+            caches.open(CACHE).then(cache => cache.put(request, clone));
+          }
+          return response;
+        });
+        // Return cache immediately if available, fetch in background
+        return cached || networkFetch;
       })
-      .catch(() => caches.match(request))
-  );
+    );
+    return;
+  }
 });
 
 self.addEventListener('message', event => {
