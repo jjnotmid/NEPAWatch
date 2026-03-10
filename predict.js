@@ -10,8 +10,8 @@
 /* ─── IDENTITY ──────────────────────────────────────────────────────────── */
 const AI_USER_ID            = 'nepawatch-ai';
 const AI_USER_NAME          = 'NEPAWatch AI';
-const AI_CONFIDENCE_THRESH  = 0.72;   /* min prob to auto-file an outage report */
-const AI_SCAN_INTERVAL_MS   = 12 * 60 * 1000;  /* scan every 12 min */
+const AI_CONFIDENCE_THRESH  = 0.65;   /* min prob to auto-file an outage report */
+const AI_SCAN_INTERVAL_MS   = 5 * 60 * 1000;   /* scan every 5 min */
 /* AI_COOLDOWN_MS removed — replaced by per-area state machine in AIReporter */
 const AI_RESTORE_THRESH     = 0.25;   /* below this → file restoration report */
 
@@ -124,23 +124,62 @@ const WeatherState = {
   }
 };
 
-/* ─── RECENT MOMENTUM ────────────────────────────────────────────────────── */
-// If many outages reported recently in this area, probability spikes hard
-// Uses the global `reports` array from app.js
-function getRecentMomentum(area) {
-  if (typeof reports === 'undefined') return { boost: 0, count: 0 };
+/* ─── GROUND TRUTH ENGINE ────────────────────────────────────────────────── */
+// Human reports are the strongest signal. This replaces the weak "momentum boost"
+// with a proper ground-truth layer that dominates the statistical model.
+
+function getGroundTruth(area) {
+  if (typeof reports === 'undefined') return null;
   const now = Date.now();
-  const twoHrs = 2 * 3600 * 1000;
-  const recent = reports.filter(r =>
-    (r.area === area || (typeof AREA_PARENT !== 'undefined' && AREA_PARENT[r.area] === area)) &&
-    (now - r.time) < twoHrs
+  const SIX_HRS = 6 * 3600 * 1000;
+
+  // Collect all relevant reports: exact area + parent area + sibling areas
+  const family = new Set([area]);
+  if (typeof AREA_PARENT !== 'undefined') {
+    const parent = AREA_PARENT[area];
+    if (parent) family.add(parent);
+    // siblings — other children of same parent
+    for (const [child, par] of Object.entries(AREA_PARENT)) {
+      if (par === area || (parent && par === parent)) family.add(child);
+    }
+  }
+
+  const relevant = reports.filter(r =>
+    family.has(r.area) && (now - r.time) < SIX_HRS
   );
-  const outCount = recent.filter(r => r.type === 'out').length;
-  const bckCount = recent.filter(r => r.type === 'bck').length;
-  // Net outage pressure
-  const net = outCount - bckCount * 2;
-  const boost = net <= 0 ? 0 : net === 1 ? 0.12 : net === 2 ? 0.22 : net >= 3 ? 0.35 : 0;
-  return { boost, outCount, bckCount };
+  if (!relevant.length) return null;
+
+  // Score each report: newer = stronger. Decays by half every 90 minutes.
+  // Out reports push score positive, bck reports push negative.
+  let score = 0;
+  let totalWeight = 0;
+  for (const r of relevant) {
+    const ageMs = now - r.time;
+    const halfLife = 90 * 60 * 1000; // 90 min
+    const weight = Math.pow(0.5, ageMs / halfLife);
+    // Human reports count 3x AI reports for ground truth
+    const authority = (r.isAI || r.userId === AI_USER_ID) ? 1 : 3;
+    const signal = r.type === 'out' ? 1 : -1;
+    score += signal * weight * authority;
+    totalWeight += weight * authority;
+  }
+
+  if (totalWeight === 0) return null;
+  const netScore = score / totalWeight; // -1 (definitely on) to +1 (definitely out)
+
+  // Convert to probability: netScore of +1 → 0.95, -1 → 0.05
+  const prob = 0.5 + netScore * 0.45;
+  const age = now - Math.max(...relevant.map(r => r.time));
+  const freshestIsHuman = relevant
+    .sort((a,b) => b.time - a.time)
+    .find(r => !r.isAI && r.userId !== AI_USER_ID);
+
+  return {
+    prob: Math.min(0.95, Math.max(0.05, prob)),
+    confidence: age < 20*60000 ? 'high' : age < 90*60000 ? 'medium' : 'low',
+    reportCount: relevant.length,
+    hasFreshHuman: !!freshestIsHuman && (now - freshestIsHuman.time) < 30*60000,
+  };
 }
 
 /* ─── CORE PREDICTION ────────────────────────────────────────────────────── */
@@ -151,25 +190,43 @@ function predictOutage(area, hour, dayOfWeek) {
   const dAdj   = DAY_FACTOR[dayOfWeek];
   const hist   = PredictHistory.getRate(area, hour, dayOfWeek);
   const aHist  = PredictHistory.getAreaRate(area);
-  let prob, confidence;
+
+  // Statistical baseline
+  let statProb, confidence;
   if (hist !== null) {
-    prob=hist*0.50+hProb*0.25+base*dAdj*0.25; confidence='high';
+    statProb = hist*0.50 + hProb*0.25 + base*dAdj*0.25; confidence = 'high';
   } else if (aHist !== null) {
-    prob=aHist*0.35+hProb*0.35+base*dAdj*0.30; confidence='medium';
+    statProb = aHist*0.35 + hProb*0.35 + base*dAdj*0.30; confidence = 'medium';
   } else {
-    prob=base*0.45+hProb*0.35+(base*dAdj-base)*0.20; confidence='low';
+    statProb = base*0.45 + hProb*0.35 + (base*dAdj-base)*0.20; confidence = 'low';
   }
-  // Apply weather multiplier (rain/storms → higher risk)
+
+  // Weather multiplier
   const wx = WeatherState.getRiskMultiplier();
-  prob = Math.min(0.97, prob * wx);
+  statProb = Math.min(0.97, statProb * wx);
   if (wx > 1.3) confidence = confidence === 'low' ? 'medium' : 'high';
 
-  // Apply recent report momentum (outages reported in last 2hrs boost prob)
-  const { boost } = getRecentMomentum(area);
-  prob = Math.min(0.97, prob + boost);
-  if (boost > 0.15) confidence = 'high';
+  // Ground truth from live reports — this DOMINATES the statistical model
+  const gt = getGroundTruth(area);
+  let prob;
+  if (gt) {
+    // Weight: ground truth 80%, statistics 20% when we have recent reports
+    // If there's a fresh human report, ground truth weight goes to 95%
+    const gtWeight = gt.hasFreshHuman ? 0.95 : gt.confidence === 'high' ? 0.85 : 0.70;
+    prob = gt.prob * gtWeight + statProb * (1 - gtWeight);
+    confidence = gt.confidence;
+  } else {
+    prob = statProb;
+  }
 
-  return { prob:Math.min(0.97,Math.max(0.03,prob)), confidence, band, bandSupplyHours:BAND_SUPPLY_HOURS[band], weather:WeatherState.getLabel() };
+  return {
+    prob: Math.min(0.97, Math.max(0.03, prob)),
+    confidence,
+    band,
+    bandSupplyHours: BAND_SUPPLY_HOURS[band],
+    weather: WeatherState.getLabel(),
+    groundTruth: gt,
+  };
 }
 
 function predictDuration(area, hour) {
@@ -225,91 +282,88 @@ const AIReporter = {
   },
 
   async scan() {
-    await WeatherState.refresh(); // free, cached 15min — rain/storms boost predictions
-    this._rebuildState(); // refresh state before every scan
+    await WeatherState.refresh();
+    this._rebuildState();
     const now=new Date(), h=now.getHours(), d=now.getDay();
     for (const area of Object.keys(AREA_BANDS)) {
-      const { prob } = predictOutage(area, h, d);
+      const { prob, groundTruth } = predictOutage(area, h, d);
       if (prob < AI_CONFIDENCE_THRESH) continue;
-
-      // CORE RULE: never file 'out' if we already believe it's out
-      // Must see a 'bck' (from anyone — human or AI) before filing out again
       const currentState = this._areaState[area];
-      if (currentState === 'out') continue; // already out, don't repeat
-
-      // Don't override a recent human OR AI restoration (last 30 min)
+      if (currentState === 'out') continue;
+      // If ground truth has a fresh human bck report, power is on — skip
+      if (groundTruth?.hasFreshHuman && groundTruth.prob < 0.4) continue;
       const recentRestore = (typeof reports!=='undefined') &&
         reports.some(r =>
           (r.area===area || (typeof AREA_PARENT!=='undefined' && AREA_PARENT[r.area]===area))
           && r.type==='bck' && (now-r.time) < 30*60000);
-      // If there was a very recent restore, don't immediately call out again
       if (recentRestore) continue;
-
       await this._fire(area, 'out', prob);
     }
   },
 
   async scanRestorations() {
     if (typeof reports==='undefined') return;
-    this._rebuildState(); // always fresh before checking
+    this._rebuildState();
     const now=new Date(), h=now.getHours(), d=now.getDay();
-
-    // Case 1: Areas where the current state is 'out' and prob has now dropped
-    // (covers both AI-filed and human-reported outages)
     const outAreas = Object.entries(this._areaState)
       .filter(([area, state]) => state === 'out')
       .map(([area]) => area);
-
     for (const area of outAreas) {
-      if (!AREA_BANDS[area]) continue; // only scan areas we know about
-      const { prob } = predictOutage(area, h, d);
-      if (prob >= AI_RESTORE_THRESH) continue; // still looks like outage
-
-      // Find when the outage started for this area
+      if (!AREA_BANDS[area]) continue;
+      const { prob, groundTruth } = predictOutage(area, h, d);
+      // Fresh human bck report — act fast, dont wait
+      if (groundTruth?.hasFreshHuman && groundTruth.prob < 0.35) {
+        const alreadyRestored = reports.some(x => x.area===area && x.type==='bck' && (now-x.time)<15*60000);
+        if (!alreadyRestored) { await this._fire(area, 'bck', 1-prob); continue; }
+      }
+      if (prob >= AI_RESTORE_THRESH) continue;
       const outageReport = [...reports]
         .filter(r => r.area===area && r.type==='out')
         .sort((a,b) => b.time - a.time)[0];
-
-      // Don't restore too quickly — wait at least 45 minutes since the outage report
-      if (outageReport && (now - outageReport.time) < 45*60000) continue;
-
-      // Check nobody already reported light back recently
+      // Shorter wait when ground truth confident: 20min vs 45min
+      const minWait = (groundTruth?.confidence === 'high') ? 20*60000 : 45*60000;
+      if (outageReport && (now - outageReport.time) < minWait) continue;
       const alreadyRestored = reports.some(x =>
         x.area===area && x.type==='bck' &&
         (outageReport ? x.time > outageReport.time : true));
       if (alreadyRestored) continue;
-
       await this._fire(area, 'bck', 1-prob);
     }
   },
 
   async _fire(area, type, prob) {
-    // ── Dedup guard: never file same type for same area within 1 hour ──
-    const dedupKey = area + '|' + type;
-    const lastFired = this._lastFired?.[dedupKey] || 0;
-    if (Date.now() - lastFired < 60 * 60 * 1000) {
-      console.log(`[NEPAWatch AI] Skipping ${type} for ${area} — filed less than 1 hour ago`);
-      return;
-    }
-    // Also check existing reports in DB/memory for same area+type in last hour
-    if (typeof reports !== 'undefined') {
-      const recentSame = reports.some(r =>
-        r.area === area && r.type === type &&
-        (Date.now() - r.time) < 60 * 60 * 1000
-      );
-      if (recentSame) {
-        this._areaState[area] = type; // keep state in sync
-        console.log(`[NEPAWatch AI] Skipping ${type} for ${area} — recent report already exists`);
-        return;
-      }
-    }
-    if (!this._lastFired) this._lastFired = {};
-    this._lastFired[dedupKey] = Date.now();
-
     // Update state machine — this is the source of truth
     this._areaState[area] = type;
-    // Always use the area name as the location — consistent, findable, no random streets
-    const locName = area;
+
+    // Pick the most specific location name we can:
+    // 1. Most recent human report for this area that has a real street name → use that
+    // 2. Otherwise fall back to the area name itself
+    let locName = area;
+    if (typeof reports !== 'undefined') {
+      const SIX_HRS = 6 * 3600 * 1000;
+      const now = Date.now();
+      // Get human reports for this area (exact area or children) from last 6hrs
+      const humanReports = reports.filter(r =>
+        !r.isAI && r.userId !== AI_USER_ID &&
+        (r.area === area ||
+          (typeof AREA_PARENT !== 'undefined' && AREA_PARENT[r.area] === area)) &&
+        (now - r.time) < SIX_HRS &&
+        r.name && r.name !== r.area // has a real street name, not just area
+      ).sort((a, b) => b.time - a.time);
+
+      if (humanReports.length > 0) {
+        // Use the most recently reported specific street
+        locName = humanReports[0].name;
+        // If that report was filed under a child area, use that child area
+        // so the report is properly localized (e.g. "Akoka Road" under "Akoka" not "Yaba")
+        const streetArea = humanReports[0].area || area;
+        // Only override area if it's a child of our area (more specific)
+        if (typeof AREA_PARENT !== 'undefined' && AREA_PARENT[streetArea] === area) {
+          // File under the more specific child area
+          this._areaState[streetArea] = type;
+        }
+      }
+    }
 
     // Ensure this area exists in LOCS so it's findable in search and saved places
     if (typeof LOCS !== 'undefined' && !LOCS.find(l => l.name === area && !l.street)) {
@@ -322,7 +376,12 @@ const AIReporter = {
     const tempId = `ai-${Date.now()}-${Math.random().toString(36).slice(2,6)}`;
     if (typeof reports!=='undefined') {
       reports.unshift({ id:tempId, name:locName, area, type, time:Date.now(), confirms:1, userId:AI_USER_ID, isAI:true, aiProb:prob });
-      if (reports.length>100) reports.pop();
+      if (reports.length>500) {
+        // Only remove non-AI, non-local reports from the tail to preserve AI history
+        const lastNonAI = [...reports].reverse().findIndex(r=>!r.isAI&&!String(r.id).startsWith('local-')&&!String(r.id).startsWith('ai-'));
+        if (lastNonAI!==-1) reports.splice(reports.length-1-lastNonAI,1);
+        else if(reports.length>500) reports.pop();
+      }
       if (typeof renderStats==='function') renderStats();
       if (typeof prependReportCard==='function') prependReportCard(reports[0],'liveFeed');
       if (typeof renderDiscos==='function') renderDiscos();
@@ -330,13 +389,14 @@ const AIReporter = {
 
     /* Toast */
     if (typeof toast==='function') {
+      const loc = locName !== area ? `${locName}, ${area}` : area;
       const msg = type==='out'
-        ? `NEPAWatch AI: Outage predicted in ${area}`
-        : `NEPAWatch AI: Power restored in ${area}`;
+        ? `NEPAWatch AI: Outage predicted — ${loc}`
+        : `NEPAWatch AI: Power restored — ${loc}`;
       toast(msg, type==='out'?'err':'ok');
     }
 
-    console.log(`[NEPAWatch AI] Filing ${type} report — ${area} (${(prob*100).toFixed(0)}%)`);
+    console.log(`[NEPAWatch AI] Filing ${type} — ${locName} (${area}) @ ${(prob*100).toFixed(0)}%`);
 
     /* Persist to Supabase */
     try {
@@ -368,20 +428,12 @@ const AIReporter = {
 
   _replaceLocal(tempId, dbRow, prob) {
     if (typeof reports==='undefined') return;
-    const confirmed = {
+    const idx = reports.findIndex(r=>r.id===tempId);
+    if (idx!==-1) reports[idx] = {
       id: String(dbRow.id), name: dbRow.location_name, area: dbRow.location_area,
       type: dbRow.type, time: new Date(dbRow.created_at).getTime(),
       confirms: dbRow.confirms||1, userId: AI_USER_ID, isAI:true, aiProb:prob,
     };
-    const idx = reports.findIndex(r=>r.id===tempId);
-    if (idx !== -1) {
-      // Replace the temp entry with the confirmed DB row
-      reports[idx] = confirmed;
-    } else {
-      // pollReports already cleared the temp entry — add the confirmed row if not already present
-      const alreadyIn = reports.some(r => String(r.id) === String(dbRow.id));
-      if (!alreadyIn) reports.unshift(confirmed);
-    }
     if (typeof render==='function') render();
     if (typeof renderSavedPlacesHome==='function') renderSavedPlacesHome();
     if (typeof renderMyPlacesList==='function') renderMyPlacesList();
