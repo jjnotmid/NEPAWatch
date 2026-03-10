@@ -463,19 +463,32 @@ body.lp-active #nepaBotBubble, body.lp-active #botWin, body.lp-active #botNotif 
       </div>
       <div style="padding:14px 16px">
         <div class="mp-selected" id="mpSelected" style="display:none">
-          <div class="mp-sel-row">
+          <div style="font-size:.6rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink3);margin-bottom:6px">Your location — edit if wrong</div>
+          <div class="mp-sel-row" style="margin-bottom:8px">
             <svg width="13" height="13" viewBox="0 0 13 13" fill="none" style="flex-shrink:0;color:var(--p)"><path d="M6.5 1A2.8 2.8 0 0 0 3.7 3.8C3.7 6.6 6.5 12 6.5 12S9.3 6.6 9.3 3.8A2.8 2.8 0 0 0 6.5 1z" stroke="currentColor" stroke-width="1.2"/><circle cx="6.5" cy="3.8" r="1.1" fill="currentColor"/></svg>
-            <input id="mpSelectedName" class="mp-name-input" value="—" 
+            <input id="mpSelectedName" class="mp-name-input" value="—"
+              placeholder="Street / estate name"
               autocomplete="off" autocorrect="off" autocapitalize="words" spellcheck="false"
               oninput="mpOnNameEdit(this.value)"
               onfocus="this.closest('.mp-selected').classList.add('editing')"
               onblur="this.closest('.mp-selected').classList.remove('editing')"
             />
-            <button class="mp-edit-hint" onclick="document.getElementById('mpSelectedName').focus()" tabindex="-1" title="Edit name">
+            <button class="mp-edit-hint" onclick="document.getElementById('mpSelectedName').select()" tabindex="-1" title="Edit name">
               <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M8.5 1.5l2 2-7 7H1.5v-2l7-7z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>
             </button>
           </div>
-          <div class="mp-edit-tip">Tap name to correct it</div>
+          <div class="mp-sel-row">
+            <svg width="13" height="13" viewBox="0 0 13 13" fill="none" style="flex-shrink:0;color:var(--ink3)"><rect x="1.5" y="1.5" width="10" height="10" rx="2" stroke="currentColor" stroke-width="1.2"/><path d="M4 6.5h5M6.5 4v5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+            <input id="mpSelectedArea" class="mp-name-input" value="—"
+              placeholder="Area (e.g. Lekki, Yaba)"
+              autocomplete="off" autocorrect="off" autocapitalize="words" spellcheck="false"
+              style="color:var(--ink2)"
+              oninput="_mpCurrentArea=this.value.trim()"
+              onfocus="this.closest('.mp-selected').classList.add('editing')"
+              onblur="this.closest('.mp-selected').classList.remove('editing')"
+            />
+          </div>
+          <div class="mp-edit-tip" style="margin-top:4px">Both fields are editable — fix the name if Nominatim got it wrong</div>
         </div>
         <button class="mconfirm prim" id="mpConfirmBtn" disabled onclick="confirmMapPick()">Tap map to pick a location</button>
         <button class="mcancel" onclick="closeMapPicker()">Cancel</button>
@@ -541,6 +554,34 @@ body.lp-active #nepaBotBubble, body.lp-active #botWin, body.lp-active #botNotif 
   </div>
 </div>
 
+
+<!-- CONFIRM REPORT POPUP -->
+<div class="overlay" id="confirmOverlay">
+  <div class="sheet" style="max-height:60vh">
+    <div class="sh-handle"></div>
+    <div class="sheet-hd">
+      <h3 id="confirmTitle">Confirm Report</h3>
+      <p class="sheet-sub" id="confirmSub">Someone reported this near you. Can you confirm?</p>
+    </div>
+    <div class="sheet-body" style="padding-top:8px">
+      <div id="confirmBody" style="font-size:.85rem;color:var(--ink2);line-height:1.7;margin-bottom:18px"></div>
+      <button class="mconfirm bck" id="confirmYesBtn" onclick="submitConfirm()">Yes, I can confirm this</button>
+      <button class="mcancel" onclick="dismissConfirm()">Not sure / Dismiss</button>
+    </div>
+  </div>
+</div>
+<!-- AREA HISTORY MODAL -->
+<div class="overlay" id="areaHistoryModal">
+  <div class="sheet" style="max-height:80vh">
+    <div class="sh-handle"></div>
+    <div class="sheet-hd">
+      <h3 id="ahTitle">Area History</h3>
+      <p class="sheet-sub">7-day power supply history</p>
+    </div>
+    <div class="sheet-body" id="ahBody" style="padding-top:4px;overflow-y:auto"></div>
+    <div style="padding:12px 16px 20px"><button class="mcancel" onclick="closeAreaHistory()">Close</button></div>
+  </div>
+</div>
 <!-- SAVED PLACE MODAL -->
 <div class="overlay" id="placeOverlay">
   <div class="sheet">
@@ -625,6 +666,7 @@ body.lp-active #nepaBotBubble, body.lp-active #botWin, body.lp-active #botNotif 
     <button class="lclr" onclick="clearLoc()">Clear</button>
   </div>
   <div id="savedPlacesHome"></div>
+  <div id="announcementsBanner" style="display:none;margin:0 16px 8px"></div>
   <div id="nearbyDashboard"></div>
   <div id="mapWrap" style="display:none;position:relative;margin:16px">
     <div id="mapContainer" style="border-radius:12px;overflow:hidden;height:220px;border:1px solid var(--bd);"></div>
