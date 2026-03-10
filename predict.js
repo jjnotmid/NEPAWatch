@@ -253,16 +253,21 @@ const AIReporter = {
   //  null = unknown, AI has never spoken about this area
   _areaState: {},
 
-  // Rebuild state from the reports array so we survive page reloads
+  // Rebuild state from AI-only reports so we survive page reloads.
+  // We deliberately ONLY track the AI's own filings here — human reports
+  // are already used as signals inside scan() / scanRestorations().
+  // If we let human "bck" reports reset _areaState, scan() would re-fire
+  // a new AI "out" report every cycle whenever humans say light is back.
   _rebuildState() {
     if (typeof reports === 'undefined') return;
     this._areaState = {};
-    // Walk reports oldest→newest so the latest one wins per area
-    const sorted = [...reports].sort((a,b) => a.time - b.time);
+    // Walk AI reports oldest→newest so the latest filing wins per area
+    const sorted = [...reports]
+      .filter(r => r.isAI || r.userId === AI_USER_ID)
+      .sort((a, b) => a.time - b.time);
     for (const r of sorted) {
       if (!r.area) continue;
-      // Count both AI and human reports — if humans say bck, area has light
-      this._areaState[r.area] = r.type; // 'out' or 'bck'
+      this._areaState[r.area] = r.type;
     }
   },
 
