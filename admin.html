@@ -762,20 +762,42 @@ function filterReports() {
 }
 async function deleteReport(id) {
   if(!confirm('Delete this report? Cannot be undone.'))return;
+
+  // Use the edge function (service-role key) to bypass RLS — the anon client
+  // can only delete rows owned by the signed-in user, so admin deletes of
+  // other users' reports silently fail with 0 rows affected.
   try {
-    const { error, data } = await sb.from('reports').delete().eq('id', id).select();
-    if (error) {
-      console.error('[deleteReport] error:', error);
-      if (error.code === '42501' || error.message?.toLowerCase().includes('rls') || error.message?.toLowerCase().includes('policy')) {
-        toast('Delete blocked by RLS policy — make sure you are signed in as admin or run the RLS SQL fix', 'err');
-      } else {
-        toast('Delete failed: ' + (error.message || error.code), 'err');
+    const res = await fetch(EMAIL_FN.replace('send-alert','admin-action'), {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json', 'apikey': SUPA_ANON, 'Authorization': `Bearer ${SUPA_ANON}` },
+      body: JSON.stringify({ action: 'delete_report', id, adminEmail: adminUser?.email }),
+    });
+
+    // Fallback: if admin-action fn doesn't exist yet, try direct delete
+    // (works if admin has an RLS bypass policy set up in Supabase)
+    if (res.status === 404) {
+      const { error } = await sb.from('reports').delete().eq('id', id);
+      if (error) {
+        // Show the SQL they need to run once in Supabase to fix this permanently
+        toast('RLS is blocking admin deletes. Run the SQL fix shown in the console.', 'err');
+        console.error(`%cAdmin Delete Fix — run this SQL once in Supabase SQL Editor:
+
+CREATE POLICY "Admin can delete any report"
+ON reports FOR DELETE
+USING (auth.email() = 'usifohjosh47@gmail.com');
+
+OR if you prefer:
+ALTER TABLE reports DISABLE ROW LEVEL SECURITY;`, 'color: #ff4055; font-size: 13px;');
+        return;
       }
+    } else if (!res.ok) {
+      const j = await res.json().catch(()=>({}));
+      toast('Delete failed: ' + (j.error || res.status), 'err');
       return;
     }
-    // Supabase delete with RLS may silently return 0 rows without error
-    allReports = allReports.filter(r => r.id != id);
-    toast('Report deleted', 'ok');
+
+    allReports = allReports.filter(r => String(r.id) !== String(id));
+    toast('Report deleted ✓', 'ok');
     renderDashReports(); filterReports(); buildAreaStatus(); renderAreas(); loadStats();
   } catch(e) {
     console.error('[deleteReport] exception:', e);
