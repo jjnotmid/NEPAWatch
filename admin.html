@@ -1,5 +1,4 @@
 <!DOCTYPE html>
-
 <html lang="en" data-theme="dark">
 <head>
 <meta charset="UTF-8">
@@ -35,53 +34,53 @@ button,input,select,textarea{font-family:inherit}
 
 /* ── AUTH ── */
 #authScreen{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
-.auth-card{background:var(–bg2);border:1px solid var(–bd2);border-radius:16px;padding:36px 32px;width:100%;max-width:380px;box-shadow:var(–sh)}
+.auth-card{background:var(--bg2);border:1px solid var(--bd2);border-radius:16px;padding:36px 32px;width:100%;max-width:380px;box-shadow:var(--sh)}
 .auth-card h1{font-size:1.4rem;margin-bottom:6px}
-.auth-card h1 em{color:var(–p);font-style:normal}
-.auth-card p{font-size:.78rem;color:var(–ink2);margin-bottom:24px}
+.auth-card h1 em{color:var(--p);font-style:normal}
+.auth-card p{font-size:.78rem;color:var(--ink2);margin-bottom:24px}
 .fld{margin-bottom:16px}
-.fld label{font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(–ink2);display:block;margin-bottom:6px}
-.fld input,.fld select,.fld textarea{width:100%;background:var(–bg3);border:1px solid var(–bd);border-radius:9px;padding:11px 14px;font-size:.85rem;color:var(–ink);outline:none;transition:border-color .15s}
-.fld input:focus,.fld select:focus,.fld textarea:focus{border-color:var(–p)}
-.fld input::placeholder,.fld textarea::placeholder{color:var(–ink3)}
+.fld label{font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--ink2);display:block;margin-bottom:6px}
+.fld input,.fld select,.fld textarea{width:100%;background:var(--bg3);border:1px solid var(--bd);border-radius:9px;padding:11px 14px;font-size:.85rem;color:var(--ink);outline:none;transition:border-color .15s}
+.fld input:focus,.fld select:focus,.fld textarea:focus{border-color:var(--p)}
+.fld input::placeholder,.fld textarea::placeholder{color:var(--ink3)}
 .pw-wrap{position:relative}
 .pw-wrap input{padding-right:42px}
-.pw-eye{position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(–ink3);padding:4px;display:flex;align-items:center}
-.auth-btn{width:100%;background:var(–p);color:#07090A;font-weight:700;font-size:.9rem;border:none;border-radius:10px;padding:13px;cursor:pointer;transition:all .15s}
+.pw-eye{position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--ink3);padding:4px;display:flex;align-items:center}
+.auth-btn{width:100%;background:var(--p);color:#07090A;font-weight:700;font-size:.9rem;border:none;border-radius:10px;padding:13px;cursor:pointer;transition:all .15s}
 .auth-btn:hover{filter:brightness(1.1)}
 .auth-btn:disabled{opacity:.5;cursor:not-allowed}
 .msg{padding:10px 13px;border-radius:8px;font-size:.75rem;margin-bottom:14px;display:none;line-height:1.5}
 .msg.err{background:rgba(255,61,87,.1);border:1px solid rgba(255,61,87,.2);color:#FF8090;display:block}
-.denied{color:var(–am);font-size:.75rem;margin-top:10px;text-align:center;display:none}
+.denied{color:var(--am);font-size:.75rem;margin-top:10px;text-align:center;display:none}
 
 /* ── MOBILE BAR ── */
-.mob-bar{display:none;position:fixed;top:0;left:0;right:0;height:54px;background:var(–bg2);border-bottom:1px solid var(–bd2);z-index:200;align-items:center;padding:0 16px;gap:10px}
+.mob-bar{display:none;position:fixed;top:0;left:0;right:0;height:54px;background:var(--bg2);border-bottom:1px solid var(--bd2);z-index:200;align-items:center;padding:0 16px;gap:10px}
 .mob-logo{font-weight:700;font-size:.95rem;flex:1}
-.mob-logo em{color:var(–p);font-style:normal}
-.mob-toggle,.theme-btn-mob{background:none;border:1px solid var(–bd);border-radius:8px;padding:6px;cursor:pointer;color:var(–ink2);display:flex;align-items:center}
+.mob-logo em{color:var(--p);font-style:normal}
+.mob-toggle,.theme-btn-mob{background:none;border:1px solid var(--bd);border-radius:8px;padding:6px;cursor:pointer;color:var(--ink2);display:flex;align-items:center}
 .sb-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:198;backdrop-filter:blur(3px)}
 .sb-overlay.open{display:block}
 
 /* ── SIDEBAR ── */
 #adminApp{display:none}
-.sidebar{position:fixed;top:0;left:0;bottom:0;width:220px;background:var(–bg2);border-right:1px solid var(–bd2);z-index:199;display:flex;flex-direction:column;transition:transform .25s}
-.sb-top{padding:18px 16px 14px;border-bottom:1px solid var(–bd2);display:flex;align-items:center;justify-content:space-between}
+.sidebar{position:fixed;top:0;left:0;bottom:0;width:220px;background:var(--bg2);border-right:1px solid var(--bd2);z-index:199;display:flex;flex-direction:column;transition:transform .25s}
+.sb-top{padding:18px 16px 14px;border-bottom:1px solid var(--bd2);display:flex;align-items:center;justify-content:space-between}
 .sb-logo{font-weight:700;font-size:.95rem}
-.sb-logo em{color:var(–p);font-style:normal}
-.sb-badge{font-size:.55rem;font-weight:700;background:rgba(255,180,0,.12);color:var(–am);border:1px solid rgba(255,180,0,.25);border-radius:4px;padding:2px 6px;letter-spacing:.06em;text-transform:uppercase;margin-left:4px}
-.theme-btn{background:none;border:1px solid var(–bd);border-radius:8px;padding:6px;cursor:pointer;color:var(–ink2);display:flex;align-items:center;transition:all .15s}
-.theme-btn:hover{color:var(–ink);border-color:var(–bd2)}
+.sb-logo em{color:var(--p);font-style:normal}
+.sb-badge{font-size:.55rem;font-weight:700;background:rgba(255,180,0,.12);color:var(--am);border:1px solid rgba(255,180,0,.25);border-radius:4px;padding:2px 6px;letter-spacing:.06em;text-transform:uppercase;margin-left:4px}
+.theme-btn{background:none;border:1px solid var(--bd);border-radius:8px;padding:6px;cursor:pointer;color:var(--ink2);display:flex;align-items:center;transition:all .15s}
+.theme-btn:hover{color:var(--ink);border-color:var(--bd2)}
 .sb-nav{flex:1;overflow-y:auto;padding:10px 8px}
-.sb-sec{font-size:.57rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(–ink3);padding:10px 8px 4px}
-.sb-item{display:flex;align-items:center;gap:9px;padding:9px 10px;border-radius:9px;cursor:pointer;font-size:.8rem;font-weight:500;color:var(–ink2);border:none;background:none;width:100%;text-align:left;transition:all .15s}
+.sb-sec{font-size:.57rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--ink3);padding:10px 8px 4px}
+.sb-item{display:flex;align-items:center;gap:9px;padding:9px 10px;border-radius:9px;cursor:pointer;font-size:.8rem;font-weight:500;color:var(--ink2);border:none;background:none;width:100%;text-align:left;transition:all .15s}
 .sb-item svg{flex-shrink:0;opacity:.5;transition:opacity .15s}
-.sb-item:hover{background:var(–bg3);color:var(–ink)}
-.sb-item.active{background:var(–pp);color:var(–p);font-weight:600}
+.sb-item:hover{background:var(--bg3);color:var(--ink)}
+.sb-item.active{background:var(--pp);color:var(--p);font-weight:600}
 .sb-item.active svg{opacity:1}
-.sb-foot{padding:12px 8px;border-top:1px solid var(–bd2)}
-.sb-user-email{font-size:.65rem;color:var(–ink3);margin-bottom:8px;padding:0 2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.logout-btn{width:100%;background:none;border:1px solid var(–bd);border-radius:8px;padding:8px;font-size:.72rem;color:var(–ink2);cursor:pointer;transition:all .15s}
-.logout-btn:hover{border-color:var(–rd);color:var(–rd)}
+.sb-foot{padding:12px 8px;border-top:1px solid var(--bd2)}
+.sb-user-email{font-size:.65rem;color:var(--ink3);margin-bottom:8px;padding:0 2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.logout-btn{width:100%;background:none;border:1px solid var(--bd);border-radius:8px;padding:8px;font-size:.72rem;color:var(--ink2);cursor:pointer;transition:all .15s}
+.logout-btn:hover{border-color:var(--rd);color:var(--rd)}
 
 /* ── MAIN ── */
 .main{margin-left:220px;min-height:100vh;padding:28px 24px}
@@ -91,134 +90,132 @@ button,input,select,textarea{font-family:inherit}
 /* ── PAGE HEADER ── */
 .ph{margin-bottom:20px}
 .ph h2{font-size:1.25rem;font-weight:700}
-.ph p{font-size:.76rem;color:var(–ink2);margin-top:3px}
+.ph p{font-size:.76rem;color:var(--ink2);margin-top:3px}
 .ph-row{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:20px}
 
 /* ── STATS ── */
 .stat-row{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:12px;margin-bottom:22px}
-.stat-pill{background:var(–bg2);border:1px solid var(–bd2);border-radius:12px;padding:16px 18px;transition:border-color .15s}
-.stat-pill.accent{border-color:var(–pb);background:var(–pp)}
+.stat-pill{background:var(--bg2);border:1px solid var(--bd2);border-radius:12px;padding:16px 18px;transition:border-color .15s}
+.stat-pill.accent{border-color:var(--pb);background:var(--pp)}
 .stat-pill.red{border-color:rgba(255,61,87,.25);background:rgba(255,61,87,.06)}
 .stat-pill.amber{border-color:rgba(255,180,0,.25);background:rgba(255,180,0,.06)}
 .stat-pill.blue{border-color:rgba(59,130,246,.25);background:rgba(59,130,246,.06)}
 .sp-val{font-size:1.8rem;font-weight:700;line-height:1;margin-bottom:4px}
-.stat-pill.accent .sp-val{color:var(–p)}
-.stat-pill.red .sp-val{color:var(–rd)}
-.stat-pill.amber .sp-val{color:var(–am)}
-.stat-pill.blue .sp-val{color:var(–bl)}
-.sp-lbl{font-size:.6rem;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(–ink3)}
+.stat-pill.accent .sp-val{color:var(--p)}
+.stat-pill.red .sp-val{color:var(--rd)}
+.stat-pill.amber .sp-val{color:var(--am)}
+.stat-pill.blue .sp-val{color:var(--bl)}
+.sp-lbl{font-size:.6rem;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--ink3)}
 
 /* ── CARD ── */
-.card{background:var(–bg2);border:1px solid var(–bd2);border-radius:14px;margin-bottom:18px;overflow:hidden;box-shadow:var(–sh)}
-.card-hd{padding:14px 18px;border-bottom:1px solid var(–bd2);display:flex;align-items:center;justify-content:space-between}
-.card-title{font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(–ink2);display:flex;align-items:center;gap:7px}
-.card-title::before{content:’’;width:6px;height:6px;border-radius:50%;background:var(–p);flex-shrink:0}
+.card{background:var(--bg2);border:1px solid var(--bd2);border-radius:14px;margin-bottom:18px;overflow:hidden;box-shadow:var(--sh)}
+.card-hd{padding:14px 18px;border-bottom:1px solid var(--bd2);display:flex;align-items:center;justify-content:space-between}
+.card-title{font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--ink2);display:flex;align-items:center;gap:7px}
+.card-title::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--p);flex-shrink:0}
 .card-body{padding:18px}
 
 /* ── TABLE ── */
 .tbl-wrap{overflow-x:auto}
 table{width:100%;border-collapse:collapse;font-size:.77rem}
-th{font-size:.58rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(–ink3);padding:9px 14px;text-align:left;border-bottom:1px solid var(–bd2);white-space:nowrap}
-td{padding:11px 14px;border-bottom:1px solid var(–bd2);vertical-align:middle}
+th{font-size:.58rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--ink3);padding:9px 14px;text-align:left;border-bottom:1px solid var(--bd2);white-space:nowrap}
+td{padding:11px 14px;border-bottom:1px solid var(--bd2);vertical-align:middle}
 tr:last-child td{border-bottom:none}
 tr:hover td{background:rgba(128,128,128,.04)}
 
 /* ── BADGES ── */
 .badge{display:inline-flex;align-items:center;gap:3px;font-size:.6rem;font-weight:700;padding:3px 8px;border-radius:5px;white-space:nowrap}
 .badge.out{background:rgba(255,61,87,.1);color:#FF8090;border:1px solid rgba(255,61,87,.2)}
-.badge.bck{background:var(–pp);color:var(–p);border:1px solid var(–pb)}
+.badge.bck{background:var(--pp);color:var(--p);border:1px solid var(--pb)}
 .badge.ai{background:rgba(59,130,246,.1);color:#93BBFF;border:1px solid rgba(59,130,246,.2)}
-.badge.delivered{background:var(–pp);color:var(–p);border:1px solid var(–pb)}
-.badge.pending{background:rgba(255,180,0,.1);color:var(–am);border:1px solid rgba(255,180,0,.2)}
+.badge.delivered{background:var(--pp);color:var(--p);border:1px solid var(--pb)}
+.badge.pending{background:rgba(255,180,0,.1);color:var(--am);border:1px solid rgba(255,180,0,.2)}
 .badge.failed{background:rgba(255,61,87,.1);color:#FF8090;border:1px solid rgba(255,61,87,.2)}
 
 /* ── BUTTONS ── */
 .btn{display:inline-flex;align-items:center;gap:5px;font-size:.72rem;font-weight:600;border-radius:8px;padding:6px 12px;cursor:pointer;transition:all .15s;border:1px solid transparent;font-family:inherit}
-.btn-primary{background:var(–p);color:#07090A;font-weight:700}
+.btn-primary{background:var(--p);color:#07090A;font-weight:700}
 .btn-primary:hover{filter:brightness(1.1)}
 .btn-primary:disabled{opacity:.4;cursor:not-allowed}
-.btn-ghost{background:none;border-color:var(–bd);color:var(–ink2)}
-.btn-ghost:hover{color:var(–ink);background:var(–bg3)}
-.del-btn{background:none;border:1px solid rgba(255,61,87,.2);color:var(–rd);border-radius:7px;padding:4px 10px;font-size:.65rem;cursor:pointer;transition:all .15s;font-family:inherit}
+.btn-ghost{background:none;border-color:var(--bd);color:var(--ink2)}
+.btn-ghost:hover{color:var(--ink);background:var(--bg3)}
+.del-btn{background:none;border:1px solid rgba(255,61,87,.2);color:var(--rd);border-radius:7px;padding:4px 10px;font-size:.65rem;cursor:pointer;transition:all .15s;font-family:inherit}
 .del-btn:hover{background:rgba(255,61,87,.1)}
-.email-btn{background:none;border:1px solid rgba(255,180,0,.2);color:var(–am);border-radius:7px;padding:4px 10px;font-size:.65rem;cursor:pointer;transition:all .15s;font-family:inherit}
+.email-btn{background:none;border:1px solid rgba(255,180,0,.2);color:var(--am);border-radius:7px;padding:4px 10px;font-size:.65rem;cursor:pointer;transition:all .15s;font-family:inherit}
 .email-btn:hover{background:rgba(255,180,0,.1)}
 
 /* ── FILTER BAR ── */
 .filter-bar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
-.filter-bar input,.filter-bar select{background:var(–bg2);border:1px solid var(–bd2);border-radius:9px;padding:8px 12px;font-size:.78rem;color:var(–ink);outline:none;transition:border-color .15s}
+.filter-bar input,.filter-bar select{background:var(--bg2);border:1px solid var(--bd2);border-radius:9px;padding:8px 12px;font-size:.78rem;color:var(--ink);outline:none;transition:border-color .15s}
 .filter-bar input{flex:1;min-width:150px}
-.filter-bar input:focus,.filter-bar select:focus{border-color:var(–p)}
-.filter-bar input::placeholder{color:var(–ink3)}
+.filter-bar input:focus,.filter-bar select:focus{border-color:var(--p)}
+.filter-bar input::placeholder{color:var(--ink3)}
 
 /* ── USER AVATAR ── */
-.av{width:28px;height:28px;border-radius:50%;background:var(–pp);border:1px solid var(–pb);display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:.68rem;color:var(–p);flex-shrink:0}
+.av{width:28px;height:28px;border-radius:50%;background:var(--pp);border:1px solid var(--pb);display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:.68rem;color:var(--p);flex-shrink:0}
 
 /* ── CONFIRMS DOTS ── */
 .cdots{display:flex;gap:2px;align-items:center}
-.cdot{width:7px;height:7px;border-radius:50%;background:var(–bd2)}
-.cdot.on{background:var(–p)}
+.cdot{width:7px;height:7px;border-radius:50%;background:var(--bd2)}
+.cdot.on{background:var(--p)}
 
 /* ── AREAS ── */
 .area-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:10px}
-.area-item{background:var(–bg2);border:1px solid var(–bd2);border-radius:10px;padding:12px 14px;display:flex;align-items:center;justify-content:space-between;gap:8px}
+.area-item{background:var(--bg2);border:1px solid var(--bd2);border-radius:10px;padding:12px 14px;display:flex;align-items:center;justify-content:space-between;gap:8px}
 .area-name{font-size:.78rem;font-weight:600}
-.area-sub{font-size:.63rem;color:var(–ink3);margin-top:2px}
+.area-sub{font-size:.63rem;color:var(--ink3);margin-top:2px}
 .adot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
-.adot.out{background:var(–rd);box-shadow:0 0 6px rgba(255,61,87,.5);animation:blink 1.5s ease infinite}
+.adot.out{background:var(--rd);box-shadow:0 0 6px rgba(255,61,87,.5);animation:blink 1.5s ease infinite}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:.4}}
-.adot.ok{background:var(–p);box-shadow:0 0 5px rgba(0,230,118,.4)}
-.adot.unknown{background:var(–ink3)}
+.adot.ok{background:var(--p);box-shadow:0 0 5px rgba(0,230,118,.4)}
+.adot.unknown{background:var(--ink3)}
 
 /* ── BROADCAST ── */
 .bc-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}
 .bc-form{display:flex;flex-direction:column;gap:12px}
-.bc-form textarea{min-height:90px;resize:vertical;background:var(–bg3);border:1px solid var(–bd);border-radius:9px;padding:11px 14px;font-size:.82rem;color:var(–ink);outline:none;transition:border-color .15s}
-.bc-form textarea:focus{border-color:var(–p)}
+.bc-form textarea{min-height:90px;resize:vertical;background:var(--bg3);border:1px solid var(--bd);border-radius:9px;padding:11px 14px;font-size:.82rem;color:var(--ink);outline:none;transition:border-color .15s}
+.bc-form textarea:focus{border-color:var(--p)}
 
 /* ── MODAL ── */
 .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.65);backdrop-filter:blur(4px);z-index:300;display:none;align-items:center;justify-content:center;padding:20px}
 .modal-bg.open{display:flex}
-.modal{background:var(–bg2);border:1px solid var(–bd2);border-radius:16px;padding:24px;width:100%;max-width:400px}
+.modal{background:var(--bg2);border:1px solid var(--bd2);border-radius:16px;padding:24px;width:100%;max-width:400px}
 .modal h3{font-size:1rem;font-weight:700;margin-bottom:6px}
-.modal-p{font-size:.76rem;color:var(–ink2);margin-bottom:18px;line-height:1.5}
+.modal-p{font-size:.76rem;color:var(--ink2);margin-bottom:18px;line-height:1.5}
 .modal-btns{display:flex;gap:8px;justify-content:flex-end;margin-top:18px}
 
 /* ── MISC ── */
-.loading-row,.empty-state{color:var(–ink3);font-size:.76rem;padding:28px;text-align:center}
-.spin{display:inline-block;width:14px;height:14px;border:2px solid var(–bd2);border-top-color:var(–p);border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle;margin-right:5px}
+.loading-row,.empty-state{color:var(--ink3);font-size:.76rem;padding:28px;text-align:center}
+.spin{display:inline-block;width:14px;height:14px;border:2px solid var(--bd2);border-top-color:var(--p);border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle;margin-right:5px}
 @keyframes spin{to{transform:rotate(360deg)}}
-.live-dot{width:7px;height:7px;background:var(–p);border-radius:50%;animation:livepulse 2s ease infinite;display:inline-block;margin-right:5px;vertical-align:middle}
+.live-dot{width:7px;height:7px;background:var(--p);border-radius:50%;animation:livepulse 2s ease infinite;display:inline-block;margin-right:5px;vertical-align:middle}
 @keyframes livepulse{0%,100%{box-shadow:0 0 0 0 rgba(0,230,118,.5)}50%{box-shadow:0 0 0 5px rgba(0,230,118,0)}}
 .mono{font-family:monospace;font-size:.72rem}
-#toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);background:var(–bg2);border:1px solid var(–bd);border-radius:10px;padding:10px 18px;font-size:.76rem;color:var(–ink);opacity:0;transition:all .25s;z-index:400;white-space:nowrap;pointer-events:none;box-shadow:var(–sh)}
+#toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--bg2);border:1px solid var(--bd);border-radius:10px;padding:10px 18px;font-size:.76rem;color:var(--ink);opacity:0;transition:all .25s;z-index:400;white-space:nowrap;pointer-events:none;box-shadow:var(--sh)}
 #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
-#toast.ok{border-color:var(–pb);color:var(–p)}
+#toast.ok{border-color:var(--pb);color:var(--p)}
 #toast.err{border-color:rgba(255,61,87,.3);color:#FF8090}
-#toast.am{border-color:rgba(255,180,0,.3);color:var(–am)}
+#toast.am{border-color:rgba(255,180,0,.3);color:var(--am)}
 
 /* ── RESPONSIVE ── */
 @media(max-width:768px){
-.sidebar{transform:translateX(-100%)}
-.sidebar.open{transform:translateX(0)}
-.mob-bar{display:flex}
-.main{margin-left:0;padding:66px 14px 28px}
-.stat-row{grid-template-columns:repeat(2,1fr)}
-.bc-grid{grid-template-columns:1fr}
-.area-grid{grid-template-columns:1fr 1fr}
-.ph-row{flex-direction:column;align-items:flex-start}
+  .sidebar{transform:translateX(-100%)}
+  .sidebar.open{transform:translateX(0)}
+  .mob-bar{display:flex}
+  .main{margin-left:0;padding:66px 14px 28px}
+  .stat-row{grid-template-columns:repeat(2,1fr)}
+  .bc-grid{grid-template-columns:1fr}
+  .area-grid{grid-template-columns:1fr 1fr}
+  .ph-row{flex-direction:column;align-items:flex-start}
 }
 @media(max-width:400px){
-.stat-row{grid-template-columns:1fr 1fr}
-.area-grid{grid-template-columns:1fr}
+  .stat-row{grid-template-columns:1fr 1fr}
+  .area-grid{grid-template-columns:1fr}
 }
 </style>
-
 </head>
 <body>
 
 <!-- AUTH -->
-
 <div id="authScreen">
   <div class="auth-card">
     <h1>NEPA<em>Watch</em> Admin</h1>
@@ -239,11 +236,9 @@ tr:hover td{background:rgba(128,128,128,.04)}
 </div>
 
 <!-- APP -->
-
 <div id="adminApp">
 
   <!-- Mobile bar -->
-
   <div class="mob-bar">
     <div class="mob-logo">NEPA<em>Watch</em> <span style="font-size:.55rem;background:rgba(255,180,0,.12);color:var(--am);border:1px solid rgba(255,180,0,.2);border-radius:4px;padding:1px 5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase">Admin</span></div>
     <button class="theme-btn-mob theme-btn" onclick="toggleTheme()" title="Toggle theme">
@@ -256,7 +251,6 @@ tr:hover td{background:rgba(128,128,128,.04)}
   <div class="sb-overlay" id="sbOverlay" onclick="toggleSidebar(false)"></div>
 
   <!-- Sidebar -->
-
   <nav class="sidebar" id="sidebar">
     <div class="sb-top">
       <div>
@@ -268,233 +262,284 @@ tr:hover td{background:rgba(128,128,128,.04)}
       </button>
     </div>
 
-```
-<div class="sb-nav">
-  <div class="sb-sec">Overview</div>
-  <button class="sb-item active" data-page="dashboard" onclick="nav(this)">
-    <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="1" y="1" width="5" height="5" rx="1.3" stroke="currentColor" stroke-width="1.3"/><rect x="8" y="1" width="5" height="5" rx="1.3" stroke="currentColor" stroke-width="1.3"/><rect x="1" y="8" width="5" height="5" rx="1.3" stroke="currentColor" stroke-width="1.3"/><rect x="8" y="8" width="5" height="5" rx="1.3" stroke="currentColor" stroke-width="1.3"/></svg>
-    Dashboard
-  </button>
-  <div class="sb-sec">Reports</div>
-  <button class="sb-item" data-page="reports" onclick="nav(this)">
-    <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 3h10M2 7h10M2 11h6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
-    All Reports
-  </button>
-  <button class="sb-item" data-page="confirms" onclick="nav(this)">
-    <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="5.5" stroke="currentColor" stroke-width="1.3"/><path d="M4.5 7l2 2 3-3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
-    Confirmations
-  </button>
-  <button class="sb-item" data-page="areas" onclick="nav(this)">
-    <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1A3 3 0 0 0 4 4C4 7.5 7 12 7 12S10 7.5 10 4A3 3 0 0 0 7 1z" stroke="currentColor" stroke-width="1.3"/><circle cx="7" cy="4" r="1.2" fill="currentColor"/></svg>
-    Areas & Status
-  </button>
-  <div class="sb-sec">Users</div>
-  <button class="sb-item" data-page="users" onclick="nav(this)">
-    <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="5" r="2.5" stroke="currentColor" stroke-width="1.3"/><path d="M2 13c0-3 2.5-4.5 5-4.5s5 1.5 5 4.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
-    All Users
-  </button>
-  <button class="sb-item" data-page="broadcast" onclick="nav(this)">
-    <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M1.5 5h11v7a1 1 0 0 1-1 1h-9a1 1 0 0 1-1-1V5z" stroke="currentColor" stroke-width="1.3"/><path d="M1.5 5L7 1.5 12.5 5" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>
-    Broadcast
-  </button>
-  <div class="sb-sec">Locations</div>
-  <button class="sb-item" data-page="locations" onclick="nav(this)">
-    <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1A3 3 0 0 0 4 4C4 7.5 7 12 7 12S10 7.5 10 4A3 3 0 0 0 7 1z" stroke="currentColor" stroke-width="1.3"/><circle cx="7" cy="4.2" r="1.2" stroke="currentColor" stroke-width="1"/><path d="M2 13h10" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
-    Custom Locations
-  </button>
-  <div class="sb-sec">Billing</div>
-  <button class="sb-item" data-page="topup" onclick="nav(this)">
-    <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="1" y="3" width="12" height="8.5" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M1 6h12" stroke="currentColor" stroke-width="1.3"/><circle cx="3.5" cy="9" r="1" fill="currentColor"/></svg>
-    Top-ups
-  </button>
-</div>
+    <div class="sb-nav">
+      <div class="sb-sec">Overview</div>
+      <button class="sb-item active" data-page="dashboard" onclick="nav(this)">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="1" y="1" width="5" height="5" rx="1.3" stroke="currentColor" stroke-width="1.3"/><rect x="8" y="1" width="5" height="5" rx="1.3" stroke="currentColor" stroke-width="1.3"/><rect x="1" y="8" width="5" height="5" rx="1.3" stroke="currentColor" stroke-width="1.3"/><rect x="8" y="8" width="5" height="5" rx="1.3" stroke="currentColor" stroke-width="1.3"/></svg>
+        Dashboard
+      </button>
+      <div class="sb-sec">Reports</div>
+      <button class="sb-item" data-page="reports" onclick="nav(this)">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 3h10M2 7h10M2 11h6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+        All Reports
+      </button>
+      <button class="sb-item" data-page="confirms" onclick="nav(this)">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="5.5" stroke="currentColor" stroke-width="1.3"/><path d="M4.5 7l2 2 3-3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Confirmations
+      </button>
+      <button class="sb-item" data-page="areas" onclick="nav(this)">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1A3 3 0 0 0 4 4C4 7.5 7 12 7 12S10 7.5 10 4A3 3 0 0 0 7 1z" stroke="currentColor" stroke-width="1.3"/><circle cx="7" cy="4" r="1.2" fill="currentColor"/></svg>
+        Areas & Status
+      </button>
+      <div class="sb-sec">Users</div>
+      <button class="sb-item" data-page="users" onclick="nav(this)">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="5" r="2.5" stroke="currentColor" stroke-width="1.3"/><path d="M2 13c0-3 2.5-4.5 5-4.5s5 1.5 5 4.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+        All Users
+      </button>
+      <button class="sb-item" data-page="broadcast" onclick="nav(this)">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M1.5 5h11v7a1 1 0 0 1-1 1h-9a1 1 0 0 1-1-1V5z" stroke="currentColor" stroke-width="1.3"/><path d="M1.5 5L7 1.5 12.5 5" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>
+        Broadcast
+      </button>
+      <button class="sb-item" data-page="health" onclick="nav(this)">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="1" y="6" width="2" height="6" rx=".5" fill="currentColor"/><rect x="5" y="3.5" width="2" height="8.5" rx=".5" fill="currentColor"/><rect x="9" y="1.5" width="2" height="10.5" rx=".5" fill="currentColor"/><path d="M1 2l4-1 4 2 4-2" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Area Health
+      </button>
+      <button class="sb-item" data-page="announcements" onclick="nav(this)">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1.5L1.5 12H12.5L7 1.5Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M7 5.5V8.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><circle cx="7" cy="10.5" r=".6" fill="currentColor"/></svg>
+        Announcements
+      </button>
+      <div class="sb-sec">Locations</div>
+      <button class="sb-item" data-page="locations" onclick="nav(this)">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1A3 3 0 0 0 4 4C4 7.5 7 12 7 12S10 7.5 10 4A3 3 0 0 0 7 1z" stroke="currentColor" stroke-width="1.3"/><circle cx="7" cy="4.2" r="1.2" stroke="currentColor" stroke-width="1"/><path d="M2 13h10" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+        Custom Locations
+      </button>
+      <div class="sb-sec">Billing</div>
+      <button class="sb-item" data-page="topup" onclick="nav(this)">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="1" y="3" width="12" height="8.5" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M1 6h12" stroke="currentColor" stroke-width="1.3"/><circle cx="3.5" cy="9" r="1" fill="currentColor"/></svg>
+        Top-ups
+      </button>
+    </div>
 
-<div class="sb-foot">
-  <div class="sb-user-email" id="sbUserEmail">—</div>
-  <button class="logout-btn" onclick="doLogout()">Sign Out</button>
-</div>
-```
-
+    <div class="sb-foot">
+      <div class="sb-user-email" id="sbUserEmail">—</div>
+      <button class="logout-btn" onclick="doLogout()">Sign Out</button>
+    </div>
   </nav>
 
   <!-- MAIN CONTENT -->
-
   <div class="main">
 
-```
-<!-- DASHBOARD -->
-<div class="page active" id="page-dashboard">
-  <div class="ph-row">
-    <div class="ph"><h2>Dashboard</h2><p><span class="live-dot"></span>Live — NEPAWatch Lagos</p></div>
-    <button class="btn btn-ghost" onclick="refreshAll()">↻ Refresh</button>
-  </div>
-  <div class="stat-row">
-    <div class="stat-pill accent"><div class="sp-val" id="st-users">—</div><div class="sp-lbl">Total Users</div></div>
-    <div class="stat-pill"><div class="sp-val" id="st-reports">—</div><div class="sp-lbl">Total Reports</div></div>
-    <div class="stat-pill red"><div class="sp-val" id="st-outages">—</div><div class="sp-lbl">Active Outages</div></div>
-    <div class="stat-pill"><div class="sp-val" id="st-areas">—</div><div class="sp-lbl">Areas Active</div></div>
-    <div class="stat-pill amber"><div class="sp-val" id="st-today">—</div><div class="sp-lbl">Reports Today</div></div>
-    <div class="stat-pill blue"><div class="sp-val" id="st-confirms">—</div><div class="sp-lbl">Confirms Today</div></div>
-    <div class="stat-pill accent"><div class="sp-val" id="st-topups">—</div><div class="sp-lbl">Total Top-ups</div></div>
-    <div class="stat-pill amber"><div class="sp-val" id="st-revenue">—</div><div class="sp-lbl">Top-up Revenue</div></div>
-  </div>
-  <div class="card">
-    <div class="card-hd"><div class="card-title">Recent Reports</div><span style="font-size:.64rem;color:var(--ink3)">Last 15</span></div>
-    <div class="tbl-wrap"><table><thead><tr><th>Location</th><th>Area</th><th>Type</th><th>Confirms</th><th>Time</th></tr></thead><tbody id="dashReports"><tr><td colspan="5" class="loading-row"><span class="spin"></span>Loading…</td></tr></tbody></table></div>
-  </div>
-  <div class="card">
-    <div class="card-hd"><div class="card-title">Recent Top-ups</div><span style="font-size:.64rem;color:var(--ink3)">Last 10</span></div>
-    <div class="tbl-wrap"><table><thead><tr><th>Meter</th><th>Provider</th><th>Amount</th><th>Status</th><th>Time</th></tr></thead><tbody id="dashTopups"><tr><td colspan="5" class="loading-row"><span class="spin"></span>Loading…</td></tr></tbody></table></div>
-  </div>
-</div>
+    <!-- DASHBOARD -->
+    <div class="page active" id="page-dashboard">
+      <div class="ph-row">
+        <div class="ph"><h2>Dashboard</h2><p><span class="live-dot"></span>Live — NEPAWatch Lagos</p></div>
+        <button class="btn btn-ghost" onclick="refreshAll()">↻ Refresh</button>
+      </div>
+      <div class="stat-row">
+        <div class="stat-pill accent"><div class="sp-val" id="st-users">—</div><div class="sp-lbl">Total Users</div></div>
+        <div class="stat-pill"><div class="sp-val" id="st-reports">—</div><div class="sp-lbl">Total Reports</div></div>
+        <div class="stat-pill red"><div class="sp-val" id="st-outages">—</div><div class="sp-lbl">Active Outages</div></div>
+        <div class="stat-pill"><div class="sp-val" id="st-areas">—</div><div class="sp-lbl">Areas Active</div></div>
+        <div class="stat-pill amber"><div class="sp-val" id="st-today">—</div><div class="sp-lbl">Reports Today</div></div>
+        <div class="stat-pill blue"><div class="sp-val" id="st-confirms">—</div><div class="sp-lbl">Confirms Today</div></div>
+        <div class="stat-pill accent"><div class="sp-val" id="st-topups">—</div><div class="sp-lbl">Total Top-ups</div></div>
+        <div class="stat-pill amber"><div class="sp-val" id="st-revenue">—</div><div class="sp-lbl">Top-up Revenue</div></div>
+      </div>
+      <div class="card">
+        <div class="card-hd"><div class="card-title">Recent Reports</div><span style="font-size:.64rem;color:var(--ink3)">Last 15</span></div>
+        <div class="tbl-wrap"><table><thead><tr><th>Location</th><th>Area</th><th>Type</th><th>Confirms</th><th>Time</th></tr></thead><tbody id="dashReports"><tr><td colspan="5" class="loading-row"><span class="spin"></span>Loading…</td></tr></tbody></table></div>
+      </div>
+      <div class="card">
+        <div class="card-hd"><div class="card-title">Recent Top-ups</div><span style="font-size:.64rem;color:var(--ink3)">Last 10</span></div>
+        <div class="tbl-wrap"><table><thead><tr><th>Meter</th><th>Provider</th><th>Amount</th><th>Status</th><th>Time</th></tr></thead><tbody id="dashTopups"><tr><td colspan="5" class="loading-row"><span class="spin"></span>Loading…</td></tr></tbody></table></div>
+      </div>
+    </div>
 
-<!-- REPORTS -->
-<div class="page" id="page-reports">
-  <div class="ph"><h2>All Reports</h2><p>Every outage and restoration report</p></div>
-  <div class="filter-bar">
-    <input type="text" id="rep-search" placeholder="Search location…" oninput="filterReports()">
-    <select id="rep-type" onchange="filterReports()"><option value="">All types</option><option value="out">Outage</option><option value="bck">Restored</option></select>
-    <select id="rep-area" onchange="filterReports()"><option value="">All areas</option></select>
-    <select id="rep-reporter" onchange="filterReports()"><option value="">All reporters</option><option value="ai">AI Only</option><option value="human">Human Only</option></select>
-  </div>
-  <div class="card"><div class="tbl-wrap"><table><thead><tr><th>Location</th><th>Area</th><th>Type</th><th>Confirms</th><th>Time</th><th>Reporter</th><th></th></tr></thead><tbody id="reportsTable"><tr><td colspan="7" class="loading-row"><span class="spin"></span>Loading…</td></tr></tbody></table></div></div>
-</div>
+    <!-- REPORTS -->
+    <div class="page" id="page-reports">
+      <div class="ph"><h2>All Reports</h2><p>Every outage and restoration report</p></div>
+      <div class="filter-bar">
+        <input type="text" id="rep-search" placeholder="Search location…" oninput="filterReports()">
+        <select id="rep-type" onchange="filterReports()"><option value="">All types</option><option value="out">Outage</option><option value="bck">Restored</option></select>
+        <select id="rep-area" onchange="filterReports()"><option value="">All areas</option></select>
+        <select id="rep-reporter" onchange="filterReports()"><option value="">All reporters</option><option value="ai">AI Only</option><option value="human">Human Only</option></select>
+      </div>
+      <div class="card"><div class="tbl-wrap"><table><thead><tr><th>Location</th><th>Area</th><th>Type</th><th>Confirms</th><th>Time</th><th>Reporter</th><th></th></tr></thead><tbody id="reportsTable"><tr><td colspan="7" class="loading-row"><span class="spin"></span>Loading…</td></tr></tbody></table></div></div>
+    </div>
 
-<!-- CONFIRMATIONS -->
-<div class="page" id="page-confirms">
-  <div class="ph"><h2>Confirmations</h2><p>Reports where users tapped "Confirm this report"</p></div>
-  <div class="card"><div class="tbl-wrap"><table><thead><tr><th>Location</th><th>Area</th><th>Type</th><th>Confirmations</th><th>Time</th></tr></thead><tbody id="confirmsTable"><tr><td colspan="5" class="loading-row"><span class="spin"></span>Loading…</td></tr></tbody></table></div></div>
-</div>
+    <!-- CONFIRMATIONS -->
+    <div class="page" id="page-confirms">
+      <div class="ph"><h2>Confirmations</h2><p>Reports where users tapped "Confirm this report"</p></div>
+      <div class="card"><div class="tbl-wrap"><table><thead><tr><th>Location</th><th>Area</th><th>Type</th><th>Confirmations</th><th>Time</th></tr></thead><tbody id="confirmsTable"><tr><td colspan="5" class="loading-row"><span class="spin"></span>Loading…</td></tr></tbody></table></div></div>
+    </div>
 
-<!-- AREAS -->
-<div class="page" id="page-areas">
-  <div class="ph-row">
-    <div class="ph"><h2>Areas & Status</h2><p>Live power status per Lagos area</p></div>
-    <button class="btn btn-primary" onclick="document.getElementById('addAreaModal').classList.add('open')">+ Add Area</button>
-  </div>
-  <div class="filter-bar"><input type="text" id="area-search" placeholder="Search area…" oninput="renderAreas()"></div>
-  <div class="area-grid" id="areaGrid"><div class="loading-row"><span class="spin"></span>Loading…</div></div>
-</div>
+    <!-- AREAS -->
+    <div class="page" id="page-areas">
+      <div class="ph-row">
+        <div class="ph"><h2>Areas & Status</h2><p>Live power status per Lagos area</p></div>
+        <button class="btn btn-primary" onclick="document.getElementById('addAreaModal').classList.add('open')">+ Add Area</button>
+      </div>
+      <div class="filter-bar"><input type="text" id="area-search" placeholder="Search area…" oninput="renderAreas()"></div>
+      <div class="area-grid" id="areaGrid"><div class="loading-row"><span class="spin"></span>Loading…</div></div>
+    </div>
 
-<!-- USERS -->
-<div class="page" id="page-users">
-  <div class="ph"><h2>All Users</h2><p>Every registered NEPAWatch account</p></div>
-  <div class="filter-bar">
-    <input type="text" id="user-search" placeholder="Search name or email…" oninput="filterUsers()">
-    <select id="user-notif" onchange="filterUsers()"><option value="">All users</option><option value="on">Alerts On</option><option value="off">Alerts Off</option></select>
-  </div>
-  <div class="card"><div class="tbl-wrap"><table><thead><tr><th>User</th><th>Email</th><th>Location</th><th>Alerts</th><th>Joined</th><th></th></tr></thead><tbody id="usersTable"><tr><td colspan="6" class="loading-row"><span class="spin"></span>Loading…</td></tr></tbody></table></div></div>
-</div>
+    <!-- USERS -->
+    <div class="page" id="page-users">
+      <div class="ph"><h2>All Users</h2><p>Every registered NEPAWatch account</p></div>
+      <div class="filter-bar">
+        <input type="text" id="user-search" placeholder="Search name or email…" oninput="filterUsers()">
+        <select id="user-notif" onchange="filterUsers()"><option value="">All users</option><option value="on">Alerts On</option><option value="off">Alerts Off</option></select>
+      </div>
+      <div class="card"><div class="tbl-wrap"><table><thead><tr><th>User</th><th>Email</th><th>Location</th><th>Alerts</th><th>Joined</th><th></th></tr></thead><tbody id="usersTable"><tr><td colspan="6" class="loading-row"><span class="spin"></span>Loading…</td></tr></tbody></table></div></div>
+    </div>
 
-<!-- BROADCAST -->
-<div class="page" id="page-broadcast">
-  <div class="ph"><h2>Broadcast & Email</h2><p>Send emails to all users or specific people</p></div>
-  <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap">
-    <button class="btn btn-primary" id="bcModeAll" onclick="setBcMode('broadcast')" style="flex:1;min-width:120px"><svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M6.5 7.5a1 1 0 1 0 0-2 1 1 0 0 0 0 2z" fill="currentColor"/><path d="M3.5 9.5a4.2 4.2 0 0 1 0-6M9.5 9.5a4.2 4.2 0 0 0 0-6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><path d="M1.5 11.5a7 7 0 0 1 0-10M11.5 11.5a7 7 0 0 0 0-10" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg> Broadcast to Users</button>
-    <button class="btn btn-ghost" id="bcModeOne" onclick="setBcMode('single')" style="flex:1;min-width:120px"><svg width="13" height="13" viewBox="0 0 13 13" fill="none"><rect x="1" y="2.5" width="11" height="8" rx="1.3" stroke="currentColor" stroke-width="1.2"/><path d="M1 5l5.5 3.5L12 5" stroke="currentColor" stroke-width="1.2"/></svg> Email One Person</button>
-  </div>
-  <div class="bc-grid" id="bcGrid">
-    <div class="card">
-      <div class="card-hd"><div class="card-title" id="bcFormTitle">Compose Broadcast</div></div>
-      <div class="card-body">
-        <div class="bc-form">
-          <div class="fld" id="bcToField" style="margin-bottom:0;display:none"><label>To (email address)</label><input id="bc-to" type="email" placeholder="user@example.com"></div>
-          <div class="fld" id="bcAreaField" style="margin-bottom:0"><label>Target Area <span style="color:var(--ink3);font-weight:400">(blank = all users with alerts)</span></label><select id="bc-area"><option value="">All users with alerts enabled</option></select></div>
-          <div class="fld" style="margin-bottom:0"><label>Subject</label><input id="bc-subject" type="text" placeholder="e.g. Scheduled outage in Lekki tonight"></div>
-          <div class="fld" style="margin-bottom:0"><label>Message (plain text)</label><textarea id="bc-body" placeholder="Write your message here…" rows="5"></textarea></div>
-          <div style="margin-bottom:12px">
-            <button class="btn btn-ghost" style="font-size:.72rem;padding:5px 12px" onclick="toggleHtmlEditor()"><svg width="13" height="13" viewBox="0 0 13 13" fill="none"><circle cx="6.5" cy="6.5" r="5" stroke="currentColor" stroke-width="1.2"/><circle cx="4" cy="5" r=".9" fill="currentColor"/><circle cx="7" cy="3.5" r=".9" fill="currentColor"/><circle cx="9.5" cy="5.5" r=".9" fill="currentColor"/></svg> Edit HTML Template</button>
-            <span style="font-size:.65rem;color:var(--ink3);margin-left:8px">Optional — uses plain text if left empty</span>
-          </div>
-          <div id="htmlEditorWrap" style="display:none">
-            <div style="font-size:.72rem;color:var(--ink3);margin-bottom:6px">HTML template — use <code style="background:var(--bg3);padding:1px 5px;border-radius:3px">{{name}}</code>, <code style="background:var(--bg3);padding:1px 5px;border-radius:3px">{{body}}</code>, <code style="background:var(--bg3);padding:1px 5px;border-radius:3px">{{area}}</code> as placeholders</div>
-            <textarea id="bc-html" rows="10" placeholder="Paste your HTML email here…" style="font-family:monospace;font-size:.72rem"></textarea>
-            <div style="display:flex;gap:8px;margin-top:8px">
-              <button class="btn btn-ghost" style="font-size:.7rem;padding:4px 10px" onclick="loadDefaultTemplate()">Load Default Template</button>
-              <button class="btn btn-ghost" style="font-size:.7rem;padding:4px 10px" onclick="previewHtml()">Preview</button>
+    <!-- BROADCAST -->
+    <div class="page" id="page-broadcast">
+      <div class="ph"><h2>Broadcast & Email</h2><p>Send emails to all users or specific people</p></div>
+      <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap">
+        <button class="btn btn-primary" id="bcModeAll" onclick="setBcMode('broadcast')" style="flex:1;min-width:120px"><svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M6.5 7.5a1 1 0 1 0 0-2 1 1 0 0 0 0 2z" fill="currentColor"/><path d="M3.5 9.5a4.2 4.2 0 0 1 0-6M9.5 9.5a4.2 4.2 0 0 0 0-6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><path d="M1.5 11.5a7 7 0 0 1 0-10M11.5 11.5a7 7 0 0 0 0-10" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg> Broadcast to Users</button>
+        <button class="btn btn-ghost" id="bcModeOne" onclick="setBcMode('single')" style="flex:1;min-width:120px"><svg width="13" height="13" viewBox="0 0 13 13" fill="none"><rect x="1" y="2.5" width="11" height="8" rx="1.3" stroke="currentColor" stroke-width="1.2"/><path d="M1 5l5.5 3.5L12 5" stroke="currentColor" stroke-width="1.2"/></svg> Email One Person</button>
+      </div>
+      <div class="bc-grid" id="bcGrid">
+        <div class="card">
+          <div class="card-hd"><div class="card-title" id="bcFormTitle">Compose Broadcast</div></div>
+          <div class="card-body">
+            <div class="bc-form">
+              <div class="fld" id="bcToField" style="margin-bottom:0;display:none"><label>To (email address)</label><input id="bc-to" type="email" placeholder="user@example.com"></div>
+              <div class="fld" id="bcAreaField" style="margin-bottom:0"><label>Target Area <span style="color:var(--ink3);font-weight:400">(blank = all users with alerts)</span></label><select id="bc-area"><option value="">All users with alerts enabled</option></select></div>
+              <div class="fld" style="margin-bottom:0"><label>Subject</label><input id="bc-subject" type="text" placeholder="e.g. Scheduled outage in Lekki tonight"></div>
+              <div class="fld" style="margin-bottom:0"><label>Message (plain text)</label><textarea id="bc-body" placeholder="Write your message here…" rows="5"></textarea></div>
+              <div style="margin-bottom:12px">
+                <button class="btn btn-ghost" style="font-size:.72rem;padding:5px 12px" onclick="toggleHtmlEditor()"><svg width="13" height="13" viewBox="0 0 13 13" fill="none"><circle cx="6.5" cy="6.5" r="5" stroke="currentColor" stroke-width="1.2"/><circle cx="4" cy="5" r=".9" fill="currentColor"/><circle cx="7" cy="3.5" r=".9" fill="currentColor"/><circle cx="9.5" cy="5.5" r=".9" fill="currentColor"/></svg> Edit HTML Template</button>
+                <span style="font-size:.65rem;color:var(--ink3);margin-left:8px">Optional — uses plain text if left empty</span>
+              </div>
+              <div id="htmlEditorWrap" style="display:none">
+                <div style="font-size:.72rem;color:var(--ink3);margin-bottom:6px">HTML template — use <code style="background:var(--bg3);padding:1px 5px;border-radius:3px">{{name}}</code>, <code style="background:var(--bg3);padding:1px 5px;border-radius:3px">{{body}}</code>, <code style="background:var(--bg3);padding:1px 5px;border-radius:3px">{{area}}</code> as placeholders</div>
+                <textarea id="bc-html" rows="10" placeholder="Paste your HTML email here…" style="font-family:monospace;font-size:.72rem"></textarea>
+                <div style="display:flex;gap:8px;margin-top:8px">
+                  <button class="btn btn-ghost" style="font-size:.7rem;padding:4px 10px" onclick="loadDefaultTemplate()">Load Default Template</button>
+                  <button class="btn btn-ghost" style="font-size:.7rem;padding:4px 10px" onclick="previewHtml()">Preview</button>
+                </div>
+              </div>
+              <button class="btn btn-primary" id="bc-send" onclick="sendBroadcast()">Send Broadcast</button>
             </div>
           </div>
-          <button class="btn btn-primary" id="bc-send" onclick="sendBroadcast()">Send Broadcast</button>
+        </div>
+        <div class="card">
+          <div class="card-hd"><div class="card-title">Sent History</div></div>
+          <div class="card-body" id="bc-history"><p class="empty-state">No broadcasts sent yet.</p></div>
         </div>
       </div>
-    </div>
-    <div class="card">
-      <div class="card-hd"><div class="card-title">Sent History</div></div>
-      <div class="card-body" id="bc-history"><p class="empty-state">No broadcasts sent yet.</p></div>
-    </div>
-  </div>
 
-  <!-- TEST PUSH NOTIFICATION -->
-  <div style="margin-top:20px">
-    <div class="card">
-      <div class="card-hd">
-        <div class="card-title">
-          <svg width="13" height="13" viewBox="0 0 13 13" fill="none" style="vertical-align:-2px;margin-right:5px"><path d="M6.5 1C4 1 2 3 2 5.4c0 1 .3 1.9.9 2.6L1.5 11.5l3.6-.9c.4.2.9.3 1.4.3 2.5 0 4.5-2 4.5-4.5S9 1 6.5 1Z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M4.5 5.5h4M4.5 7.5h2" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/></svg>
-          Test Push Notification
-        </div>
-        <span style="font-size:.62rem;color:var(--ink3)">Fire a real push to any subscribed user's device to confirm delivery is working</span>
-      </div>
-      <div class="card-body">
-        <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
-          <div class="fld" style="flex:1;min-width:200px;margin-bottom:0">
-            <label>Target User</label>
-            <select id="tp-user" style="width:100%">
-              <option value="">— loading subscribers… —</option>
-            </select>
+      <!-- TEST PUSH NOTIFICATION -->
+      <div style="margin-top:20px">
+        <div class="card">
+          <div class="card-hd">
+            <div class="card-title">
+              <svg width="13" height="13" viewBox="0 0 13 13" fill="none" style="vertical-align:-2px;margin-right:5px"><path d="M6.5 1C4 1 2 3 2 5.4c0 1 .3 1.9.9 2.6L1.5 11.5l3.6-.9c.4.2.9.3 1.4.3 2.5 0 4.5-2 4.5-4.5S9 1 6.5 1Z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M4.5 5.5h4M4.5 7.5h2" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/></svg>
+              Test Push Notification
+            </div>
+            <span style="font-size:.62rem;color:var(--ink3)">Fire a real push to any subscribed user's device to confirm delivery is working</span>
           </div>
-          <button class="btn btn-primary" id="tp-btn" onclick="sendTestPush()" style="flex-shrink:0;white-space:nowrap">
-            <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M1.5 6.5L11.5 1.5L8.5 11.5L6 7.5L1.5 6.5Z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>
-            Send Test Push
-          </button>
-        </div>
-        <div id="tp-result" style="margin-top:10px;font-size:.72rem;padding:8px 12px;border-radius:7px;display:none"></div>
-        <div style="margin-top:12px;padding:10px 12px;background:var(--bg3);border-radius:8px;font-size:.66rem;color:var(--ink3);line-height:1.7">
-          <strong style="color:var(--ink2)">How this works:</strong> Looks up the user's saved push subscription in Supabase and fires a real encrypted Web Push to their browser or phone. The notification pops up even if the app is closed. A 410 response means the subscription is stale — it gets cleaned up automatically.
+          <div class="card-body">
+            <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
+              <div class="fld" style="flex:1;min-width:200px;margin-bottom:0">
+                <label>Target User</label>
+                <select id="tp-user" style="width:100%">
+                  <option value="">— loading subscribers… —</option>
+                </select>
+              </div>
+              <button class="btn btn-primary" id="tp-btn" onclick="sendTestPush()" style="flex-shrink:0;white-space:nowrap">
+                <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M1.5 6.5L11.5 1.5L8.5 11.5L6 7.5L1.5 6.5Z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>
+                Send Test Push
+              </button>
+            </div>
+            <div id="tp-result" style="margin-top:10px;font-size:.72rem;padding:8px 12px;border-radius:7px;display:none"></div>
+            <div style="margin-top:12px;padding:10px 12px;background:var(--bg3);border-radius:8px;font-size:.66rem;color:var(--ink3);line-height:1.7">
+              <strong style="color:var(--ink2)">How this works:</strong> Looks up the user's saved push subscription in Supabase and fires a real encrypted Web Push to their browser or phone. The notification pops up even if the app is closed. A 410 response means the subscription is stale — it gets cleaned up automatically.
+            </div>
+          </div>
         </div>
       </div>
     </div>
-  </div>
-</div>
 
-<div class="page" id="page-locations">
-  <div class="ph-row">
-    <div class="ph"><h2>Custom Locations</h2><p>User-added streets and locations</p></div>
-    <button class="btn btn-ghost" onclick="loadCustomLocations()">↻ Refresh</button>
-  </div>
 
-  <!-- RLS Warning Banner (hidden by default) -->
-  <div id="rlsWarning" style="display:none;background:var(--am);color:#0d1117;border-radius:10px;padding:16px 18px;margin-bottom:16px;font-size:.78rem;line-height:1.7">
-    <div style="font-weight:700;font-size:.85rem;margin-bottom:6px"><svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M6.5 1.5L1 11.5h11L6.5 1.5z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M6.5 5.5v2.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><circle cx="6.5" cy="9.5" r=".5" fill="currentColor"/></svg> RLS Policy Missing — <span id="rlsAction">edit</span> was blocked</div>
-    <div style="margin-bottom:10px">Your Supabase RLS policy doesn't allow admin edits yet. Run this SQL once to fix it permanently:</div>
-    <pre id="rlsSql" style="background:rgba(0,0,0,.2);border-radius:6px;padding:10px 14px;font-size:.68rem;overflow-x:auto;white-space:pre-wrap;margin:0 0 10px"></pre>
-    <div style="display:flex;gap:8px;flex-wrap:wrap">
-      <a href="https://supabase.com/dashboard/project/djurokbkkqrmpafcxlez/sql" target="_blank" class="btn btn-primary" style="font-size:.72rem;padding:6px 14px;text-decoration:none">Open Supabase SQL Editor ↗</a>
-      <button class="btn btn-ghost" style="font-size:.72rem;padding:6px 14px" onclick="navigator.clipboard.writeText(document.getElementById('rlsSql').textContent).then(()=>toast('SQL copied!','ok'))">Copy SQL</button>
-      <button class="btn btn-ghost" style="font-size:.72rem;padding:6px 14px" onclick="document.getElementById('rlsWarning').style.display='none'">Dismiss</button>
+    <!-- AREA HEALTH PAGE -->
+    <div class="page" id="page-health">
+      <div class="ph-row">
+        <div class="ph"><h2>Area Health</h2><p>Data coverage and activity by area</p></div>
+        <button class="btn btn-ghost" onclick="loadAreaHealth()">↻ Refresh</button>
+      </div>
+      <div class="card">
+        <div class="card-hd"><div class="card-title">Silent Areas (72h+ no reports)</div></div>
+        <div class="card-body" id="ah-silent"><p class="empty-state">Loading...</p></div>
+      </div>
+      <div class="card">
+        <div class="card-hd"><div class="card-title">Most Active Areas (7 days)</div></div>
+        <div class="card-body" id="ah-active"><p class="empty-state">Loading...</p></div>
+      </div>
+      <div class="card">
+        <div class="card-hd"><div class="card-title">Flagged Reports</div></div>
+        <div class="card-body" id="ah-flagged"><p class="empty-state">Loading...</p></div>
+      </div>
     </div>
-  </div>
 
-  <div class="filter-bar"><input type="text" id="loc-search" placeholder="Search location or area…" oninput="filterLocations()"></div>
-  <div class="card"><div class="tbl-wrap"><table><thead><tr><th>Street Name</th><th>Area</th><th>Added</th><th colspan="2">Actions</th></tr></thead><tbody id="locationsTable"><tr><td colspan="5" class="loading-row"><span class="spin"></span>Loading…</td></tr></tbody></table></div></div>
-</div>
+    <!-- ANNOUNCEMENTS PAGE -->
+    <div class="page" id="page-announcements">
+      <div class="ph"><h2>Announcements</h2><p>Post scheduled EKEDC/IKEDC outage notices for users</p></div>
+      <div class="card">
+        <div class="card-hd"><div class="card-title">New Announcement</div></div>
+        <div class="card-body">
+          <div class="fg"><label class="flbl">Area Affected</label>
+            <input class="finp" id="ann-area" placeholder="e.g. Yaba, Victoria Island (leave blank for all Lagos)">
+          </div>
+          <div class="fg"><label class="flbl">Message</label>
+            <textarea class="finp" id="ann-msg" rows="3" placeholder="EKEDC has scheduled maintenance on the Ijora feeder line…" style="resize:vertical"></textarea>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <div class="fg"><label class="flbl">Starts At</label>
+              <input class="finp" id="ann-start" type="datetime-local">
+            </div>
+            <div class="fg"><label class="flbl">Ends At</label>
+              <input class="finp" id="ann-end" type="datetime-local">
+            </div>
+          </div>
+          <button class="btn btn-primary" onclick="postAnnouncement()" style="margin-top:8px">Post Announcement</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-hd"><div class="card-title">Active Announcements</div></div>
+        <div class="card-body" id="ann-list"><p class="empty-state">Loading...</p></div>
+      </div>
+    </div>
 
-<!-- TOP-UPS -->
-<div class="page" id="page-topup">
-  <div class="ph"><h2>Electricity Top-ups</h2><p>All meter recharge purchases</p></div>
-  <div class="filter-bar">
-    <input type="text" id="tu-search" placeholder="Search meter, email, reference…" oninput="filterTopups()">
-    <select id="tu-status" onchange="filterTopups()"><option value="">All statuses</option><option value="delivered">Delivered</option><option value="pending">Pending</option><option value="failed">Failed</option></select>
-    <select id="tu-provider" onchange="filterTopups()"><option value="">All providers</option><option value="IKEDC">IKEDC</option><option value="EKEDC">EKEDC</option></select>
-  </div>
-  <div class="card"><div class="tbl-wrap"><table><thead><tr><th>Reference</th><th>Customer</th><th>Meter</th><th>Provider</th><th>Amount</th><th>Token</th><th>Status</th><th>Date</th></tr></thead><tbody id="topupTable"><tr><td colspan="8" class="loading-row"><span class="spin"></span>Loading…</td></tr></tbody></table></div></div>
-</div>
-```
+    <div class="page" id="page-locations">
+      <div class="ph-row">
+        <div class="ph"><h2>Custom Locations</h2><p>User-added streets and locations</p></div>
+        <button class="btn btn-ghost" onclick="loadCustomLocations()">↻ Refresh</button>
+      </div>
+
+      <!-- RLS Warning Banner (hidden by default) -->
+      <div id="rlsWarning" style="display:none;background:var(--am);color:#0d1117;border-radius:10px;padding:16px 18px;margin-bottom:16px;font-size:.78rem;line-height:1.7">
+        <div style="font-weight:700;font-size:.85rem;margin-bottom:6px"><svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M6.5 1.5L1 11.5h11L6.5 1.5z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M6.5 5.5v2.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><circle cx="6.5" cy="9.5" r=".5" fill="currentColor"/></svg> RLS Policy Missing — <span id="rlsAction">edit</span> was blocked</div>
+        <div style="margin-bottom:10px">Your Supabase RLS policy doesn't allow admin edits yet. Run this SQL once to fix it permanently:</div>
+        <pre id="rlsSql" style="background:rgba(0,0,0,.2);border-radius:6px;padding:10px 14px;font-size:.68rem;overflow-x:auto;white-space:pre-wrap;margin:0 0 10px"></pre>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <a href="https://supabase.com/dashboard/project/djurokbkkqrmpafcxlez/sql" target="_blank" class="btn btn-primary" style="font-size:.72rem;padding:6px 14px;text-decoration:none">Open Supabase SQL Editor ↗</a>
+          <button class="btn btn-ghost" style="font-size:.72rem;padding:6px 14px" onclick="navigator.clipboard.writeText(document.getElementById('rlsSql').textContent).then(()=>toast('SQL copied!','ok'))">Copy SQL</button>
+          <button class="btn btn-ghost" style="font-size:.72rem;padding:6px 14px" onclick="document.getElementById('rlsWarning').style.display='none'">Dismiss</button>
+        </div>
+      </div>
+
+      <div class="filter-bar"><input type="text" id="loc-search" placeholder="Search location or area…" oninput="filterLocations()"></div>
+      <div class="card"><div class="tbl-wrap"><table><thead><tr><th>Street Name</th><th>Area</th><th>Added</th><th colspan="2">Actions</th></tr></thead><tbody id="locationsTable"><tr><td colspan="5" class="loading-row"><span class="spin"></span>Loading…</td></tr></tbody></table></div></div>
+    </div>
+
+    <!-- TOP-UPS -->
+    <div class="page" id="page-topup">
+      <div class="ph"><h2>Electricity Top-ups</h2><p>All meter recharge purchases</p></div>
+      <div class="filter-bar">
+        <input type="text" id="tu-search" placeholder="Search meter, email, reference…" oninput="filterTopups()">
+        <select id="tu-status" onchange="filterTopups()"><option value="">All statuses</option><option value="delivered">Delivered</option><option value="pending">Pending</option><option value="failed">Failed</option></select>
+        <select id="tu-provider" onchange="filterTopups()"><option value="">All providers</option><option value="IKEDC">IKEDC</option><option value="EKEDC">EKEDC</option></select>
+      </div>
+      <div class="card"><div class="tbl-wrap"><table><thead><tr><th>Reference</th><th>Customer</th><th>Meter</th><th>Provider</th><th>Amount</th><th>Token</th><th>Status</th><th>Date</th></tr></thead><tbody id="topupTable"><tr><td colspan="8" class="loading-row"><span class="spin"></span>Loading…</td></tr></tbody></table></div></div>
+    </div>
 
   </div>
 </div>
 
 <!-- ADD AREA MODAL -->
-
 <div class="modal-bg" id="addAreaModal">
   <div class="modal">
     <h3>Add New Area</h3>
@@ -508,7 +553,6 @@ tr:hover td{background:rgba(128,128,128,.04)}
 </div>
 
 <!-- EDIT LOCATION MODAL -->
-
 <div class="modal-bg" id="editLocModal">
   <div class="modal">
     <h3>Edit Location</h3>
@@ -524,7 +568,6 @@ tr:hover td{background:rgba(128,128,128,.04)}
 </div>
 
 <!-- HTML PREVIEW MODAL -->
-
 <div class="modal-bg" id="htmlPreviewModal" onclick="this.classList.remove('open')">
   <div class="modal" style="max-width:640px;width:95%" onclick="event.stopPropagation()">
     <h3>Email Preview</h3>
@@ -627,6 +670,8 @@ function nav(el) {
   el.classList.add('active');
   document.getElementById(`page-${page}`).classList.add('active');
   if (window.innerWidth<=768) toggleSidebar(false);
+  if (page === 'health') loadAreaHealth();
+  if (page === 'announcements') loadAnnouncementsList();
 }
 function toggleSidebar(force) {
   const s=document.getElementById('sidebar'), o=document.getElementById('sbOverlay');
@@ -897,183 +942,181 @@ function toggleHtmlEditor(){
 }
 function loadDefaultTemplate(){
   const tpl=`<!DOCTYPE html><html><head><meta charset="utf-8"><style>body{font-family:sans-serif;background:#0d1117;color:#e6edf3;margin:0;padding:0}.wrap{max-width:520px;margin:40px auto;background:#161b22;border-radius:14px;overflow:hidden}.header{background:#f7c842;padding:22px 28px;text-align:center}.logo{font-size:1.3rem;font-weight:800;color:#0d1117;letter-spacing:-0.5px}.logo em{color:#333;font-style:normal}.body{padding:28px 28px 20px}.greeting{font-size:1rem;font-weight:600;margin-bottom:12px;color:#e6edf3}.msg{font-size:.88rem;line-height:1.7;color:#b1bac4;white-space:pre-wrap}.footer{padding:14px 28px 22px;font-size:.7rem;color:#484f58;border-top:1px solid #21262d}</style></head><body><div class="wrap"><div class="header"><div class="logo">NEPA<em>Watch</em> Lagos</div></div><div class="body"><div class="greeting">Hi {{name}},</div><div class="msg">{{body}}</div></div><div class="footer">You received this because you signed up for NEPAWatch alerts.<br>NEPAWatch Lagos — nepawatch.netlify.app</div></div></body></html>`;
-
-document.getElementById(‘bc-html’).value=tpl;
-document.getElementById(‘htmlEditorWrap’).style.display=‘block’;
+  document.getElementById('bc-html').value=tpl;
+  document.getElementById('htmlEditorWrap').style.display='block';
 }
 function previewHtml(){
-const html=document.getElementById(‘bc-html’).value;
-const body=document.getElementById(‘bc-body’).value;
-const filled=html.replace(/{{name}}/g,‘Preview User’).replace(/{{body}}/g,body||‘Your message here’).replace(/{{area}}/g,document.getElementById(‘bc-area’)?.value||‘Lagos’);
-document.getElementById(‘htmlPreviewFrame’).innerHTML=filled;
-document.getElementById(‘htmlPreviewModal’).classList.add(‘open’);
+  const html=document.getElementById('bc-html').value;
+  const body=document.getElementById('bc-body').value;
+  const filled=html.replace(/{{name}}/g,'Preview User').replace(/{{body}}/g,body||'Your message here').replace(/{{area}}/g,document.getElementById('bc-area')?.value||'Lagos');
+  document.getElementById('htmlPreviewFrame').innerHTML=filled;
+  document.getElementById('htmlPreviewModal').classList.add('open');
 }
 async function sendBroadcast() {
-const subject=document.getElementById(‘bc-subject’).value.trim();
-const body=document.getElementById(‘bc-body’).value.trim();
-const htmlTpl=document.getElementById(‘bc-html’)?.value.trim()||’’;
-const btn=document.getElementById(‘bc-send’);
-if(!subject||!body){toast(‘Enter subject and message’,‘err’);return;}
-btn.textContent=‘Sending…’; btn.disabled=true;
-try {
-if(_bcMode===‘single’){
-const toEmail=document.getElementById(‘bc-to’).value.trim();
-if(!toEmail||!toEmail.includes(’@’)){toast(‘Enter a valid email address’,‘err’);btn.textContent=‘Send Email’;btn.disabled=false;return;}
-if(!confirm(`Send to ${toEmail}?`))return;
-const html=htmlTpl?htmlTpl.replace(/{{name}}/g,toEmail.split(’@’)[0]).replace(/{{body}}/g,body).replace(/{{area}}/g,’’):null;
-const res=await fetch(EMAIL_FN,{method:‘POST’,headers:{‘Content-Type’:‘application/json’,‘apikey’:SUPA_ANON,‘Authorization’:`Bearer ${SUPA_ANON}`},body:JSON.stringify({mode:‘single’,to:toEmail,subject,body,html})});
-const json=await res.json().catch(()=>({}));
-if(res.ok||json.sent){toast(`Sent to ${toEmail}`,‘ok’);bcHistory.unshift({subject,area:toEmail,count:1,time:new Date().toLocaleTimeString(‘en-NG’,{hour:‘2-digit’,minute:‘2-digit’})});renderBcHistory();}
-else toast(‘Send failed — check Edge Function logs’,‘err’);
-} else {
-const area=document.getElementById(‘bc-area’).value;
-if(!confirm(`Send to ${area?'users in '+area:'ALL users'}?`))return;
-const html=htmlTpl?htmlTpl:null;
-const res=await fetch(EMAIL_FN,{method:‘POST’,headers:{‘Content-Type’:‘application/json’,‘apikey’:SUPA_ANON,‘Authorization’:`Bearer ${SUPA_ANON}`},body:JSON.stringify({mode:‘broadcast’,subject,body,html,area:area||null})});
-const json=await res.json().catch(()=>({}));
-const count=json.sent||0;
-toast(`Sent to ${count} user${count!==1?'s':''}!`,‘ok’);
-bcHistory.unshift({subject,area:area||‘All users’,count,time:new Date().toLocaleTimeString(‘en-NG’,{hour:‘2-digit’,minute:‘2-digit’})});
-renderBcHistory();
-document.getElementById(‘bc-subject’).value=’’;
-document.getElementById(‘bc-body’).value=’’;
-document.getElementById(‘bc-html’).value=’’;
-}
-} catch(e){toast(‘Send failed: ‘+e.message,‘err’);}
-btn.textContent=_bcMode===‘single’?‘Send Email’:‘Send Broadcast’; btn.disabled=false;
+  const subject=document.getElementById('bc-subject').value.trim();
+  const body=document.getElementById('bc-body').value.trim();
+  const htmlTpl=document.getElementById('bc-html')?.value.trim()||'';
+  const btn=document.getElementById('bc-send');
+  if(!subject||!body){toast('Enter subject and message','err');return;}
+  btn.textContent='Sending…'; btn.disabled=true;
+  try {
+    if(_bcMode==='single'){
+      const toEmail=document.getElementById('bc-to').value.trim();
+      if(!toEmail||!toEmail.includes('@')){toast('Enter a valid email address','err');btn.textContent='Send Email';btn.disabled=false;return;}
+      if(!confirm(`Send to ${toEmail}?`))return;
+      const html=htmlTpl?htmlTpl.replace(/{{name}}/g,toEmail.split('@')[0]).replace(/{{body}}/g,body).replace(/{{area}}/g,''):null;
+      const res=await fetch(EMAIL_FN,{method:'POST',headers:{'Content-Type':'application/json','apikey':SUPA_ANON,'Authorization':`Bearer ${SUPA_ANON}`},body:JSON.stringify({mode:'single',to:toEmail,subject,body,html})});
+      const json=await res.json().catch(()=>({}));
+      if(res.ok||json.sent){toast(`Sent to ${toEmail}`,'ok');bcHistory.unshift({subject,area:toEmail,count:1,time:new Date().toLocaleTimeString('en-NG',{hour:'2-digit',minute:'2-digit'})});renderBcHistory();}
+      else toast('Send failed — check Edge Function logs','err');
+    } else {
+      const area=document.getElementById('bc-area').value;
+      if(!confirm(`Send to ${area?'users in '+area:'ALL users'}?`))return;
+      const html=htmlTpl?htmlTpl:null;
+      const res=await fetch(EMAIL_FN,{method:'POST',headers:{'Content-Type':'application/json','apikey':SUPA_ANON,'Authorization':`Bearer ${SUPA_ANON}`},body:JSON.stringify({mode:'broadcast',subject,body,html,area:area||null})});
+      const json=await res.json().catch(()=>({}));
+      const count=json.sent||0;
+      toast(`Sent to ${count} user${count!==1?'s':''}!`,'ok');
+      bcHistory.unshift({subject,area:area||'All users',count,time:new Date().toLocaleTimeString('en-NG',{hour:'2-digit',minute:'2-digit'})});
+      renderBcHistory();
+      document.getElementById('bc-subject').value='';
+      document.getElementById('bc-body').value='';
+      document.getElementById('bc-html').value='';
+    }
+  } catch(e){toast('Send failed: '+e.message,'err');}
+  btn.textContent=_bcMode==='single'?'Send Email':'Send Broadcast'; btn.disabled=false;
 }
 function renderBcHistory() {
-const el=document.getElementById(‘bc-history’);
-if(!bcHistory.length){el.innerHTML=’<p class="empty-state">No broadcasts sent yet.</p>’;return;}
-el.innerHTML=bcHistory.map(b=>`<div style="padding:10px 0;border-bottom:1px solid var(--bd2)"><div style="font-size:.76rem;font-weight:600">${b.subject}</div><div style="font-size:.63rem;color:var(--ink3);margin-top:3px">${b.area} · ${b.count} sent · ${b.time}</div></div>`).join(’’);
+  const el=document.getElementById('bc-history');
+  if(!bcHistory.length){el.innerHTML='<p class="empty-state">No broadcasts sent yet.</p>';return;}
+  el.innerHTML=bcHistory.map(b=>`<div style="padding:10px 0;border-bottom:1px solid var(--bd2)"><div style="font-size:.76rem;font-weight:600">${b.subject}</div><div style="font-size:.63rem;color:var(--ink3);margin-top:3px">${b.area} · ${b.count} sent · ${b.time}</div></div>`).join('');
 }
 
 // ── TEST PUSH ──────────────────────────────────────────────────
 async function loadPushSubscribers() {
-const sel = document.getElementById(‘tp-user’);
-if (!sel) return;
-try {
-// Get all subscriptions joined with profile email/name
-const { data: subs, error } = await sb
-.from(‘push_subscriptions’)
-.select(‘user_id, area, updated_at’);
-if (error) { sel.innerHTML=’<option value="">— error loading —</option>’; return; }
-if (!subs || !subs.length) { sel.innerHTML=’<option value="">— no push subscribers yet —</option>’; return; }
-// Build lookup from allUsers (loaded by loadUsers already, or load now)
-const userMap = {};
-allUsers.forEach(u => { userMap[u.id] = u; });
-// For any missing, fetch from profiles directly
-const missing = subs.map(s=>s.user_id).filter(uid=>!userMap[uid]);
-if (missing.length) {
-const { data: extra } = await sb.from(‘profiles’).select(‘id,email,name’).in(‘id’, missing);
-(extra||[]).forEach(u => { userMap[u.id] = u; });
-}
-sel.innerHTML = ‘<option value="">— select a subscriber —</option>’ +
-subs.map(s => {
-const u = userMap[s.user_id] || {};
-const label = u.email || u.name || s.user_id.slice(0,8);
-const area = s.area ? ` · ${s.area}` : ‘’;
-const ago = s.updated_at ? ` · ${_tpAgo(s.updated_at)}` : ‘’;
-return `<option value="${s.user_id}">${label}${area}${ago}</option>`;
-}).join(’’);
-} catch(e) {
-sel.innerHTML = `<option value="">— failed: ${e.message} —</option>`;
-}
+  const sel = document.getElementById('tp-user');
+  if (!sel) return;
+  try {
+    // Get all subscriptions joined with profile email/name
+    const { data: subs, error } = await sb
+      .from('push_subscriptions')
+      .select('user_id, area, updated_at');
+    if (error) { sel.innerHTML='<option value="">— error loading —</option>'; return; }
+    if (!subs || !subs.length) { sel.innerHTML='<option value="">— no push subscribers yet —</option>'; return; }
+    // Build lookup from allUsers (loaded by loadUsers already, or load now)
+    const userMap = {};
+    allUsers.forEach(u => { userMap[u.id] = u; });
+    // For any missing, fetch from profiles directly
+    const missing = subs.map(s=>s.user_id).filter(uid=>!userMap[uid]);
+    if (missing.length) {
+      const { data: extra } = await sb.from('profiles').select('id,email,name').in('id', missing);
+      (extra||[]).forEach(u => { userMap[u.id] = u; });
+    }
+    sel.innerHTML = '<option value="">— select a subscriber —</option>' +
+      subs.map(s => {
+        const u = userMap[s.user_id] || {};
+        const label = u.email || u.name || s.user_id.slice(0,8);
+        const area = s.area ? ` · ${s.area}` : '';
+        const ago = s.updated_at ? ` · ${_tpAgo(s.updated_at)}` : '';
+        return `<option value="${s.user_id}">${label}${area}${ago}</option>`;
+      }).join('');
+  } catch(e) {
+    sel.innerHTML = `<option value="">— failed: ${e.message} —</option>`;
+  }
 }
 function _tpAgo(ts) {
-const s = Math.floor((Date.now() - new Date(ts).getTime()) / 1000);
-if (s < 60) return `${s}s ago`;
-if (s < 3600) return `${Math.floor(s/60)}m ago`;
-if (s < 86400) return `${Math.floor(s/3600)}h ago`;
-return `${Math.floor(s/86400)}d ago`;
+  const s = Math.floor((Date.now() - new Date(ts).getTime()) / 1000);
+  if (s < 60) return `${s}s ago`;
+  if (s < 3600) return `${Math.floor(s/60)}m ago`;
+  if (s < 86400) return `${Math.floor(s/3600)}h ago`;
+  return `${Math.floor(s/86400)}d ago`;
 }
 async function sendTestPush() {
-const userId = document.getElementById(‘tp-user’).value;
-const btn    = document.getElementById(‘tp-btn’);
-const result = document.getElementById(‘tp-result’);
-if (!userId) { toast(‘Select a user first’, ‘err’); return; }
-btn.textContent = ‘Sending…’; btn.disabled = true;
-result.style.display = ‘none’;
-try {
-const res  = await fetch(EMAIL_FN, {
-method: ‘POST’,
-headers: { ‘Content-Type’:‘application/json’, ‘apikey’:SUPA_ANON, ‘Authorization’:`Bearer ${SUPA_ANON}` },
-body: JSON.stringify({ mode: ‘test_push’, userId }),
-});
-const json = await res.json().catch(()=>({}));
-result.style.display = ‘block’;
-if (json.ok) {
-result.style.background = ‘rgba(170,255,0,.08)’;
-result.style.border     = ‘1px solid rgba(170,255,0,.2)’;
-result.style.color      = ‘var(–p)’;
-result.innerHTML = `<svg width="11" height="11" viewBox="0 0 11 11" fill="none" style="vertical-align:-1px;margin-right:5px"><path d="M1.5 5.5L4 8L9.5 3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>Push delivered — ${json.pushSent} of ${json.total} subscription(s) confirmed`;
-toast(‘Test push sent!’, ‘ok’);
-// Reload subscribers in case a stale one was cleaned up
-await loadPushSubscribers();
-} else {
-result.style.background = ‘rgba(255,64,85,.08)’;
-result.style.border     = ‘1px solid rgba(255,64,85,.2)’;
-result.style.color      = ‘var(–rd)’;
-const msg = json.error || `${json.pushSent||0} delivered`;
-result.innerHTML = `<svg width="11" height="11" viewBox="0 0 11 11" fill="none" style="vertical-align:-1px;margin-right:5px"><circle cx="5.5" cy="5.5" r="4" stroke="currentColor" stroke-width="1.2"/><path d="M5.5 3.5V5.8" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><circle cx="5.5" cy="7.5" r=".5" fill="currentColor"/></svg>${msg}`;
-toast(‘Push failed — see result’, ‘err’);
-}
-} catch(e) {
-result.style.display = ‘block’;
-result.style.background = ‘rgba(255,64,85,.08)’;
-result.style.border = ‘1px solid rgba(255,64,85,.2)’;
-result.style.color = ‘var(–rd)’;
-result.textContent = ’Request failed: ’ + e.message;
-toast(‘Request failed’, ‘err’);
-}
-btn.innerHTML = ‘<svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M1.5 6.5L11.5 1.5L8.5 11.5L6 7.5L1.5 6.5Z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg> Send Test Push’;
-btn.disabled = false;
+  const userId = document.getElementById('tp-user').value;
+  const btn    = document.getElementById('tp-btn');
+  const result = document.getElementById('tp-result');
+  if (!userId) { toast('Select a user first', 'err'); return; }
+  btn.textContent = 'Sending…'; btn.disabled = true;
+  result.style.display = 'none';
+  try {
+    const res  = await fetch(EMAIL_FN, {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json', 'apikey':SUPA_ANON, 'Authorization':`Bearer ${SUPA_ANON}` },
+      body: JSON.stringify({ mode: 'test_push', userId }),
+    });
+    const json = await res.json().catch(()=>({}));
+    result.style.display = 'block';
+    if (json.ok) {
+      result.style.background = 'rgba(170,255,0,.08)';
+      result.style.border     = '1px solid rgba(170,255,0,.2)';
+      result.style.color      = 'var(--p)';
+      result.innerHTML = `<svg width="11" height="11" viewBox="0 0 11 11" fill="none" style="vertical-align:-1px;margin-right:5px"><path d="M1.5 5.5L4 8L9.5 3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>Push delivered — ${json.pushSent} of ${json.total} subscription(s) confirmed`;
+      toast('Test push sent!', 'ok');
+      // Reload subscribers in case a stale one was cleaned up
+      await loadPushSubscribers();
+    } else {
+      result.style.background = 'rgba(255,64,85,.08)';
+      result.style.border     = '1px solid rgba(255,64,85,.2)';
+      result.style.color      = 'var(--rd)';
+      const msg = json.error || `${json.pushSent||0} delivered`;
+      result.innerHTML = `<svg width="11" height="11" viewBox="0 0 11 11" fill="none" style="vertical-align:-1px;margin-right:5px"><circle cx="5.5" cy="5.5" r="4" stroke="currentColor" stroke-width="1.2"/><path d="M5.5 3.5V5.8" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><circle cx="5.5" cy="7.5" r=".5" fill="currentColor"/></svg>${msg}`;
+      toast('Push failed — see result', 'err');
+    }
+  } catch(e) {
+    result.style.display = 'block';
+    result.style.background = 'rgba(255,64,85,.08)';
+    result.style.border = '1px solid rgba(255,64,85,.2)';
+    result.style.color = 'var(--rd)';
+    result.textContent = 'Request failed: ' + e.message;
+    toast('Request failed', 'err');
+  }
+  btn.innerHTML = '<svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M1.5 6.5L11.5 1.5L8.5 11.5L6 7.5L1.5 6.5Z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg> Send Test Push';
+  btn.disabled = false;
 }
 
 // ── UTILS ─────────────────────────────────────────────────────
 function ago(ts) {
-const d=Math.floor((Date.now()-new Date(ts).getTime())/1000);
-if(d<60)return`${d}s ago`;if(d<3600)return`${Math.floor(d/60)}m ago`;
-if(d<86400)return`${Math.floor(d/3600)}h ago`;
-return new Date(ts).toLocaleDateString(‘en-NG’,{day:‘numeric’,month:‘short’});
+  const d=Math.floor((Date.now()-new Date(ts).getTime())/1000);
+  if(d<60)return`${d}s ago`;if(d<3600)return`${Math.floor(d/60)}m ago`;
+  if(d<86400)return`${Math.floor(d/3600)}h ago`;
+  return new Date(ts).toLocaleDateString('en-NG',{day:'numeric',month:'short'});
 }
-function toast(msg,type=‘ok’){
-const t=document.getElementById(‘toast’);t.textContent=msg;t.className=`show ${type}`;
-clearTimeout(t._t);t._t=setTimeout(()=>t.className=’’,3200);
+function toast(msg,type='ok'){
+  const t=document.getElementById('toast');t.textContent=msg;t.className=`show ${type}`;
+  clearTimeout(t._t);t._t=setTimeout(()=>t.className='',3200);
 }
-window.addEventListener(‘resize’,()=>{
-if(window.innerWidth>768) toggleSidebar(false);
-const g=document.getElementById(‘bcGrid’);
-if(g) g.style.gridTemplateColumns=window.innerWidth<700?‘1fr’:‘1fr 1fr’;
+window.addEventListener('resize',()=>{
+  if(window.innerWidth>768) toggleSidebar(false);
+  const g=document.getElementById('bcGrid');
+  if(g) g.style.gridTemplateColumns=window.innerWidth<700?'1fr':'1fr 1fr';
 });
 
 // ── CUSTOM LOCATIONS ─────────────────────────────────────────
 let allLocations=[];
 async function loadCustomLocations(){
-const tb=document.getElementById(‘locationsTable’);
-if(tb)tb.innerHTML=`<tr><td colspan="5" class="loading-row"><span class="spin"></span>Loading…</td></tr>`;
-try {
-const {data,error}=await sb.from(‘custom_locations’).select(’*’).order(‘created_at’,{ascending:false}).limit(500);
-if(error)throw error;
-allLocations=data||[];
-filterLocations();
-toast(`${allLocations.length} custom locations loaded`,‘ok’);
-} catch(e){if(tb)tb.innerHTML=`<tr><td colspan="5" class="empty-state">Could not load locations: ${e.message}</td></tr>`;}
+  const tb=document.getElementById('locationsTable');
+  if(tb)tb.innerHTML=`<tr><td colspan="5" class="loading-row"><span class="spin"></span>Loading…</td></tr>`;
+  try {
+    const {data,error}=await sb.from('custom_locations').select('*').order('created_at',{ascending:false}).limit(500);
+    if(error)throw error;
+    allLocations=data||[];
+    filterLocations();
+    toast(`${allLocations.length} custom locations loaded`,'ok');
+  } catch(e){if(tb)tb.innerHTML=`<tr><td colspan="5" class="empty-state">Could not load locations: ${e.message}</td></tr>`;}
 }
 function filterLocations(){
-const q=(document.getElementById(‘loc-search’)?.value||’’).toLowerCase();
-const tb=document.getElementById(‘locationsTable’);if(!tb)return;
-const f=allLocations.filter(l=>
-(!q||(l.street_name||’’).toLowerCase().includes(q)||(l.area_name||’’).toLowerCase().includes(q))
-);
-if(!f.length){tb.innerHTML=`<tr><td colspan="5" class="empty-state">No locations found.</td></tr>`;return;}
-tb.innerHTML=f.map(l=>`<tr>
-<td><div style="font-weight:600;font-size:.77rem">${l.street_name||’—’}</div></td>
-<td style="color:var(--ink2);font-size:.73rem">${l.area_name||’—’}</td>
-<td style="color:var(--ink3);font-size:.67rem">${l.created_at?new Date(l.created_at).toLocaleDateString(‘en-NG’,{day:‘numeric’,month:‘short’,year:‘numeric’}):’—’}</td>
-<td><button class=“btn btn-ghost” style=“padding:3px 9px;font-size:.68rem” onclick=“openEditLoc(’${l.id}’,’${(l.street_name||’’).replace(/’/g,”'”)}’,’${(l.area_name||’’).replace(/’/g,”'”)}’)”>Edit</button></td>
-<td><button class="del-btn" onclick="deleteLocation('${l.id}')">Delete</button></td>
-
+  const q=(document.getElementById('loc-search')?.value||'').toLowerCase();
+  const tb=document.getElementById('locationsTable');if(!tb)return;
+  const f=allLocations.filter(l=>
+    (!q||(l.street_name||'').toLowerCase().includes(q)||(l.area_name||'').toLowerCase().includes(q))
+  );
+  if(!f.length){tb.innerHTML=`<tr><td colspan="5" class="empty-state">No locations found.</td></tr>`;return;}
+  tb.innerHTML=f.map(l=>`<tr>
+    <td><div style="font-weight:600;font-size:.77rem">${l.street_name||'—'}</div></td>
+    <td style="color:var(--ink2);font-size:.73rem">${l.area_name||'—'}</td>
+    <td style="color:var(--ink3);font-size:.67rem">${l.created_at?new Date(l.created_at).toLocaleDateString('en-NG',{day:'numeric',month:'short',year:'numeric'}):'—'}</td>
+    <td><button class="btn btn-ghost" style="padding:3px 9px;font-size:.68rem" onclick="openEditLoc('${l.id}','${(l.street_name||'').replace(/'/g,"\'")}','${(l.area_name||'').replace(/'/g,"\'")}')">Edit</button></td>
+    <td><button class="del-btn" onclick="deleteLocation('${l.id}')">Delete</button></td>
   </tr>`).join('');
 }
 function openEditLoc(id, street, area){
@@ -1128,32 +1171,136 @@ function showRlsWarning(action){
   const sql=`-- Run this once in your Supabase SQL Editor to allow admin edits:
 -- https://supabase.com/dashboard/project/djurokbkkqrmpafcxlez/sql
 
-– Allow admin to UPDATE any custom location
-CREATE POLICY “Admin can update any custom location”
-ON custom_locations FOR UPDATE
-USING (true) WITH CHECK (true);
+-- Allow admin to UPDATE any custom location
+CREATE POLICY "Admin can update any custom location"
+  ON custom_locations FOR UPDATE
+  USING (true) WITH CHECK (true);
 
-– Allow admin to DELETE any custom location  
-CREATE POLICY “Admin can delete any custom location”
-ON custom_locations FOR DELETE
-USING (true);`;
-const el=document.getElementById(‘rlsWarning’);
-if(el){
-el.style.display=‘block’;
-document.getElementById(‘rlsSql’).textContent=sql;
-document.getElementById(‘rlsAction’).textContent=action;
-} else {
-// Fallback toast with instructions
-toast(‘RLS blocked — run the SQL fix in Supabase (see Custom Locations page)’,‘err’);
+-- Allow admin to DELETE any custom location  
+CREATE POLICY "Admin can delete any custom location"
+  ON custom_locations FOR DELETE
+  USING (true);`;
+  const el=document.getElementById('rlsWarning');
+  if(el){
+    el.style.display='block';
+    document.getElementById('rlsSql').textContent=sql;
+    document.getElementById('rlsAction').textContent=action;
+  } else {
+    // Fallback toast with instructions
+    toast('RLS blocked — run the SQL fix in Supabase (see Custom Locations page)','err');
+  }
 }
+
+// ── AREA HEALTH ───────────────────────────────────────────────
+async function loadAreaHealth() {
+  const sevenDays = new Date(Date.now() - 7*24*3600*1000).toISOString();
+  const threeDays = new Date(Date.now() - 72*3600*1000).toISOString();
+
+  // All areas from reports
+  const { data: repData } = await sb.from('reports')
+    .select('location_area, created_at, wrong_votes, type')
+    .order('created_at', { ascending: false }).limit(2000);
+
+  if (!repData) return;
+
+  // Group by area
+  const areaMap = {};
+  repData.forEach(r => {
+    if (!r.location_area) return;
+    if (!areaMap[r.location_area]) areaMap[r.location_area] = { recent: [], all: [], flagged: 0 };
+    areaMap[r.location_area].all.push(r);
+    if (r.created_at > sevenDays) areaMap[r.location_area].recent.push(r);
+    if ((r.wrong_votes || 0) >= 3) areaMap[r.location_area].flagged++;
+  });
+
+  // Silent areas — tracked areas with no reports in 72h
+  const silentEl = document.getElementById('ah-silent');
+  const silent = Object.entries(areaMap).filter(([area, d]) =>
+    d.all.length > 0 && !d.all.some(r => r.created_at > threeDays)
+  ).sort((a, b) => b[1].all.length - a[1].all.length);
+
+  silentEl.innerHTML = silent.length ? `<table class="data-table"><thead><tr><th>Area</th><th>Total Reports</th><th>Last Report</th></tr></thead><tbody>` +
+    silent.slice(0, 20).map(([area, d]) => {
+      const last = d.all[0]?.created_at ? new Date(d.all[0].created_at).toLocaleDateString('en-NG') : '—';
+      return `<tr><td>${area}</td><td>${d.all.length}</td><td style="color:var(--am)">${last}</td></tr>`;
+    }).join('') + '</tbody></table>' : '<p class="empty-state">All areas have recent activity.</p>';
+
+  // Active areas
+  const activeEl = document.getElementById('ah-active');
+  const active = Object.entries(areaMap)
+    .map(([area, d]) => ({ area, count: d.recent.length }))
+    .filter(x => x.count > 0)
+    .sort((a, b) => b.count - a.count).slice(0, 15);
+
+  activeEl.innerHTML = active.length ? `<table class="data-table"><thead><tr><th>Area</th><th>Reports (7d)</th></tr></thead><tbody>` +
+    active.map(x => `<tr><td>${x.area}</td><td style="color:var(--p);font-weight:700">${x.count}</td></tr>`).join('') +
+    '</tbody></table>' : '<p class="empty-state">No data.</p>';
+
+  // Flagged reports
+  const flaggedEl = document.getElementById('ah-flagged');
+  const { data: flagged } = await sb.from('reports')
+    .select('id, location_name, location_area, type, wrong_votes, created_at')
+    .gte('wrong_votes', 3).order('wrong_votes', { ascending: false }).limit(30);
+
+  flaggedEl.innerHTML = flagged?.length ? `<table class="data-table"><thead><tr><th>Location</th><th>Type</th><th>Flags</th><th>Action</th></tr></thead><tbody>` +
+    flagged.map(r => `<tr>
+      <td>${r.location_name}<br><span style="color:var(--ink3);font-size:.7rem">${r.location_area}</span></td>
+      <td><span style="color:${r.type==='out'?'var(--rd)':'var(--p)'}">${r.type==='out'?'Outage':'Restored'}</span></td>
+      <td style="color:var(--am);font-weight:700">${r.wrong_votes}</td>
+      <td><button class="btn btn-ghost" style="font-size:.7rem;padding:3px 8px" onclick="deleteReport('${r.id}')">Delete</button></td>
+    </tr>`).join('') + '</tbody></table>'
+    : '<p class="empty-state">No flagged reports.</p>';
+}
+
+// ── ANNOUNCEMENTS ─────────────────────────────────────────────
+async function loadAnnouncementsList() {
+  const { data } = await sb.from('announcements')
+    .select('*').order('scheduled_for', { ascending: false }).limit(20);
+  const el = document.getElementById('ann-list');
+  if (!data?.length) { el.innerHTML = '<p class="empty-state">No announcements yet.</p>'; return; }
+  el.innerHTML = `<table class="data-table"><thead><tr><th>Area</th><th>Starts</th><th>Ends</th><th>Message</th><th>Action</th></tr></thead><tbody>` +
+    data.map(a => `<tr>
+      <td>${a.area || 'All Lagos'}</td>
+      <td>${new Date(a.scheduled_for).toLocaleDateString('en-NG')}</td>
+      <td>${a.ends_at ? new Date(a.ends_at).toLocaleDateString('en-NG') : '—'}</td>
+      <td style="max-width:200px;font-size:.74rem">${a.message}</td>
+      <td><button class="btn btn-ghost" style="font-size:.7rem;padding:3px 8px;color:var(--rd)" onclick="deleteAnnouncement('${a.id}')">Delete</button></td>
+    </tr>`).join('') + '</tbody></table>';
+}
+
+async function postAnnouncement() {
+  const area = document.getElementById('ann-area').value.trim();
+  const msg  = document.getElementById('ann-msg').value.trim();
+  const start = document.getElementById('ann-start').value;
+  const end   = document.getElementById('ann-end').value;
+  if (!msg || !start) { toast('Message and start time are required', 'err'); return; }
+  const { error } = await sb.from('announcements').insert({
+    area: area || null,
+    message: msg,
+    scheduled_for: new Date(start).toISOString(),
+    ends_at: end ? new Date(end).toISOString() : null,
+  });
+  if (error) { toast('Failed: ' + error.message, 'err'); return; }
+  toast('Announcement posted', 'ok');
+  document.getElementById('ann-area').value = '';
+  document.getElementById('ann-msg').value = '';
+  document.getElementById('ann-start').value = '';
+  document.getElementById('ann-end').value = '';
+  loadAnnouncementsList();
+}
+
+async function deleteAnnouncement(id) {
+  if (!confirm('Delete this announcement?')) return;
+  await sb.from('announcements').delete().eq('id', id);
+  toast('Deleted', 'ok');
+  loadAnnouncementsList();
 }
 
 // ── AUTO-LOGIN ────────────────────────────────────────────────
 (async function(){
-const{data:{session}}=await sb.auth.getSession();
-if(session?.user&&ADMIN_EMAILS.includes(session.user.email.toLowerCase())){adminUser=session.user;boot();}
+  const{data:{session}}=await sb.auth.getSession();
+  if(session?.user&&ADMIN_EMAILS.includes(session.user.email.toLowerCase())){adminUser=session.user;boot();}
 })();
 </script>
-
 </body>
 </html>
