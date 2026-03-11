@@ -2674,6 +2674,7 @@ async function toggleAreaAlert(evt, area, repId) {
   const existing = savedPlaces.find(p => p.location_area === area && p.type === 'alert');
   if (existing) {
     await togglePlaceNotif(existing.id);
+    _refreshAreaAlertBtns(area);
     return;
   }
   // Save area as an alert-only saved place
@@ -2693,10 +2694,23 @@ async function toggleAreaAlert(evt, area, repId) {
   if (saved) {
     savedPlaces.push(saved);
     toast(`🔔 Alerts on for ${area}`, 'ok');
-    // Mark button as active
-    const card = document.querySelector(`[data-rid="${repId}"] .alert-area-btn`);
-    if (card) card.classList.add('active');
+    _refreshAreaAlertBtns(area);
   }
+}
+
+// Refresh all alert bell buttons for a given area across the feed
+function _refreshAreaAlertBtns(area) {
+  const isOn = savedPlaces.some(p => p.location_area === area && p.notif_on !== false);
+  document.querySelectorAll('.fc[data-rid]').forEach(card => {
+    const btn = card.querySelector('.alert-area-btn');
+    if (!btn) return;
+    // Check if this card belongs to the toggled area by finding the report
+    const rid = card.dataset.rid;
+    const rep = reports.find(r => String(r.id) === String(rid));
+    if (!rep || rep.area !== area) return;
+    btn.classList.toggle('active', isOn);
+    btn.title = isOn ? 'Turn off alerts for this area' : 'Get alerts for this area';
+  });
 }
 
 // Tap anywhere on report card to show confirm popup or expand
@@ -3037,7 +3051,8 @@ function _buildReportCard(r, i=0){
   const since = r.type === 'out' ? r.time : null;
   const timerHtml = since ? `<div class="fc-timer" data-outage-since="${since}">Out for ${formatDuration(Date.now()-since)}</div>` : '';
   const flaggedCls = isFlagged ? ' fc-flagged' : '';
-  const alertBtn = `<button class="alert-area-btn" onclick="toggleAreaAlert(event,'${r.area.replace(/'/g,"\'")}','${r.id}')" title="Get alerts for this area"><svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6 1a3.5 3.5 0 0 1 3.5 3.5c0 2 .8 3 1.5 3.5H1c.7-.5 1.5-1.5 1.5-3.5A3.5 3.5 0 0 1 6 1z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M4.5 8c0 .83.67 1.5 1.5 1.5s1.5-.67 1.5-1.5" stroke="currentColor" stroke-width="1.2"/></svg></button>`;
+  const _areaWatched = savedPlaces.some(p => p.location_area === r.area && p.notif_on !== false);
+  const alertBtn = `<button class="alert-area-btn${_areaWatched?' active':''}" onclick="toggleAreaAlert(event,'${r.area.replace(/'/g,"\'")}','${r.id}')" title="${_areaWatched?'Turn off alerts for this area':'Get alerts for this area'}"><svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6 1a3.5 3.5 0 0 1 3.5 3.5c0 2 .8 3 1.5 3.5H1c.7-.5 1.5-1.5 1.5-3.5A3.5 3.5 0 0 1 6 1z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M4.5 8c0 .83.67 1.5 1.5 1.5s1.5-.67 1.5-1.5" stroke="currentColor" stroke-width="1.2"/></svg></button>`;
   return`<div class="fc ${r.type}${flaggedCls}" data-rid="${r.id}" style="animation-delay:${i*30}ms" onclick="_onReportCardTap(event,'${r.id}')">
     <div class="fc-bar"></div>
     <div class="fc-dot">${r.type==="out"?IC.out:IC.bck}</div>
