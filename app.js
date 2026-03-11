@@ -2208,12 +2208,26 @@ async function initAuth(){
   try{const{data:{session}}=await sb.auth.getSession();CU=session?.user||null;if(CU)await loadProfile();}catch(e){}
   updateBanner();
   sb.auth.onAuthStateChange(async(event,session)=>{
-    if(_inResetFlow)return; // never interfere with the reset form
+    if(_inResetFlow)return;
     CU=session?.user||null;
-    if(CU){if(event==="SIGNED_IN"||event==="USER_UPDATED"||!PR){await loadProfile();if(event==="SIGNED_IN")_maybeStartTour();}}
-    else{PR=null;document.getElementById("locTag").classList.remove("on");}
+    if(CU){
+      if(event==="SIGNED_IN"||event==="USER_UPDATED"||!PR){await loadProfile();if(event==="SIGNED_IN")_maybeStartTour();}
+      if(event==="TOKEN_REFRESHED"){await loadProfile();}
+    } else {
+      PR=null;savedPlaces=[];
+      document.getElementById("locTag").classList.remove("on");
+    }
     updateBanner();renderAccount();if(CU)loadSavedPlaces();
   });
+  // Periodic session health check — fixes untappable state after long idle
+  setInterval(async()=>{
+    try{
+      const{data:{session}}=await sb.auth.getSession();
+      const u=session?.user||null;
+      if(!u&&CU){CU=null;PR=null;savedPlaces=[];updateBanner();renderAccount();}
+      else if(u&&!CU){CU=u;await loadProfile();updateBanner();renderAccount();loadSavedPlaces();}
+    }catch(e){}
+  },5*60*1000);
 }
 function _resetFormHTML(){return`<div class="auth-wrap"><div class="auth-logo"><div class="auth-logo-icon" style="background:var(--p)">${LOGO_IMG_TAG}</div><span class="auth-logo-name">NEPA<em>Watch</em></span></div><h2>Set new password</h2><p class="auth-sub">Choose a strong new password for your account.</p><div class="msg err" id="authErr"></div><div class="msg ok" id="authOk"></div><div class="fld"><label>New Password</label><input id="inp-newpass" type="password" placeholder="Min 6 characters" autocomplete="new-password"><button type="button" class="pw-eye-btn" onclick="appTogglePw(this)" tabindex="-1"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M1 8C2.5 5 5 3.5 8 3.5C11 3.5 13.5 5 15 8C13.5 11 11 12.5 8 12.5C5 12.5 2.5 11 1 8Z" stroke="currentColor" stroke-width="1.3"/><circle cx="8" cy="8" r="2.2" stroke="currentColor" stroke-width="1.3"/></svg></button></div><div class="fld"><label>Confirm Password</label><input id="inp-confpass" type="password" placeholder="Repeat password" autocomplete="new-password"><button type="button" class="pw-eye-btn" onclick="appTogglePw(this)" tabindex="-1"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M1 8C2.5 5 5 3.5 8 3.5C11 3.5 13.5 5 15 8C13.5 11 11 12.5 8 12.5C5 12.5 2.5 11 1 8Z" stroke="currentColor" stroke-width="1.3"/><circle cx="8" cy="8" r="2.2" stroke="currentColor" stroke-width="1.3"/></svg></button></div><button class="auth-btn" id="authBtn" onclick="doPasswordReset()">Update Password</button></div>`;}
 
@@ -2450,7 +2464,7 @@ async function loadReports(){
   try{
     const todayStart=new Date();todayStart.setHours(0,0,0,0);
     const[{data:recentData,error:e1},{data:todayData,error:e2}]=await Promise.all([
-      sb.from("reports").select("id,user_id,location_name,location_area,type,confirms,created_at").order("created_at",{ascending:false}).limit(200),
+      sb.from("reports").select("id,user_id,location_name,location_area,type,confirms,created_at").order("created_at",{ascending:false}).limit(500),
       sb.from("reports").select("id,user_id,location_name,location_area,type,confirms,created_at").gte("created_at",todayStart.toISOString()).order("created_at",{ascending:false}).limit(500)
     ]);
     if(e1&&e2)throw e1;
@@ -2464,7 +2478,7 @@ async function loadReports(){
   render();if(_nearbyAreas.length)renderNearbyDashboard();
 }
 
-async function pollReports(){try{const{data,error}=await sb.from("reports").select("id,user_id,location_name,location_area,type,confirms,created_at").order("created_at",{ascending:false}).limit(200);if(error||!data)return;const dbReports=data.map(r=>({id:r.id,name:r.location_name,area:r.location_area,type:r.type,time:new Date(r.created_at).getTime(),confirms:r.confirms||1,userId:r.user_id,isAI:r.user_id===AI_USER_ID}));const pending=reports.filter(r=>String(r.id).startsWith("local-")||String(r.id).startsWith("ai-"));const newList=[...pending,...dbReports];const oldIds=reports.filter(r=>!String(r.id).startsWith("local-")&&!String(r.id).startsWith("ai-")).map(r=>r.id+r.confirms).join(",");const newIds=dbReports.map(r=>r.id+r.confirms).join(",");if(oldIds!==newIds){reports=newList;render();if(_nearbyAreas.length)renderNearbyDashboard();renderSavedPlacesHome();renderMyPlacesList();}}catch(e){}}
+async function pollReports(){try{const{data,error}=await sb.from("reports").select("id,user_id,location_name,location_area,type,confirms,created_at").order("created_at",{ascending:false}).limit(500);if(error||!data)return;const dbReports=data.map(r=>({id:r.id,name:r.location_name,area:r.location_area,type:r.type,time:new Date(r.created_at).getTime(),confirms:r.confirms||1,userId:r.user_id,isAI:r.user_id===AI_USER_ID}));const pending=reports.filter(r=>String(r.id).startsWith("local-")||String(r.id).startsWith("ai-"));const newList=[...pending,...dbReports];const oldIds=reports.filter(r=>!String(r.id).startsWith("local-")&&!String(r.id).startsWith("ai-")).map(r=>r.id+r.confirms).join(",");const newIds=dbReports.map(r=>r.id+r.confirms).join(",");if(oldIds!==newIds){reports=newList;render();if(_nearbyAreas.length)renderNearbyDashboard();renderSavedPlacesHome();renderMyPlacesList();}}catch(e){}}
 
 function startPolling(){
   if(_pollTimer)clearInterval(_pollTimer);
@@ -2545,13 +2559,21 @@ function getAreaReliability(area) {
   const areaReps = reports.filter(r =>
     (r.area === area || (AREA_PARENT[r.area] === area)) &&
     (now - r.time) < thirtyDays
-  );
-  if (areaReps.length < 2) return null;
-  const outCount = areaReps.filter(r => r.type === "out").length;
-  const bckCount = areaReps.filter(r => r.type === "bck").length;
-  const total = outCount + bckCount;
-  // Score: 100% = all restored, 0% = all out. Net reliability.
-  const score = Math.max(5, Math.min(98, Math.round(100 - (outCount / total) * 100)));
+  ).sort((a,b)=>a.time-b.time);
+  if (areaReps.length < 3) return null;
+  // Pair out→bck events to measure real downtime
+  let totalDownMs = 0, lastOut = null;
+  for (const r of areaReps) {
+    if (r.type === 'out') { lastOut = r.time; }
+    else if (r.type === 'bck' && lastOut) {
+      totalDownMs += Math.min(r.time - lastOut, 12*3600*1000);
+      lastOut = null;
+    }
+  }
+  if (lastOut) totalDownMs += Math.min(now - lastOut, 12*3600*1000);
+  const windowMs = Math.min(now - areaReps[0].time, thirtyDays);
+  if (windowMs < 3*3600*1000) return null;
+  const score = Math.max(5, Math.min(98, Math.round(100-(totalDownMs/windowMs)*100)));
   const grade = score >= 85 ? "A" : score >= 70 ? "B" : score >= 50 ? "C" : score >= 30 ? "D" : "F";
   const color = score >= 85 ? "var(--p)" : score >= 70 ? "#69F0AE" : score >= 50 ? "var(--am)" : "var(--rd)";
   return { score, grade, color, total };
@@ -2641,6 +2663,47 @@ function renderAnnouncements() {
 // ══════════════════════════════════════════════════════════════════
 // FEATURE: WHATSAPP SHARE
 // ══════════════════════════════════════════════════════════════════
+// Alert toggle for specific area from report card
+async function toggleAreaAlert(evt, area, repId) {
+  evt.stopPropagation();
+  if (!CU) { toast('Sign in to get alerts for this area', 'info'); go('account'); return; }
+  // Check if already watching
+  const existing = savedPlaces.find(p => p.location_area === area && p.type === 'alert');
+  if (existing) {
+    await togglePlaceNotif(existing.id);
+    return;
+  }
+  // Save area as an alert-only saved place
+  const areaLoc = LOCS.find(l => l.name === area && !l.street) || LOCS.find(l => l.area === area && !l.street);
+  if (!areaLoc) { toast('Area not found', 'err'); return; }
+  const placeObj = {
+    type: 'alert',
+    custom_label: `Alerts: ${area}`,
+    location_id: areaLoc.id,
+    location_name: areaLoc.name,
+    location_area: area,
+    location_label: area,
+    notif_on: true,
+  };
+  const saved = await savePlaceToDB(placeObj);
+  if (saved) {
+    savedPlaces.push(saved);
+    toast(`🔔 Alerts on for ${area}`, 'ok');
+    // Mark button as active
+    const card = document.querySelector(`[data-rid="${repId}"] .alert-area-btn`);
+    if (card) card.classList.add('active');
+  }
+}
+
+// Tap anywhere on report card to show confirm popup or expand
+function _onReportCardTap(evt, repId) {
+  // Don't fire if a button inside was tapped
+  if (evt.target.closest('button')) return;
+  const r = reports.find(x => String(x.id) === String(repId));
+  if (!r) return;
+  showConfirmPopup(r);
+}
+
 function shareToWhatsApp(repId) {
   const r = reports.find(x => x.id === repId);
   if (!r) return;
@@ -2746,11 +2809,10 @@ function buildEmailHtml({type='info', name='', area='', street='', time='', plac
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="color-scheme" content="dark">
-  <meta name="supported-color-schemes" content="dark">
+  <meta name="color-scheme" content="light dark">
+  <meta name="supported-color-schemes" content="light dark">
   <title>NEPAWatch Alert</title>
   <style>
-    :root { color-scheme: dark; }
     body {
       margin: 0 !important;
       padding: 0 !important;
@@ -2763,7 +2825,7 @@ function buildEmailHtml({type='info', name='', area='', street='', time='', plac
     [data-ogsc] .card, [data-ogsb] .card { background-color: #0F1511 !important; }
     [data-ogsc] .card-header, [data-ogsb] .card-header { background-color: #080C09 !important; }
     [data-ogsc] .card-body-inner, [data-ogsb] .card-body-inner { background-color: #141C16 !important; }
-    /* Always-dark: works for both light and dark system themes */
+    /* Force dark in BOTH light and dark mode email clients */
     @media screen {
       body { background-color: #07090A !important; }
       .outer-wrap { background-color: #07090A !important; }
@@ -2774,7 +2836,6 @@ function buildEmailHtml({type='info', name='', area='', street='', time='', plac
       h1 { color: #E6EDE8 !important; }
       .logo-text { color: #E6EDE8 !important; }
     }
-    /* Prevent light-mode email clients (Apple Mail, iOS) from flipping to light */
     @media (prefers-color-scheme: light) {
       body { background-color: #07090A !important; }
       .outer-wrap { background-color: #07090A !important; }
@@ -2864,28 +2925,26 @@ async function sendEmail(to, subject, body, htmlBody) {
   if (!to || !subject) return;
   const html = htmlBody || null;
   try {
-    const res = await fetch(EMAIL_FN, {
+    await fetch(EMAIL_FN, {
       method: 'POST',
       headers: {'Content-Type': 'application/json', 'apikey': SUPA_ANON, 'Authorization': `Bearer ${SUPA_ANON}`},
-      body: JSON.stringify({
-        mode: 'single',
-        to,
-        subject,
-        html: html || `<pre style="font-family:sans-serif;white-space:pre-wrap">${body}</pre>`,
+      // Send html in every possible field name the edge function might read
+      body: JSON.stringify({to, subject,
+        body: html || body,   // if edge fn passes body straight to Resend as html
+        text: body,           // plain text fallback
+        html: html || body,   // explicit html field
+        htmlBody: html || body,
+        mode: 'direct'
       })
     });
-    if (!res.ok) {
-      const txt = await res.text().catch(() => '');
-      console.warn('[sendEmail] edge fn error', res.status, txt.slice(0, 200));
-    }
-  } catch(e) { console.warn('[sendEmail] fetch error', e?.message); }
+  } catch(e) {}
 }
 async function sendAreaAlerts(repName,repArea,repType){if(!repArea)return;
   // Fire local push notification for foreground-invisible users
   const pushTitle=repType==='out'?`Power Outage — ${repArea}`:`Power Restored — ${repArea}`;
   const pushBody=repType==='out'?`Outage near ${repName}. Tap to confirm.`:`Power back near ${repName}. Tap to confirm.`;
   _localNotify(pushTitle, pushBody, repType);
-const _aKey=repArea+'|'+repType;const _now=Date.now();if(_alertCooldowns[_aKey]&&(_now-_alertCooldowns[_aKey])<ALERT_COOLDOWN_MS)return;_alertCooldowns[_aKey]=_now;try{const subject=repType==="out"?`Power Outage — ${repArea}, Lagos`:`Power Restored — ${repArea}, Lagos`;const time=new Date().toLocaleTimeString("en-NG",{hour:"2-digit",minute:"2-digit"});const body=`${repType==="out"?"Power outage":"Power restored"} near ${repName}, ${repArea}.\n\nTime: ${time}\n\nSee live updates: ${APP_URL}\n\n— NEPAWatch Lagos`;const alertHtml=buildEmailHtml({type:repType,area:repArea,street:repName,time,appUrl:APP_URL});let edgeSent=false;try{const res=await fetch(EMAIL_FN,{method:"POST",headers:{"Content-Type":"application/json","apikey":SUPA_ANON,"Authorization":`Bearer ${SUPA_ANON}`},body:JSON.stringify({mode:"area_alert",area:repArea,repName,repType,subject,body,html:alertHtml,time,confirmRequest:true})});if(res.ok){const json=await res.json().catch(()=>({}));const count=(json.sent||0)+(json.pushSent||0);edgeSent=count>0;if(count>0){emailLog.unshift({subject,to:`${count} watcher${count!==1?"s":""} in ${repArea}`,time});if(emailLog.length>8)emailLog.pop();}}}catch(fe){}if(CU&&savedPlaces.length){const matchingPlaces=savedPlaces.filter(p=>(areaMatches(repArea,p.location_area)||areaMatches(p.location_area,repArea))&&p.notif_on!==false);if(matchingPlaces.length&&CU.email&&!edgeSent){const placeNames=matchingPlaces.map(p=>getPlaceDisplayName(p)).join(", ");const placeHtml=buildEmailHtml({type:repType,area:repArea,street:repName,time,places:placeNames,appUrl:APP_URL});await sendEmail(CU.email,subject,body,placeHtml);emailLog.unshift({subject,to:CU.email+"  (saved place)",time});if(emailLog.length>8)emailLog.pop();toast("Alert sent for your saved place","ok");if(document.getElementById("page-account").classList.contains("active"))renderAccount();}}else if(!edgeSent&&CU&&PR&&(areaMatches(repArea,PR.location_area)||areaMatches(PR.location_area,repArea))&&PR.notif_on&&CU.email){const userHtml=buildEmailHtml({type:repType,area:repArea,street:repName,time,appUrl:APP_URL});await sendEmail(CU.email,subject,body,userHtml);emailLog.unshift({subject,to:CU.email,time});if(emailLog.length>8)emailLog.pop();toast("Alert sent to your email","ok");if(document.getElementById("page-account").classList.contains("active"))renderAccount();}}catch(e){}}
+const _aKey=repArea+'|'+repType;const _now=Date.now();if(_alertCooldowns[_aKey]&&(_now-_alertCooldowns[_aKey])<ALERT_COOLDOWN_MS)return;_alertCooldowns[_aKey]=_now;try{const subject=repType==="out"?`Power Outage — ${repArea}, Lagos`:`Power Restored — ${repArea}, Lagos`;const time=new Date().toLocaleTimeString("en-NG",{hour:"2-digit",minute:"2-digit"});const body=`${repType==="out"?"Power outage":"Power restored"} near ${repName}, ${repArea}.\n\nTime: ${time}\n\nSee live updates: ${APP_URL}\n\n— NEPAWatch Lagos`;const alertHtml=buildEmailHtml({type:repType,area:repArea,street:repName,time,appUrl:APP_URL});let edgeSent=false;try{const res=await fetch(EMAIL_FN,{method:"POST",headers:{"Content-Type":"application/json","apikey":SUPA_ANON,"Authorization":`Bearer ${SUPA_ANON}`},body:JSON.stringify({mode:"area_alert",area:repArea,repName,repType,subject,body,html:alertHtml,time,confirmRequest:true})});if(res.ok){const json=await res.json().catch(()=>({}));const count=json.sent||0;edgeSent=true;if(count>0){emailLog.unshift({subject,to:`${count} watcher${count!==1?"s":""} in ${repArea}`,time});if(emailLog.length>8)emailLog.pop();}}}catch(fe){}if(CU&&savedPlaces.length){const matchingPlaces=savedPlaces.filter(p=>(areaMatches(repArea,p.location_area)||areaMatches(p.location_area,repArea))&&p.notif_on!==false);if(matchingPlaces.length&&CU.email&&!edgeSent){const placeNames=matchingPlaces.map(p=>getPlaceDisplayName(p)).join(", ");const placeHtml=buildEmailHtml({type:repType,area:repArea,street:repName,time,places:placeNames,appUrl:APP_URL});await sendEmail(CU.email,subject,body,placeHtml);emailLog.unshift({subject,to:CU.email+"  (saved place)",time});if(emailLog.length>8)emailLog.pop();toast("Alert sent for your saved place","ok");if(document.getElementById("page-account").classList.contains("active"))renderAccount();}}else if(!edgeSent&&CU&&PR&&(areaMatches(repArea,PR.location_area)||areaMatches(PR.location_area,repArea))&&PR.notif_on&&CU.email){const userHtml=buildEmailHtml({type:repType,area:repArea,street:repName,time,appUrl:APP_URL});await sendEmail(CU.email,subject,body,userHtml);emailLog.unshift({subject,to:CU.email,time});if(emailLog.length>8)emailLog.pop();toast("Alert sent to your email","ok");if(document.getElementById("page-account").classList.contains("active"))renderAccount();}}catch(e){}}
 
 function openModal(type){mType=type;mSel=null;document.getElementById("shTitle").textContent=type==="out"?"Report Power Outage":"Report Power Restored";document.getElementById("shDesc").textContent=type==="out"?"Search your street or area in Lagos.":"Great news! Tell your community.";const btn=document.getElementById("mBtn");btn.textContent=type==="out"?"Confirm Outage":"Confirm Restored";btn.className="mconfirm "+(type==="out"?"out":"bck");btn.disabled=true;document.getElementById("mSearch").value="";if(PR?.location_id){mSel=LOCS.find(l=>l.id===PR.location_id)||null;if(mSel){btn.disabled=false;btn.textContent=type==="out"?`Report — ${mSel.name}`:`Restored — ${mSel.name}`;}}renderMList(LOCS.slice(0,60));document.getElementById("repOverlay").classList.add("open");}
 function closeModal(){document.getElementById("repOverlay").classList.remove("open");mType=null;mSel=null;}
@@ -2974,14 +3033,15 @@ function _buildReportCard(r, i=0){
   const since = r.type === 'out' ? r.time : null;
   const timerHtml = since ? `<div class="fc-timer" data-outage-since="${since}">Out for ${formatDuration(Date.now()-since)}</div>` : '';
   const flaggedCls = isFlagged ? ' fc-flagged' : '';
-  return`<div class="fc ${r.type}${flaggedCls}" data-rid="${r.id}" style="animation-delay:${i*30}ms">
+  const alertBtn = `<button class="alert-area-btn" onclick="toggleAreaAlert(event,'${r.area.replace(/'/g,"\'")}','${r.id}')" title="Get alerts for this area"><svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6 1a3.5 3.5 0 0 1 3.5 3.5c0 2 .8 3 1.5 3.5H1c.7-.5 1.5-1.5 1.5-3.5A3.5 3.5 0 0 1 6 1z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M4.5 8c0 .83.67 1.5 1.5 1.5s1.5-.67 1.5-1.5" stroke="currentColor" stroke-width="1.2"/></svg></button>`;
+  return`<div class="fc ${r.type}${flaggedCls}" data-rid="${r.id}" style="animation-delay:${i*30}ms" onclick="_onReportCardTap(event,'${r.id}')">
     <div class="fc-bar"></div>
     <div class="fc-dot">${r.type==="out"?IC.out:IC.bck}</div>
     <div class="fc-body">
       <div class="fc-loc">${r.name}${relBadge}</div>
-      <div class="fc-area" onclick="showAreaHistory('${r.area.replace(/'/g,"\'")}');" style="cursor:pointer;text-decoration:underline dotted">${r.area}</div>
+      <div class="fc-area" onclick="event.stopPropagation();showAreaHistory('${r.area.replace(/'/g,"\'")}');" style="cursor:pointer;text-decoration:underline dotted">${r.area}</div>
       ${timerHtml}
-      <div class="fc-meta" data-confirms="${r.id}">${r.confirms} confirmation${r.confirms!==1?"s":""}</div>
+      <div class="fc-meta" data-confirms="${r.id}">${r.confirms} confirmation${r.confirms!==1?"s":""} &middot; <span style="opacity:.6">tap to confirm</span></div>
       ${isFlagged?'<div class="fc-flagged-note">Flagged as potentially inaccurate</div>':''}
       ${aiBadge}
     </div>
@@ -2989,11 +3049,11 @@ function _buildReportCard(r, i=0){
       <div class="fc-time">${ago(r.time)} ago</div>
       <div class="fc-actions">
         ${confirmBtn}
-        ${wrongBtn}
-        ${waBtn}
-        <button class="save-area-btn" onclick="promptSaveArea('${r.area.replace(/'/g,'\&apos;')}')" title="Save this area">
-          <svg width="13" height="13" viewBox="0 0 12 12" fill="none"><path d="M2 1.5h8a.5.5 0 0 1 .5.5v8.5L6 8.5 1.5 10.5V2a.5.5 0 0 1 .5-.5z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>
+        <button class="wa-btn" onclick="event.stopPropagation();shareToWhatsApp('${r.id}')" title="Share on WhatsApp">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.112.554 4.094 1.523 5.812L.057 23.57a.75.75 0 0 0 .93.903l5.87-1.611A11.945 11.945 0 0 0 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22a9.944 9.944 0 0 1-5.031-1.357l-.36-.214-3.733 1.024 1.01-3.647-.234-.374A9.944 9.944 0 0 1 2 12C2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"/></svg>
         </button>
+        ${wrongBtn}
+        ${alertBtn}
       </div>
     </div>
   </div>`;
@@ -3114,7 +3174,7 @@ function renderProfile(el){const locText=PR.location_label||PR.location_name||"N
     pushSt==='ios-needs-install'?`<a href="https://support.apple.com/guide/iphone/bookmark-favorite-webpages-iph42ab2f3a7/ios" target="_blank" style="font-size:.65rem;font-weight:600;color:var(--p);background:var(--pp);border:1px solid var(--pb);border-radius:6px;padding:4px 9px;cursor:pointer;text-decoration:none">How?</a>`:
     `<button class="toggle ${pushSt==='enabled'?'on':''}" onclick="togglePushNotif()"></button>`;
 el.innerHTML=`<div class="ph"><h2>Account</h2><p>Manage your alerts and locations</p></div><div class="profile-card"><div class="pc-top"><div class="pc-av">${(PR.name||"?")[0].toUpperCase()}</div><div><div class="pc-name">${PR.name||"User"}</div><div class="pc-email">${PR.email||CU.email}</div></div></div><div class="pc-row"><div class="pc-rl-wrap"><div class="pc-ico"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1A3 3 0 0 0 4 4C4 7.5 7 12 7 12S10 7.5 10 4A3 3 0 0 0 7 1z" stroke="currentColor" stroke-width="1.3"/><circle cx="7" cy="4" r="1.2" fill="currentColor"/></svg></div><div><div class="pc-rl">Watching area</div><div class="pc-rs">${locText}</div></div></div>${PR.location_id?`<button onclick="clearLoc()" style="font-size:.65rem;font-weight:600;color:var(--ink3);background:none;border:1px solid var(--bd);border-radius:6px;padding:4px 9px;cursor:pointer">Clear</button>`:""}</div><div class="pc-row"><div class="pc-rl-wrap"><div class="pc-ico"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M1.5 7L7 1.5L12.5 7V12.5H9V9H5V12.5H1.5V7Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg></div><div><div class="pc-rl">Saved Places</div><div class="pc-rs">${savedCount} place${savedCount!==1?"s":""} saved</div></div></div><button onclick="go('myarea')" style="font-size:.65rem;font-weight:600;color:var(--p);background:var(--pp);border:1px solid var(--pb);border-radius:6px;padding:4px 9px;cursor:pointer">Manage</button></div><div class="pc-row"><div class="pc-rl-wrap"><div class="pc-ico"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="1" y="2.5" width="12" height="9" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M1 5L7 8.5L13 5" stroke="currentColor" stroke-width="1.3"/></svg></div><div><div class="pc-rl">Email Alerts</div><div class="pc-rs">${notifOn?"On — receiving alerts":"Off — tap to enable"}</div></div></div><button class="toggle ${notifOn?"on":""}" id="notifToggle" onclick="toggleNotif()"></button></div>
-<div class="pc-row"><div class="pc-rl-wrap"><div class="pc-ico"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1.5L5 5H2.5l2 2-1 3.5L7 8.5 9.5 10.5l-1-3.5 2-2H8L7 1.5z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg></div><div><div class="pc-rl">Push Notifications</div><div class="pc-rs" id="pushStatusTxt">${pushStatusText}</div></div></div>${pushBtn}</div>${pushSt==='enabled'?`<div class="pc-row" style="padding-top:6px;padding-bottom:6px"><button id="testPushBtn" onclick="testPushNotification()" style="width:100%;background:var(--pp);border:1px solid var(--pb);color:var(--p);border-radius:8px;padding:9px;font-size:.75rem;font-weight:700;cursor:pointer;letter-spacing:.01em">Send test notification</button></div>`:''}<div class="pc-row"><div class="pc-rl-wrap"><div class="pc-ico"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="5" r="3" stroke="currentColor" stroke-width="1.3"/><path d="M1.5 13c0-3 2.5-4.5 5.5-4.5s5.5 1.5 5.5 4.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></div><div><div class="pc-rl">Alert address</div><div class="pc-rs">${CU.email}</div></div></div></div>${emailLog.length?`<div class="email-log"><div class="email-log-hd">Recent Alerts Sent</div>${emailLog.map(e=>`<div class="ei"><div class="ei-s">${e.subject}</div><div class="ei-m">${e.to} &middot; ${e.time}</div></div>`).join("")}</div>`:""}<button class="logout-btn" onclick="doLogout()">Sign Out</button></div>`;}
+<div class="pc-row"><div class="pc-rl-wrap"><div class="pc-ico"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1.5L5 5H2.5l2 2-1 3.5L7 8.5 9.5 10.5l-1-3.5 2-2H8L7 1.5z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg></div><div><div class="pc-rl">Push Notifications</div><div class="pc-rs" id="pushStatusTxt">${pushStatusText}</div></div></div>${pushBtn}</div><div class="pc-row"><div class="pc-rl-wrap"><div class="pc-ico"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="5" r="3" stroke="currentColor" stroke-width="1.3"/><path d="M1.5 13c0-3 2.5-4.5 5.5-4.5s5.5 1.5 5.5 4.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></div><div><div class="pc-rl">Alert address</div><div class="pc-rs">${CU.email}</div></div></div></div>${emailLog.length?`<div class="email-log"><div class="email-log-hd">Recent Alerts Sent</div>${emailLog.map(e=>`<div class="ei"><div class="ei-s">${e.subject}</div><div class="ei-m">${e.to} &middot; ${e.time}</div></div>`).join("")}</div>`:""}<button class="logout-btn" onclick="doLogout()">Sign Out</button></div>`;}
 
 /* ━━━ PATCH 3: go() — handles predict page + widget refresh ━━━ */
 function go(page){
@@ -3194,32 +3254,6 @@ async function disablePush() {
   } catch(e) { toast('Could not disable push', 'err'); }
 }
 
-async function testPushNotification() {
-  if (!_pushSubscription) { toast('Enable push notifications first', 'info'); return; }
-  const btn = document.getElementById('testPushBtn');
-  if (btn) { btn.textContent = 'Sending…'; btn.disabled = true; }
-  try {
-    const res = await fetch(EMAIL_FN, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'apikey': SUPA_ANON, 'Authorization': `Bearer ${SUPA_ANON}` },
-      body: JSON.stringify({
-        mode: 'test_push',
-        userId: CU.id,
-      }),
-    });
-    const json = await res.json().catch(() => ({}));
-    if (res.ok && json.pushSent > 0) {
-      toast('Test notification sent — check your device', 'ok');
-    } else {
-      toast('Push delivery failed: ' + (json.error || 'check edge function logs'), 'err');
-      console.error('[Push] test result:', json);
-    }
-  } catch(e) {
-    toast('Could not reach edge function: ' + e.message, 'err');
-  }
-  if (btn) { btn.textContent = 'Send test notification'; btn.disabled = false; }
-}
-
 async function _savePushSub(sub) {
   if (!CU || !sub) return;
   const subJson = sub.toJSON();
@@ -3281,6 +3315,14 @@ if ('serviceWorker' in navigator) {
   navigator.serviceWorker.addEventListener('message', event => {
     if (event.data?.type === 'PUSH_CLICK') {
       go('home');
+      // If push carried an area, find the latest report for it and show confirm popup
+      const pushArea = event.data?.area;
+      if (pushArea) {
+        setTimeout(() => {
+          const rep = reports.find(r => r.area === pushArea && (Date.now()-r.time)<30*60*1000);
+          if (rep) showConfirmPopup(rep);
+        }, 800);
+      }
     }
   });
 }
@@ -3373,6 +3415,41 @@ function dismissConfirm() {
 }
 
 let _rtChannel=null,_recentAlerts=new Set(),_rtWatchdog=null;
+// ── Pull-to-refresh (iOS PWA + Android) ─────────────────
+(function(){
+  let _ptrStartY=0,_ptrActive=false,_ptrInd=null;
+  const MIN_PULL=70;
+  function _ptrGetInd(){
+    if(!_ptrInd){
+      _ptrInd=document.createElement('div');
+      _ptrInd.style.cssText='position:fixed;top:-60px;left:50%;transform:translateX(-50%);width:42px;height:42px;background:var(--sf);border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 14px rgba(0,0,0,.35);transition:top .18s ease;z-index:9999;pointer-events:none';
+      _ptrInd.innerHTML='<svg width="18" height="18" viewBox="0 0 18 18" fill="none" style="animation:ptrSpin .7s linear infinite"><path d="M9 2a7 7 0 1 0 7 7" stroke="var(--p)" stroke-width="2.2" stroke-linecap="round"/></svg>';
+      document.body.appendChild(_ptrInd);
+      const s=document.createElement('style');
+      s.textContent='@keyframes ptrSpin{to{transform:rotate(360deg)}}';
+      document.head.appendChild(s);
+    }
+    return _ptrInd;
+  }
+  document.addEventListener('touchstart',e=>{
+    if(window.scrollY===0){_ptrStartY=e.touches[0].clientY;_ptrActive=true;}
+  },{passive:true});
+  document.addEventListener('touchmove',e=>{
+    if(!_ptrActive)return;
+    const dy=e.touches[0].clientY-_ptrStartY;
+    if(dy>0){const ind=_ptrGetInd();ind.style.top=Math.min(dy-MIN_PULL,16)+'px';}
+  },{passive:true});
+  document.addEventListener('touchend',e=>{
+    if(!_ptrActive)return;
+    _ptrActive=false;
+    const dy=e.changedTouches[0].clientY-_ptrStartY;
+    _ptrGetInd().style.top='-60px';
+    if(dy>MIN_PULL){
+      loadReports().then(()=>{render();toast('Refreshed','ok');}).catch(()=>{});
+    }
+  },{passive:true});
+})();
+
 function startRealtime(){try{if(_rtChannel){try{sb.removeChannel(_rtChannel);}catch(e){}} _rtChannel=sb.channel("realtime-reports-"+Date.now()).on("postgres_changes",{event:"INSERT",schema:"public",table:"reports"},payload=>{try{const r=payload.new;if(!r||reports.find(x=>String(x.id)===String(r.id)))return;const newRep={id:String(r.id),name:String(r.location_name||""),area:String(r.location_area||""),type:String(r.type||""),time:new Date(r.created_at).getTime(),confirms:Number(r.confirms)||1,userId:r.user_id,isAI:r.user_id===AI_USER_ID};reports.unshift(newRep);if(reports.length>200)reports.pop();renderStats();prependReportCard(newRep,"liveFeed");renderDiscos();if(_nearbyAreas.length)renderNearbyDashboard();renderSavedPlacesHome();renderMyPlacesList();if(r.user_id&&r.user_id!==CU?.id){const alertKey=r.id+r.type;if(!_recentAlerts.has(alertKey)){_recentAlerts.add(alertKey);setTimeout(()=>_recentAlerts.delete(alertKey),30000);sendAreaAlerts(r.location_name,r.location_area,r.type);}}// Show in-app confirm popup for reports in user's area
 setTimeout(()=>showConfirmPopup(newRep),800);}catch(e){}}).on("postgres_changes",{event:"UPDATE",schema:"public",table:"reports"},payload=>{try{const r=payload.new;const existing=reports.find(x=>String(x.id)===String(r.id));if(existing){existing.confirms=Number(r.confirms)||1;const confirmsEl=document.querySelector(`[data-confirms="${existing.id}"]`);if(confirmsEl)confirmsEl.textContent=`${existing.confirms} confirmation${existing.confirms!==1?"s":""}`;else{renderFeed("liveFeed");renderFeed("myFeed",PR?.location_area||null);}}}catch(e){}}).subscribe(status=>{
     // If realtime drops, restart it after 5s
