@@ -2479,10 +2479,8 @@ async function loadReports(){
     dbReports.sort((a,b)=>b.time-a.time);
     const pending=reports.filter(r=>String(r.id).startsWith("local-")||String(r.id).startsWith("ai-"));
     reports=[...pending,...dbReports];
-    if(reports.length===0) seedFallback(); // no data at all — show demo
   }catch(e){
     console.warn('[loadReports] failed:',e?.message);
-    if(reports.length===0) seedFallback();
   }
   render();
   if(_nearbyAreas.length) renderNearbyDashboard();
@@ -2569,23 +2567,18 @@ function getAreaReliability(area) {
   const areaReps = reports.filter(r =>
     (r.area === area || (AREA_PARENT[r.area] === area)) &&
     (now - r.time) < thirtyDays
-  ).sort((a,b)=>a.time-b.time);
-  if (areaReps.length < 3) return null;
-  // Pair out→bck events to measure real downtime
-  let totalDownMs = 0, lastOut = null;
-  for (const r of areaReps) {
-    if (r.type === 'out') { lastOut = r.time; }
-    else if (r.type === 'bck' && lastOut) {
-      totalDownMs += Math.min(r.time - lastOut, 12*3600*1000);
-      lastOut = null;
-    }
-  }
-  if (lastOut) totalDownMs += Math.min(now - lastOut, 12*3600*1000);
-  const windowMs = Math.min(now - areaReps[0].time, thirtyDays);
-  if (windowMs < 3*3600*1000) return null;
-  const score = Math.max(5, Math.min(98, Math.round(100-(totalDownMs/windowMs)*100)));
-  const grade = score >= 85 ? "A" : score >= 70 ? "B" : score >= 50 ? "C" : score >= 30 ? "D" : "F";
-  const color = score >= 85 ? "var(--p)" : score >= 70 ? "#69F0AE" : score >= 50 ? "var(--am)" : "var(--rd)";
+  );
+  const outCount = areaReps.filter(r => r.type === 'out').length;
+  const bckCount = areaReps.filter(r => r.type === 'bck').length;
+  const total = outCount + bckCount;
+  // Need at least 5 reports to be meaningful
+  if (total < 5) return null;
+  // Score = % of reports that are "power back" — simple and honest
+  // High bck% = area gets power back often = reliable
+  // High out% = area keeps losing power = unreliable
+  const score = Math.round((bckCount / total) * 100);
+  const grade = score >= 70 ? "A" : score >= 55 ? "B" : score >= 40 ? "C" : score >= 25 ? "D" : "F";
+  const color = score >= 70 ? "var(--p)" : score >= 55 ? "#69F0AE" : score >= 40 ? "var(--am)" : "var(--rd)";
   return { score, grade, color, total };
 }
 
@@ -3039,7 +3032,7 @@ function _buildReportCard(r, i=0){
   const wrongBtn = isOwn ? '' : `<button class="wrong-btn" onclick="markReportWrong('${r.id}')" title="Flag as inaccurate">${(r.wrongVotes||0)>0?`<span class="wrong-count">${r.wrongVotes}</span>`:''}<svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 2L8 8M8 2L2 8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></button>`;
   const waBtn = `<button class="wa-btn" onclick="shareToWhatsApp('${r.id}')" title="Share on WhatsApp"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M5.5 1A4.5 4.5 0 0 0 1.5 7.2L1 10l2.8-.5A4.5 4.5 0 1 0 5.5 1z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg></button>`;
   const rel = getAreaReliability(r.area);
-  const relBadge = rel ? `<span class="rel-badge" style="color:${rel.color}" title="${rel.score}% reliable (30d)">${rel.grade}</span>` : '';
+  const relBadge = rel ? `<span class="rel-badge" style="color:${rel.color}" title="${rel.score}% of reports are power-restored (${rel.total} reports, 30d)">${rel.grade}</span>` : '';
   const since = r.type === 'out' ? r.time : null;
   const timerHtml = since ? `<div class="fc-timer" data-outage-since="${since}">Out for ${formatDuration(Date.now()-since)}</div>` : '';
   const flaggedCls = isFlagged ? ' fc-flagged' : '';
@@ -3492,7 +3485,7 @@ window.addEventListener("load",async()=>{
     // Clean URL immediately
     window.history.replaceState({},document.title,window.location.pathname);
     // Light boot — just enough for the app to be usable behind the form
-    const _rf2=setTimeout(()=>{const el=document.getElementById("liveFeed");if(el&&el.querySelector(".loading-row")){seedFallback();render();}},10000);
+    const _rf2=setTimeout(()=>{const el=document.getElementById("liveFeed");if(el&&el.querySelector(".loading-row")){render();}},10000);
     await Promise.all([loadReports(),loadCustomLocations()]);
     clearTimeout(_rf2);
     startPolling();
@@ -3510,7 +3503,7 @@ window.addEventListener("load",async()=>{
   const _feedFailsafe = setTimeout(()=>{
     const el=document.getElementById('liveFeed');
     if(el&&el.querySelector('.loading-row')){
-      seedFallback();render();
+      render();
     }
   }, 10000);
   await Promise.all([loadReports(),loadCustomLocations()]);
