@@ -98,7 +98,7 @@ self.addEventListener('push', event => {
     badge:    '/logo2.jpg',
     tag:      `nw-${area}-${type}`,
     renotify: true,
-    data:     { url: data.url || '/' },
+    data:     { url: data.url || '/', area: data.area || '', type: data.type || '' },
     actions: [
       { action: 'open',    title: 'Open App' },
       { action: 'dismiss', title: 'Dismiss'  },
@@ -118,7 +118,7 @@ self.addEventListener('notificationclick', event => {
       for (const c of cs) {
         if (c.url.includes(self.location.origin) && 'focus' in c) {
           c.focus();
-          c.postMessage({ type: 'PUSH_CLICK', url: targetUrl });
+          c.postMessage({ type: 'PUSH_CLICK', url: targetUrl, area: event.notification.data?.area || '', repType: event.notification.data?.type || '' });
           return;
         }
       }
