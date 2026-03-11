@@ -15,6 +15,7 @@ const PRECACHE = [
   '/predict.css',
   '/logo.jpg',
   '/logo2.jpg',
+  '/badge.png',
 ];
 
 self.addEventListener('install', event => {
@@ -95,7 +96,7 @@ self.addEventListener('push', event => {
   const options = {
     body,
     icon:     '/logo2.jpg',
-    badge:    '/logo2.jpg',
+    badge:    '/badge.png',
     tag:      `nw-${area}-${type}`,
     renotify: true,
     data:     { url: data.url || '/', area: data.area || '', type: data.type || '' },
