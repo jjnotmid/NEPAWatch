@@ -390,6 +390,26 @@ tr:hover td{background:rgba(128,128,128,.04)}
         <button class="btn btn-primary" id="bcModeAll" onclick="setBcMode('broadcast')" style="flex:1;min-width:120px"><svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M6.5 7.5a1 1 0 1 0 0-2 1 1 0 0 0 0 2z" fill="currentColor"/><path d="M3.5 9.5a4.2 4.2 0 0 1 0-6M9.5 9.5a4.2 4.2 0 0 0 0-6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><path d="M1.5 11.5a7 7 0 0 1 0-10M11.5 11.5a7 7 0 0 0 0-10" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg> Broadcast to Users</button>
         <button class="btn btn-ghost" id="bcModeOne" onclick="setBcMode('single')" style="flex:1;min-width:120px"><svg width="13" height="13" viewBox="0 0 13 13" fill="none"><rect x="1" y="2.5" width="11" height="8" rx="1.3" stroke="currentColor" stroke-width="1.2"/><path d="M1 5l5.5 3.5L12 5" stroke="currentColor" stroke-width="1.2"/></svg> Email One Person</button>
       </div>
+      <div style="background:var(--bg2);border:1px solid var(--bd);border-radius:12px;padding:18px;margin-bottom:18px">
+        <div style="font-weight:700;font-size:.85rem;margin-bottom:14px">📲 Send Custom Push Notification</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+          <div>
+            <label style="font-size:.72rem;color:var(--ink3);display:block;margin-bottom:5px">Title</label>
+            <input id="pushTitle" class="bc-inp" placeholder="e.g. Power Alert - Lekki" style="width:100%;box-sizing:border-box">
+          </div>
+          <div>
+            <label style="font-size:.72rem;color:var(--ink3);display:block;margin-bottom:5px">Target Area (blank = all users)</label>
+            <input id="pushArea" class="bc-inp" placeholder="e.g. Victoria Island" style="width:100%;box-sizing:border-box">
+          </div>
+        </div>
+        <label style="font-size:.72rem;color:var(--ink3);display:block;margin-bottom:5px">Message</label>
+        <textarea id="pushBody" class="bc-inp" rows="2" placeholder="Your message..." style="width:100%;box-sizing:border-box;resize:vertical;min-height:60px"></textarea>
+        <div style="margin-top:12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+          <button onclick="sendCustomPush()" class="btn btn-primary" style="padding:9px 22px">Send Push</button>
+          <button onclick="sendTestPushToSelf()" class="btn btn-ghost" style="padding:9px 18px;font-size:.72rem">Test Push → Me</button>
+          <span id="pushResult" style="font-size:.73rem;color:var(--ink3)"></span>
+        </div>
+      </div>
       <div class="bc-grid" id="bcGrid">
         <div class="card">
           <div class="card-hd"><div class="card-title" id="bcFormTitle">Compose Broadcast</div></div>
@@ -760,49 +780,43 @@ function filterReports() {
     <td><button class="del-btn" onclick="deleteReport('${r.id}')">Delete</button></td>
   </tr>`).join('');
 }
+async function sendCustomPush() {
+  const title=document.getElementById('pushTitle').value.trim();
+  const body=document.getElementById('pushBody').value.trim();
+  const area=document.getElementById('pushArea').value.trim()||null;
+  const resEl=document.getElementById('pushResult');
+  if(!title||!body){toast('Title and message required','err');return;}
+  resEl.textContent='Sending...';
+  try{
+    const res=await fetch(EMAIL_FN,{method:'POST',
+      headers:{'Content-Type':'application/json','apikey':SUPA_ANON,'Authorization':`Bearer ${SUPA_ANON}`},
+      body:JSON.stringify({mode:'broadcast',subject:title,body,area})
+    });
+    const j=await res.json().catch(()=>({}));
+    resEl.textContent=`Done — ${j.pushSent||0} push, ${j.sent||0} email`;
+    toast(`Push sent to ${j.pushSent||0} devices`,'ok');
+  }catch(e){resEl.textContent='Error: '+e.message;toast('Failed','err');}
+}
+async function sendTestPushToSelf() {
+  const resEl=document.getElementById('pushResult');
+  resEl.textContent='Sending test...';
+  try{
+    const res=await fetch(EMAIL_FN,{method:'POST',
+      headers:{'Content-Type':'application/json','apikey':SUPA_ANON,'Authorization':`Bearer ${SUPA_ANON}`},
+      body:JSON.stringify({mode:'test_push',userId:adminUser?.id})
+    });
+    const j=await res.json().catch(()=>({}));
+    if(j.pushSent>0){resEl.textContent='Test sent ✓';toast('Test push sent','ok');}
+    else{resEl.textContent=j.error||'No push sub — enable push in the app first';toast('No push sub found','err');}
+  }catch(e){resEl.textContent='Failed';toast('Failed','err');}
+}
 async function deleteReport(id) {
   if(!confirm('Delete this report? Cannot be undone.'))return;
-
-  // Use the edge function (service-role key) to bypass RLS — the anon client
-  // can only delete rows owned by the signed-in user, so admin deletes of
-  // other users' reports silently fail with 0 rows affected.
   try {
-    const res = await fetch(EMAIL_FN.replace('send-alert','admin-action'), {
-      method: 'POST',
-      headers: { 'Content-Type':'application/json', 'apikey': SUPA_ANON, 'Authorization': `Bearer ${SUPA_ANON}` },
-      body: JSON.stringify({ action: 'delete_report', id, adminEmail: adminUser?.email }),
-    });
-
-    // Fallback: if admin-action fn doesn't exist yet, try direct delete
-    // (works if admin has an RLS bypass policy set up in Supabase)
-    if (res.status === 404) {
-      const { error } = await sb.from('reports').delete().eq('id', id);
-      if (error) {
-        // Show the SQL they need to run once in Supabase to fix this permanently
-        toast('RLS is blocking admin deletes. Run the SQL fix shown in the console.', 'err');
-        console.error(`%cAdmin Delete Fix — run this SQL once in Supabase SQL Editor:
-
-CREATE POLICY "Admin can delete any report"
-ON reports FOR DELETE
-USING (auth.email() = 'usifohjosh47@gmail.com');
-
-OR if you prefer:
-ALTER TABLE reports DISABLE ROW LEVEL SECURITY;`, 'color: #ff4055; font-size: 13px;');
-        return;
-      }
-    } else if (!res.ok) {
-      const j = await res.json().catch(()=>({}));
-      toast('Delete failed: ' + (j.error || res.status), 'err');
-      return;
-    }
-
-    allReports = allReports.filter(r => String(r.id) !== String(id));
-    toast('Report deleted ✓', 'ok');
-    renderDashReports(); filterReports(); buildAreaStatus(); renderAreas(); loadStats();
-  } catch(e) {
-    console.error('[deleteReport] exception:', e);
-    toast('Delete failed: ' + (e?.message || 'unknown error'), 'err');
-  }
+    await sb.from('reports').delete().eq('id',id);
+    allReports=allReports.filter(r=>r.id!=id);
+    toast('Deleted','ok'); renderDashReports(); filterReports(); buildAreaStatus(); renderAreas(); loadStats();
+  } catch(e){toast('Delete failed','err');}
 }
 
 // ── CONFIRMATIONS ─────────────────────────────────────────────
