@@ -3318,12 +3318,12 @@ if ('serviceWorker' in navigator) {
   navigator.serviceWorker.addEventListener('message', event => {
     if (event.data?.type === 'PUSH_CLICK') {
       go('home');
-      // If push carried an area, find the latest report for it and show confirm popup
       const pushArea = event.data?.area;
+      const pushRepType = event.data?.repType;
       if (pushArea) {
         setTimeout(() => {
-          const rep = reports.find(r => r.area === pushArea && (Date.now()-r.time)<30*60*1000);
-          if (rep) showConfirmPopup(rep);
+          const rep = reports.find(r => r.area === pushArea && (Date.now()-r.time)<60*60*1000);
+          if (rep) showPushInfoSheet(rep);
         }, 800);
       }
     }
@@ -3367,15 +3367,69 @@ function startBackgroundLocation() {
 let _confirmRepId = null;
 const _confirmedReports = new Set(); // track what user already confirmed/dismissed
 
+// Called when user taps a push notification — shows info + optional confirm
+function showPushInfoSheet(rep) {
+  if (!rep) return;
+  const isOut = rep.type === 'out';
+  const icon = isOut ? IC.out : IC.bck;
+  const color = isOut ? 'var(--rd)' : 'var(--p)';
+  const bg = isOut ? 'rgba(255,64,85,.08)' : 'rgba(170,255,0,.07)';
+  const border = isOut ? 'rgba(255,64,85,.2)' : 'rgba(170,255,0,.2)';
+
+  _confirmRepId = rep.id;
+  document.getElementById('confirmTitle').textContent = isOut ? '⚡ Power Outage' : '✅ Power Restored';
+  document.getElementById('confirmSub').textContent = rep.area;
+  document.getElementById('confirmBody').innerHTML =
+    `<div style="display:flex;align-items:center;gap:10px;padding:12px 14px;background:${bg};border-radius:10px;border:1px solid ${border};margin-bottom:14px">
+      <span style="flex-shrink:0">${icon}</span>
+      <div>
+        <div style="font-weight:600;font-size:.88rem;color:${color}">${rep.name}</div>
+        <div style="font-size:.74rem;color:var(--ink3);margin-top:2px">${rep.area} &middot; ${ago(rep.time)} ago</div>
+      </div>
+    </div>
+    <p style="font-size:.8rem;color:var(--ink2);margin:0 0 14px;line-height:1.6">
+      ${isOut ? 'Power outage was reported in this area.' : 'Power has been restored in this area.'}
+      ${CU ? '<span style="color:var(--ink3)">Can you confirm this?</span>' : ''}
+    </p>
+    ${CU ? `<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+      <button onclick="submitPushConfirm('yes')" style="padding:10px 6px;border-radius:9px;border:1px solid ${border};background:${bg};color:${color};font-weight:700;font-size:.75rem;cursor:pointer">
+        ${isOut ? '⚡ Still out' : '✅ Yes, back'}
+      </button>
+      <button onclick="submitPushConfirm('no')" style="padding:10px 6px;border-radius:9px;border:1px solid var(--bd);background:var(--bg3);color:var(--ink);font-weight:700;font-size:.75rem;cursor:pointer">
+        ${isOut ? '✅ No, back' : '⚡ No, still out'}
+      </button>
+      <button onclick="dismissConfirm()" style="padding:10px 6px;border-radius:9px;border:1px solid var(--bd);background:var(--bg3);color:var(--ink3);font-size:.75rem;cursor:pointer">
+        🤷 Not sure
+      </button>
+    </div>` : ''}`;
+
+  // Hide the old single yes button, we have inline buttons now
+  document.getElementById('confirmYesBtn').style.display = 'none';
+  document.getElementById('confirmOverlay').classList.add('open');
+  setTimeout(() => dismissConfirm(), 60000);
+}
+
+async function submitPushConfirm(answer) {
+  if (!_confirmRepId) return;
+  if (answer === 'yes') {
+    // They confirmed the report is accurate
+    await addConfirm(_confirmRepId);
+  }
+  // 'no' = they implicitly say opposite is true, we just dismiss
+  // 'not sure' = dismiss
+  dismissConfirm();
+}
+
 function showConfirmPopup(rep) {
   // Don't show if: user is the reporter, already confirmed/dismissed, no login
   if (!CU) return;
   if (rep.userId === CU.id) return;
   if (_confirmedReports.has(rep.id)) return;
-  // Only show if user is in the same area family
+  // Show if user has this area saved OR is in the same area
   const userArea = PR?.location_area || (_nearbyAreas[0]?.area);
-  if (!userArea) return;
-  if (!areaMatches(rep.area, userArea) && !areaMatches(userArea, rep.area)) return;
+  const hasSaved = savedPlaces.some(p => p.location_area === rep.area);
+  if (!userArea && !hasSaved) return;
+  if (!hasSaved && userArea && !areaMatches(rep.area, userArea) && !areaMatches(userArea, rep.area)) return;
 
   _confirmRepId = rep.id;
   const isOut = rep.type === 'out';
@@ -3396,8 +3450,8 @@ function showConfirmPopup(rep) {
   const btn = document.getElementById('confirmYesBtn');
   btn.textContent = isOut ? 'Yes, power is out here' : 'Yes, power is back here';
   btn.className = `mconfirm ${isOut ? 'out' : 'bck'}`;
+  btn.style.display = '';
   document.getElementById('confirmOverlay').classList.add('open');
-  // Auto-dismiss after 30s if user ignores it
   setTimeout(() => dismissConfirm(), 30000);
 }
 
