@@ -2677,13 +2677,14 @@ async function toggleAreaAlert(evt, area, repId) {
     return;
   }
   // Save area as an alert-only saved place
+  // Look up in LOCS first, fall back to the report's own data for custom areas
   const areaLoc = LOCS.find(l => l.name === area && !l.street) || LOCS.find(l => l.area === area && !l.street);
-  if (!areaLoc) { toast('Area not found', 'err'); return; }
+  const rep = reports.find(r => r.id == repId) || reports.find(r => r.area === area);
   const placeObj = {
     type: 'alert',
     custom_label: `Alerts: ${area}`,
-    location_id: areaLoc.id,
-    location_name: areaLoc.name,
+    location_id: areaLoc?.id || null,
+    location_name: areaLoc?.name || rep?.name || area,
     location_area: area,
     location_label: area,
     notif_on: true,
