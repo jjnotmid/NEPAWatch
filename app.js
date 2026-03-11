@@ -2461,24 +2461,34 @@ if(!lat||!lng){const gc=await _geocodeLoc(street,area);if(gc){lat=gc.lat;lng=gc.
 if(lat&&lng){const dup=_findDupLoc(lat,lng,180);if(dup){toast(`Merged with "${dup.name}" — same location`,"ok");return dup;}}const{data,error}=await sb.from("custom_locations").insert({street_name:street,area_name:area,lat:lat||null,lng:lng||null}).select().single();if(error)throw error;const newLoc={id:data.id,name:street,area,street,label:`${street} — ${area}`,custom:true,lat:lat||null,lng:lng||null};if(!LOCS.find(l=>l.id===data.id))LOCS.unshift(newLoc);toast(`"${data.street_name}" added for everyone!`,"ok");return newLoc;}catch(e){toast(e.message||"Could not add location","err");return null;}}
 
 async function loadReports(){
+  const fetchWithTimeout=(promise,ms)=>Promise.race([
+    promise,
+    new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')),ms))
+  ]);
   try{
-    const todayStart=new Date();todayStart.setHours(0,0,0,0);
-    const[{data:recentData,error:e1},{data:todayData,error:e2}]=await Promise.all([
-      sb.from("reports").select("id,user_id,location_name,location_area,type,confirms,created_at").order("created_at",{ascending:false}).limit(500),
-      sb.from("reports").select("id,user_id,location_name,location_area,type,confirms,created_at").gte("created_at",todayStart.toISOString()).order("created_at",{ascending:false}).limit(500)
-    ]);
-    if(e1&&e2)throw e1;
+    const {data, error} = await fetchWithTimeout(
+      sb.from("reports")
+        .select("id,user_id,location_name,location_area,type,confirms,created_at")
+        .order("created_at",{ascending:false})
+        .limit(300),
+      8000
+    );
+    if(error) throw error;
     const mapRow=r=>({id:r.id,name:r.location_name,area:r.location_area,type:r.type,time:new Date(r.created_at).getTime(),confirms:r.confirms||1,userId:r.user_id,isAI:r.user_id===AI_USER_ID});
-    const seen=new Set();const merged=[];
-    [...(todayData||[]).map(mapRow),...(recentData||[]).map(mapRow)].forEach(r=>{if(!seen.has(r.id)){seen.add(r.id);merged.push(r);}});
-    merged.sort((a,b)=>b.time-a.time);
+    const dbReports=(data||[]).map(mapRow);
+    dbReports.sort((a,b)=>b.time-a.time);
     const pending=reports.filter(r=>String(r.id).startsWith("local-")||String(r.id).startsWith("ai-"));
-    reports=[...pending,...merged];
-  }catch(e){if(reports.length===0)seedFallback();}
-  render();if(_nearbyAreas.length)renderNearbyDashboard();
+    reports=[...pending,...dbReports];
+    if(reports.length===0) seedFallback(); // no data at all — show demo
+  }catch(e){
+    console.warn('[loadReports] failed:',e?.message);
+    if(reports.length===0) seedFallback();
+  }
+  render();
+  if(_nearbyAreas.length) renderNearbyDashboard();
 }
 
-async function pollReports(){try{const{data,error}=await sb.from("reports").select("id,user_id,location_name,location_area,type,confirms,created_at").order("created_at",{ascending:false}).limit(500);if(error||!data)return;const dbReports=data.map(r=>({id:r.id,name:r.location_name,area:r.location_area,type:r.type,time:new Date(r.created_at).getTime(),confirms:r.confirms||1,userId:r.user_id,isAI:r.user_id===AI_USER_ID}));const pending=reports.filter(r=>String(r.id).startsWith("local-")||String(r.id).startsWith("ai-"));const newList=[...pending,...dbReports];const oldIds=reports.filter(r=>!String(r.id).startsWith("local-")&&!String(r.id).startsWith("ai-")).map(r=>r.id+r.confirms).join(",");const newIds=dbReports.map(r=>r.id+r.confirms).join(",");if(oldIds!==newIds){reports=newList;render();if(_nearbyAreas.length)renderNearbyDashboard();renderSavedPlacesHome();renderMyPlacesList();}}catch(e){}}
+async function pollReports(){try{const{data,error}=await sb.from("reports").select("id,user_id,location_name,location_area,type,confirms,created_at").order("created_at",{ascending:false}).limit(300);if(error||!data)return;const dbReports=data.map(r=>({id:r.id,name:r.location_name,area:r.location_area,type:r.type,time:new Date(r.created_at).getTime(),confirms:r.confirms||1,userId:r.user_id,isAI:r.user_id===AI_USER_ID}));const pending=reports.filter(r=>String(r.id).startsWith("local-")||String(r.id).startsWith("ai-"));const newList=[...pending,...dbReports];const oldIds=reports.filter(r=>!String(r.id).startsWith("local-")&&!String(r.id).startsWith("ai-")).map(r=>r.id+r.confirms).join(",");const newIds=dbReports.map(r=>r.id+r.confirms).join(",");if(oldIds!==newIds){reports=newList;render();if(_nearbyAreas.length)renderNearbyDashboard();renderSavedPlacesHome();renderMyPlacesList();}}catch(e){}}
 
 function startPolling(){
   if(_pollTimer)clearInterval(_pollTimer);
@@ -3482,7 +3492,9 @@ window.addEventListener("load",async()=>{
     // Clean URL immediately
     window.history.replaceState({},document.title,window.location.pathname);
     // Light boot — just enough for the app to be usable behind the form
+    const _rf2=setTimeout(()=>{const el=document.getElementById("liveFeed");if(el&&el.querySelector(".loading-row")){seedFallback();render();}},10000);
     await Promise.all([loadReports(),loadCustomLocations()]);
+    clearTimeout(_rf2);
     startPolling();
     go("account");
     setTimeout(()=>{
@@ -3494,7 +3506,15 @@ window.addEventListener("load",async()=>{
 
   // ── Normal boot ──
   await initAuth();
+  // Show fallback in feed if loading takes too long (network issues)
+  const _feedFailsafe = setTimeout(()=>{
+    const el=document.getElementById('liveFeed');
+    if(el&&el.querySelector('.loading-row')){
+      seedFallback();render();
+    }
+  }, 10000);
   await Promise.all([loadReports(),loadCustomLocations()]);
+  clearTimeout(_feedFailsafe);
   if(CU)loadSavedPlaces();
   loadUserCount();
   updateBanner();
