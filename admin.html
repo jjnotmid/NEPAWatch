@@ -220,7 +220,7 @@ tr:hover td{background:rgba(128,128,128,.04)}
   <div class="auth-card">
     <h1>NEPA<em>Watch</em> Admin</h1>
     <p>Restricted access — authorised emails only.</p>
-    <div class="msg err" id="authErr"></div>
+    <div class="msg" id="authErr"></div>
     <div class="fld"><label>Email</label><input id="adminEmail" type="email" placeholder="you@example.com" autocomplete="email"></div>
     <div class="fld"><label>Password</label>
       <div class="pw-wrap">
@@ -813,10 +813,46 @@ async function sendTestPushToSelf() {
 async function deleteReport(id) {
   if(!confirm('Delete this report? Cannot be undone.'))return;
   try {
-    await sb.from('reports').delete().eq('id',id);
-    allReports=allReports.filter(r=>r.id!=id);
-    toast('Deleted','ok'); renderDashReports(); filterReports(); buildAreaStatus(); renderAreas(); loadStats();
-  } catch(e){toast('Delete failed','err');}
+    // Get the admin's live session token (has more permissions than anon key)
+    const { data: { session } } = await sb.auth.getSession();
+    const jwt = session?.access_token || SUPA_ANON;
+
+    // Try direct REST delete with admin JWT first
+    const res = await fetch(`${SUPA_URL}/rest/v1/reports?id=eq.${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+      headers: {
+        'apikey': SUPA_ANON,
+        'Authorization': `Bearer ${jwt}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=minimal'
+      }
+    });
+
+    if (res.ok || res.status === 204) {
+      allReports = allReports.filter(r => String(r.id) !== String(id));
+      toast('Report deleted', 'ok');
+      renderDashReports(); filterReports(); buildAreaStatus(); renderAreas(); loadStats();
+      return;
+    }
+
+    // If RLS blocked it (403), fall back to admin-action edge function
+    if (res.status === 403 || res.status === 401) {
+      const res2 = await fetch(`${SUPA_URL}/functions/v1/admin-action`, {
+        method: 'POST',
+        headers: {'Content-Type':'application/json','apikey':SUPA_ANON,'Authorization':`Bearer ${jwt}`},
+        body: JSON.stringify({action:'delete_report', id, adminEmail: adminUser?.email})
+      });
+      const j = await res2.json().catch(()=>({}));
+      if (!res2.ok) { toast('Delete failed: '+(j.error||res2.status),'err'); return; }
+      allReports = allReports.filter(r => String(r.id) !== String(id));
+      toast('Report deleted', 'ok');
+      renderDashReports(); filterReports(); buildAreaStatus(); renderAreas(); loadStats();
+      return;
+    }
+
+    const txt = await res.text().catch(()=>'');
+    toast('Delete failed: ' + (txt||res.status), 'err');
+  } catch(e) { toast('Delete failed: '+e.message,'err'); }
 }
 
 // ── CONFIRMATIONS ─────────────────────────────────────────────
