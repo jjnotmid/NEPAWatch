@@ -2693,7 +2693,7 @@ async function toggleAreaAlert(evt, area, repId) {
   const saved = await savePlaceToDB(placeObj);
   if (saved) {
     savedPlaces.push(saved);
-    toast(`🔔 Alerts on for ${area}`, 'ok');
+    toast(`<svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M5.5 1a3 3 0 0 1 3 3c0 1.7.7 2.6 1.3 3H2.2c.6-.4 1.3-1.3 1.3-3a3 3 0 0 1 3-3z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M4 7c0 .83.67 1.5 1.5 1.5S7 7.83 7 7" stroke="currentColor" stroke-width="1.2"/></svg> Alerts on for ${area}`, 'ok');
     _refreshAreaAlertBtns(area);
   }
 }
@@ -2728,8 +2728,8 @@ function shareToWhatsApp(repId) {
   const isOut = r.type === "out";
   const timeStr = new Date(r.time).toLocaleTimeString("en-NG", { hour: "2-digit", minute: "2-digit" });
   const msg = isOut
-    ? `⚡ Power outage reported at ${r.name}, ${r.area} as of ${timeStr}.\n\nCheck & track live on NEPAWatch Lagos 👇\n${APP_URL}`
-    : `✅ Power restored at ${r.name}, ${r.area} as of ${timeStr}.\n\nTrack live power updates on NEPAWatch Lagos 👇\n${APP_URL}`;
+    ? `Power outage reported at ${r.name}, ${r.area} as of ${timeStr}.\n\nCheck & track live on NEPAWatch Lagos\n${APP_URL}`
+    : `Power restored at ${r.name}, ${r.area} as of ${timeStr}.\n\nTrack live power updates on NEPAWatch Lagos\n${APP_URL}`;
   window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, "_blank");
 }
 
@@ -3393,7 +3393,7 @@ function showPushInfoSheet(rep) {
   const border = isOut ? 'rgba(255,64,85,.2)' : 'rgba(170,255,0,.2)';
 
   _confirmRepId = rep.id;
-  document.getElementById('confirmTitle').textContent = isOut ? '⚡ Power Outage' : '✅ Power Restored';
+  document.getElementById('confirmTitle').textContent = isOut ? 'Power Outage' : 'Power Restored';
   document.getElementById('confirmSub').textContent = rep.area;
   document.getElementById('confirmBody').innerHTML =
     `<div style="display:flex;align-items:center;gap:10px;padding:12px 14px;background:${bg};border-radius:10px;border:1px solid ${border};margin-bottom:14px">
@@ -3409,13 +3409,13 @@ function showPushInfoSheet(rep) {
     </p>
     ${CU ? `<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
       <button onclick="submitPushConfirm('yes')" style="padding:10px 6px;border-radius:9px;border:1px solid ${border};background:${bg};color:${color};font-weight:700;font-size:.75rem;cursor:pointer">
-        ${isOut ? '⚡ Still out' : '✅ Yes, back'}
+        ${isOut ? 'Still out' : 'Yes, back'}
       </button>
       <button onclick="submitPushConfirm('no')" style="padding:10px 6px;border-radius:9px;border:1px solid var(--bd);background:var(--bg3);color:var(--ink);font-weight:700;font-size:.75rem;cursor:pointer">
-        ${isOut ? '✅ No, back' : '⚡ No, still out'}
+        ${isOut ? 'No, back' : 'No, still out'}
       </button>
       <button onclick="dismissConfirm()" style="padding:10px 6px;border-radius:9px;border:1px solid var(--bd);background:var(--bg3);color:var(--ink3);font-size:.75rem;cursor:pointer">
-        🤷 Not sure
+        Not sure
       </button>
     </div>` : ''}`;
 
@@ -3427,13 +3427,14 @@ function showPushInfoSheet(rep) {
 
 async function submitPushConfirm(answer) {
   if (!_confirmRepId) return;
-  if (answer === 'yes') {
-    // They confirmed the report is accurate
-    await addConfirm(_confirmRepId);
-  }
-  // 'no' = they implicitly say opposite is true, we just dismiss
-  // 'not sure' = dismiss
-  dismissConfirm();
+  const rid = _confirmRepId;
+  // Dismiss immediately
+  _confirmedReports.add(rid);
+  _confirmRepId = null;
+  document.getElementById('confirmOverlay').classList.remove('open');
+  if (answer === 'yes') await addConfirm(rid);
+  else if (answer === 'no') markReportWrong(rid);
+  // 'unsure' = just dismiss, no vote
 }
 
 function showConfirmPopup(rep) {
@@ -3467,20 +3468,40 @@ function showConfirmPopup(rep) {
   btn.textContent = isOut ? 'Yes, power is out here' : 'Yes, power is back here';
   btn.className = `mconfirm ${isOut ? 'out' : 'bck'}`;
   btn.style.display = '';
+  btn.onclick = submitConfirm;
+  // Add/update No button dynamically
+  let noBtn = document.getElementById('confirmNoBtn');
+  if (!noBtn) {
+    noBtn = document.createElement('button');
+    noBtn.id = 'confirmNoBtn';
+    noBtn.className = 'mcancel';
+    btn.insertAdjacentElement('afterend', noBtn);
+  }
+  noBtn.textContent = isOut ? 'No, power is fine here' : 'No, still no power';
+  noBtn.style.cssText = 'background:rgba(255,64,85,.07);color:var(--rd);border:1px solid rgba(255,64,85,.15)';
+  noBtn.onclick = submitWrong;
   document.getElementById('confirmOverlay').classList.add('open');
   setTimeout(() => dismissConfirm(), 30000);
 }
 
 async function submitConfirm() {
   if (!_confirmRepId) return;
-  _confirmedReports.add(_confirmRepId);
-  document.getElementById('confirmOverlay').classList.remove('open');
-  // Reuse the existing confirmReport function
-  await confirmReport(_confirmRepId);
-  toast('Thanks for confirming!', 'ok');
+  const rid = _confirmRepId;
+  _confirmedReports.add(rid);
   _confirmRepId = null;
+  document.getElementById('confirmOverlay').classList.remove('open');
+  await addConfirm(rid);
+  toast('Confirmed!', 'ok');
 }
 
+async function submitWrong() {
+  if (!_confirmRepId) return;
+  const rid = _confirmRepId;
+  _confirmedReports.add(rid);
+  _confirmRepId = null;
+  document.getElementById('confirmOverlay').classList.remove('open');
+  markReportWrong(rid);
+}
 function dismissConfirm() {
   if (_confirmRepId) _confirmedReports.add(_confirmRepId);
   document.getElementById('confirmOverlay').classList.remove('open');
@@ -3524,7 +3545,7 @@ let _rtChannel=null,_recentAlerts=new Set(),_rtWatchdog=null;
 })();
 
 function startRealtime(){try{if(_rtChannel){try{sb.removeChannel(_rtChannel);}catch(e){}} _rtChannel=sb.channel("realtime-reports-"+Date.now()).on("postgres_changes",{event:"INSERT",schema:"public",table:"reports"},payload=>{try{const r=payload.new;if(!r||reports.find(x=>String(x.id)===String(r.id)))return;const newRep={id:String(r.id),name:String(r.location_name||""),area:String(r.location_area||""),type:String(r.type||""),time:new Date(r.created_at).getTime(),confirms:Number(r.confirms)||1,userId:r.user_id,isAI:r.user_id===AI_USER_ID};reports.unshift(newRep);if(reports.length>200)reports.pop();renderStats();prependReportCard(newRep,"liveFeed");renderDiscos();if(_nearbyAreas.length)renderNearbyDashboard();renderSavedPlacesHome();renderMyPlacesList();if(r.user_id&&r.user_id!==CU?.id){const alertKey=r.id+r.type;if(!_recentAlerts.has(alertKey)){_recentAlerts.add(alertKey);setTimeout(()=>_recentAlerts.delete(alertKey),30000);sendAreaAlerts(r.location_name,r.location_area,r.type);}}// Show in-app confirm popup for reports in user's area
-setTimeout(()=>showConfirmPopup(newRep),800);}catch(e){}}).on("postgres_changes",{event:"UPDATE",schema:"public",table:"reports"},payload=>{try{const r=payload.new;const existing=reports.find(x=>String(x.id)===String(r.id));if(existing){existing.confirms=Number(r.confirms)||1;const confirmsEl=document.querySelector(`[data-confirms="${existing.id}"]`);if(confirmsEl)confirmsEl.textContent=`${existing.confirms} confirmation${existing.confirms!==1?"s":""}`;else{renderFeed("liveFeed");renderFeed("myFeed",PR?.location_area||null);}}}catch(e){}}).subscribe(status=>{
+setTimeout(()=>{ if(!document.getElementById('confirmOverlay').classList.contains('open')) showConfirmPopup(newRep); },800);}catch(e){}}).on("postgres_changes",{event:"UPDATE",schema:"public",table:"reports"},payload=>{try{const r=payload.new;const existing=reports.find(x=>String(x.id)===String(r.id));if(existing){existing.confirms=Number(r.confirms)||1;const confirmsEl=document.querySelector(`[data-confirms="${existing.id}"]`);if(confirmsEl)confirmsEl.textContent=`${existing.confirms} confirmation${existing.confirms!==1?"s":""}`;else{renderFeed("liveFeed");renderFeed("myFeed",PR?.location_area||null);}}}catch(e){}}).subscribe(status=>{
     // If realtime drops, restart it after 5s
     if(status==='CHANNEL_ERROR'||status==='TIMED_OUT'){
       clearTimeout(_rtWatchdog);
