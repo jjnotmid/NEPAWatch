@@ -1,8 +1,8 @@
 /* =====================================================
-   NEPAWatch Lagos — Service Worker v1.2.0
+   NEPAWatch Lagos — Service Worker v1.3.0
    !! BUMP VERSION STRING ON EVERY DEPLOY !!
    ===================================================== */
-const VERSION = 'v1.2.0';
+const VERSION = 'v1.3.0';
 const CACHE   = `nepawatch-${VERSION}`;
 const OFFLINE_KEY = 'nw-offline-state';
 
@@ -44,8 +44,23 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // App shell: cache-first, fall back to network, update cache in background
+  // JS/HTML — network-first so updated code always runs immediately
+  // Falls back to cache only when offline
   if (url.origin === self.location.origin) {
+    const isShell = /\.(js|html)$/.test(url.pathname) || url.pathname === '/';
+    if (isShell) {
+      event.respondWith(
+        fetch(request).then(response => {
+          if (response && response.status === 200 && request.method === 'GET') {
+            const clone = response.clone();
+            caches.open(CACHE).then(cache => cache.put(request, clone));
+          }
+          return response;
+        }).catch(() => caches.match(request))
+      );
+      return;
+    }
+    // Static assets (css, images) — cache-first, update in background
     event.respondWith(
       caches.match(request).then(cached => {
         const networkFetch = fetch(request).then(response => {
@@ -55,7 +70,6 @@ self.addEventListener('fetch', event => {
           }
           return response;
         });
-        // Return cache immediately if available, fetch in background
         return cached || networkFetch;
       })
     );
