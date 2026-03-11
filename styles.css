@@ -231,11 +231,11 @@ nav{
 .fc-loc{font-size:.85rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--ink)}
 .fc-area{font-size:.66rem;color:var(--p);font-weight:600;margin-top:2px;opacity:.8}
 .fc-meta{font-size:.6rem;color:var(--ink3);margin-top:2px}
-.fc-r{display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0;min-width:0}
-.fc-time{font-size:.58rem;color:var(--ink3);white-space:nowrap;margin-bottom:1px}
-.fc-actions{display:flex;flex-direction:row;align-items:center;gap:4px;flex-wrap:nowrap}
+.fc-r{display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0}
+.fc-actions{display:flex;flex-direction:row;align-items:center;gap:3px;flex-wrap:nowrap}
+.fc-time{font-size:.58rem;color:var(--ink3);white-space:nowrap}
 .same-btn{
-  font-size:.65rem;font-weight:700;padding:5px 10px;border-radius:50px;
+  font-size:.61rem;font-weight:700;padding:5px 10px;border-radius:50px;
   border:1px solid var(--bd);background:transparent;color:var(--ink3);
   cursor:pointer;transition:all .15s;display:flex;align-items:center;gap:4px;white-space:nowrap;
 }
@@ -554,12 +554,12 @@ nav{
 
 /* ── Save-area button on report cards ── */
 .save-area-btn{
-  background:none;border:none;padding:5px 6px;cursor:pointer;
-  border-radius:6px;font-size:.58rem;font-weight:600;letter-spacing:.02em;
+  background:none;border:none;padding:0;cursor:pointer;
+  font-size:.58rem;font-weight:600;letter-spacing:.02em;
   color:rgba(120,210,100,.55);
-  transition:color .15s,background .15s;white-space:nowrap;display:flex;align-items:center;
+  transition:color .15s;white-space:nowrap;
 }
-.save-area-btn:hover{color:#7ed87e;background:rgba(120,210,100,.08);}
+.save-area-btn:hover{color:#7ed87e;}
 .save-area-btn:active{color:var(--p);}
 
 /* ── First-login onboarding tour ── */
@@ -568,21 +568,29 @@ nav{
 
 /* ── WRONG VOTE BUTTON ── */
 .wrong-btn{
-  background:none;border:none;cursor:pointer;padding:5px 6px;border-radius:6px;
-  color:var(--ink3);display:flex;align-items:center;gap:3px;transition:color .15s,background .15s;
-  font-size:.64rem;
+  background:rgba(255,64,85,.07);border:none;cursor:pointer;padding:5px 6px;border-radius:6px;
+  color:var(--rd);display:flex;align-items:center;gap:3px;transition:color .15s,background .15s;
+  font-size:.62rem;opacity:.75;
 }
-.wrong-btn:hover{color:var(--rd);background:rgba(255,64,85,.1);}
-.wrong-count{font-size:.6rem;color:var(--rd);font-weight:700;}
+.wrong-btn:hover{opacity:1;background:rgba(255,64,85,.16);}
+.wrong-count{font-size:.58rem;color:var(--rd);font-weight:700;}
 .fc-flagged{opacity:.6;}
 .fc-flagged-note{font-size:.62rem;color:var(--am);margin-top:2px;font-style:italic;}
 
 /* ── WHATSAPP SHARE BUTTON ── */
 .wa-btn{
   background:none;border:none;cursor:pointer;padding:5px 6px;border-radius:6px;
+  color:#25D366;display:flex;align-items:center;transition:color .15s,background .15s;opacity:.75;
+}
+.wa-btn:hover{opacity:1;background:rgba(37,211,102,.12);}
+
+/* ── ALERT AREA BUTTON (bell) ── */
+.alert-area-btn{
+  background:none;border:none;cursor:pointer;padding:5px 6px;border-radius:6px;
   color:var(--ink3);display:flex;align-items:center;transition:color .15s,background .15s;
 }
-.wa-btn:hover{color:#25D366;background:rgba(37,211,102,.1);}
+.alert-area-btn:hover,.alert-area-btn.active{color:var(--am);background:rgba(255,183,0,.1);}
+.alert-area-btn.active{color:var(--am);}
 
 /* ── RELIABILITY BADGE ── */
 .rel-badge{
