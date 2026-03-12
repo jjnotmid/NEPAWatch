@@ -308,6 +308,10 @@ tr:hover td{background:rgba(128,128,128,.04)}
         <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="1" y="3" width="12" height="8.5" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M1 6h12" stroke="currentColor" stroke-width="1.3"/><circle cx="3.5" cy="9" r="1" fill="currentColor"/></svg>
         Top-ups
       </button>
+      <button class="sb-item" data-page="kyc" onclick="nav(this)">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="1" y="2" width="12" height="10" rx="1.5" stroke="currentColor" stroke-width="1.3"/><circle cx="5" cy="6.5" r="1.5" stroke="currentColor" stroke-width="1.2"/><path d="M8 5.5h2.5M8 7.5h2.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><path d="M2.5 10c0-1.1.9-2 2-2h1c1.1 0 2 .9 2 2" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+        KYC Records
+      </button>
     </div>
 
     <div class="sb-foot">
@@ -449,25 +453,36 @@ tr:hover td{background:rgba(128,128,128,.04)}
               <svg width="13" height="13" viewBox="0 0 13 13" fill="none" style="vertical-align:-2px;margin-right:5px"><path d="M6.5 1C4 1 2 3 2 5.4c0 1 .3 1.9.9 2.6L1.5 11.5l3.6-.9c.4.2.9.3 1.4.3 2.5 0 4.5-2 4.5-4.5S9 1 6.5 1Z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M4.5 5.5h4M4.5 7.5h2" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/></svg>
               Test Push Notification
             </div>
-            <span style="font-size:.62rem;color:var(--ink3)">Fire a real push to any subscribed user's device to confirm delivery is working</span>
+            <span style="font-size:.62rem;color:var(--ink3)">Send a push notification directly to any specific user — works even if the app is closed</span>
           </div>
           <div class="card-body">
-            <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
+            <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:10px">
               <div class="fld" style="flex:1;min-width:200px;margin-bottom:0">
                 <label>Target User</label>
-                <select id="tp-user" style="width:100%">
-                  <option value="">— loading subscribers… —</option>
+                <select id="tp-user" style="width:100%" onchange="onTpUserChange()">
+                  <option value="">— loading users… —</option>
                 </select>
               </div>
+            </div>
+            <div id="tp-no-sub-warn" style="display:none;margin-bottom:10px;padding:8px 12px;background:rgba(255,180,0,.07);border:1px solid rgba(255,180,0,.2);border-radius:8px;font-size:.7rem;color:#ffb400;line-height:1.6">
+              ⚠️ This user has no push subscription — they haven't enabled push notifications yet. Push will fail. Email them via Broadcast instead.
+            </div>
+            <div class="fld" style="margin-bottom:10px">
+              <label>Notification Title</label>
+              <input id="tp-title" type="text" placeholder="e.g. Power update in your area" style="width:100%">
+            </div>
+            <div class="fld" style="margin-bottom:10px">
+              <label>Message</label>
+              <textarea id="tp-body" rows="2" placeholder="e.g. Light just came back in Yaba — check the app for latest updates." style="width:100%;resize:vertical;min-height:60px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;color:var(--ink1);padding:8px 12px;font-size:.78rem;font-family:inherit"></textarea>
+            </div>
+            <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
               <button class="btn btn-primary" id="tp-btn" onclick="sendTestPush()" style="flex-shrink:0;white-space:nowrap">
                 <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M1.5 6.5L11.5 1.5L8.5 11.5L6 7.5L1.5 6.5Z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>
-                Send Test Push
+                Send Push
               </button>
+              <span style="font-size:.65rem;color:var(--ink3)">Pops up on their device even if the app is closed</span>
             </div>
             <div id="tp-result" style="margin-top:10px;font-size:.72rem;padding:8px 12px;border-radius:7px;display:none"></div>
-            <div style="margin-top:12px;padding:10px 12px;background:var(--bg3);border-radius:8px;font-size:.66rem;color:var(--ink3);line-height:1.7">
-              <strong style="color:var(--ink2)">How this works:</strong> Looks up the user's saved push subscription in Supabase and fires a real encrypted Web Push to their browser or phone. The notification pops up even if the app is closed. A 410 response means the subscription is stale — it gets cleaned up automatically.
-            </div>
           </div>
         </div>
       </div>
@@ -552,8 +567,26 @@ tr:hover td{background:rgba(128,128,128,.04)}
         <input type="text" id="tu-search" placeholder="Search meter, email, reference…" oninput="filterTopups()">
         <select id="tu-status" onchange="filterTopups()"><option value="">All statuses</option><option value="delivered">Delivered</option><option value="pending">Pending</option><option value="failed">Failed</option></select>
         <select id="tu-provider" onchange="filterTopups()"><option value="">All providers</option><option value="IKEDC">IKEDC</option><option value="EKEDC">EKEDC</option></select>
+        <select id="tu-kyc" onchange="filterTopups()"><option value="">All KYC</option><option value="yes">KYC Submitted</option><option value="no">No KYC</option></select>
       </div>
-      <div class="card"><div class="tbl-wrap"><table><thead><tr><th>Reference</th><th>Customer</th><th>Meter</th><th>Provider</th><th>Amount</th><th>Token</th><th>Status</th><th>Date</th></tr></thead><tbody id="topupTable"><tr><td colspan="8" class="loading-row"><span class="spin"></span>Loading…</td></tr></tbody></table></div></div>
+      <div class="card"><div class="tbl-wrap"><table><thead><tr><th>Reference</th><th>Customer</th><th>Meter</th><th>Provider</th><th>Amount</th><th>Token</th><th>KYC</th><th>Status</th><th>Date</th></tr></thead><tbody id="topupTable"><tr><td colspan="9" class="loading-row"><span class="spin"></span>Loading…</td></tr></tbody></table></div></div>
+    </div>
+
+    <!-- KYC RECORDS PAGE -->
+    <div class="page" id="page-kyc">
+      <div class="ph"><h2>KYC Records</h2><p>Identity submissions for purchases &#8358;5,000 and above</p></div>
+      <div class="filter-bar">
+        <input type="text" id="kyc-search" placeholder="Search name, ID number, email…" oninput="filterKyc()">
+        <select id="kyc-idtype" onchange="filterKyc()"><option value="">All ID types</option><option value="NIN">NIN</option><option value="BVN">BVN</option></select>
+      </div>
+      <div class="card" style="margin-bottom:16px;padding:14px 18px;background:rgba(255,180,0,.06);border:1px solid rgba(255,180,0,.2)">
+        <div style="display:flex;align-items:center;gap:8px;font-size:.78rem;color:#F5A623;font-weight:600">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1.5A5.5 5.5 0 1 0 7 12.5A5.5 5.5 0 0 0 7 1.5z" stroke="#F5A623" stroke-width="1.3"/><path d="M7 6v3" stroke="#F5A623" stroke-width="1.4" stroke-linecap="round"/><circle cx="7" cy="4.5" r=".7" fill="#F5A623"/></svg>
+          Sensitive Data — Handle With Care
+        </div>
+        <div style="font-size:.72rem;color:var(--ink3);margin-top:5px;line-height:1.6">These records are stored under your AML/KYC obligations per the VTpass SLA. Do not share or export without a valid legal reason. Users were notified at time of submission per the NEPAWatch Privacy Policy.</div>
+      </div>
+      <div class="card"><div class="tbl-wrap"><table><thead><tr><th>Date</th><th>Full Name</th><th>ID Type</th><th>ID Number</th><th>DOB</th><th>Email</th><th>Amount</th><th>Transaction Ref</th></tr></thead><tbody id="kycTable"><tr><td colspan="8" class="loading-row"><span class="spin"></span>Loading…</td></tr></tbody></table></div></div>
     </div>
 
   </div>
@@ -691,6 +724,7 @@ function nav(el) {
   document.getElementById(`page-${page}`).classList.add('active');
   if (window.innerWidth<=768) toggleSidebar(false);
   if (page === 'health') loadAreaHealth();
+  if (page === 'kyc') loadKyc();
   if (page === 'announcements') loadAnnouncementsList();
 }
 function toggleSidebar(force) {
@@ -961,7 +995,6 @@ function quickEmail(email,name) {
   },120);
 }
 
-// ── TOP-UPS ───────────────────────────────────────────────────
 async function loadTopups() {
   try {
     const { data } = await sb.from('electricity_purchases').select('*').order('created_at',{ascending:false}).limit(300);
@@ -969,7 +1002,7 @@ async function loadTopups() {
     renderDashTopups(); filterTopups();
   } catch(e) {
     document.getElementById('dashTopups').innerHTML=`<tr><td colspan="5" class="empty-state">No top-ups yet.</td></tr>`;
-    document.getElementById('topupTable').innerHTML=`<tr><td colspan="8" class="empty-state">No top-ups yet.</td></tr>`;
+    document.getElementById('topupTable').innerHTML=`<tr><td colspan="9" class="empty-state">No top-ups yet.</td></tr>`;
   }
 }
 function renderDashTopups() {
@@ -986,22 +1019,70 @@ function filterTopups() {
   const q=document.getElementById('tu-search').value.toLowerCase();
   const status=document.getElementById('tu-status').value;
   const prov=document.getElementById('tu-provider').value;
-  const f=allTopups.filter(t=>
-    (!q||(t.meter_number||'').includes(q)||(t.email||'').toLowerCase().includes(q)||(t.reference||'').toLowerCase().includes(q))&&
-    (!status||t.status===status)&&(!prov||t.provider===prov)
-  );
+  const kycF=document.getElementById('tu-kyc').value;
+  const f=allTopups.filter(t=>{
+    const hasKyc=!!(t.kyc_id_number);
+    return (!q||(t.meter_number||'').includes(q)||(t.email||'').toLowerCase().includes(q)||(t.reference||'').toLowerCase().includes(q))&&
+    (!status||t.status===status)&&(!prov||t.provider===prov)&&
+    (!kycF||(kycF==='yes'?hasKyc:!hasKyc));
+  });
   const tb=document.getElementById('topupTable');
-  if(!f.length){tb.innerHTML=`<tr><td colspan="8" class="empty-state">No top-ups found.</td></tr>`;return;}
-  tb.innerHTML=f.map(t=>`<tr>
+  if(!f.length){tb.innerHTML=`<tr><td colspan="9" class="empty-state">No top-ups found.</td></tr>`;return;}
+  tb.innerHTML=f.map(t=>{
+    const hasKyc=!!(t.kyc_id_number);
+    const kycBadge=hasKyc
+      ?`<span class="badge delivered" style="font-size:.6rem">${t.kyc_id_type||'ID'} ✓</span>`
+      :`<span class="badge" style="font-size:.6rem;color:var(--ink3)">—</span>`;
+    return `<tr>
     <td class="mono" style="font-size:.65rem;color:var(--ink2)">${(t.reference||'—').substring(0,20)}</td>
     <td><div style="font-size:.75rem;font-weight:600">${t.customer_name||'—'}</div><div style="font-size:.64rem;color:var(--ink3)">${t.email||''}</div></td>
     <td class="mono">${t.meter_number||'—'}</td>
     <td>${t.provider||'—'} <span style="font-size:.63rem;color:var(--ink3)">${t.meter_type||''}</span></td>
     <td style="color:var(--p);font-weight:600">₦${(t.amount||0).toLocaleString()}</td>
     <td class="mono" style="font-size:.64rem;color:${t.token?'var(--p)':'var(--ink3)'}">${t.token?t.token.substring(0,12)+'…':'—'}</td>
+    <td>${kycBadge}</td>
     <td><span class="badge ${t.status||'pending'}">${t.status||'pending'}</span></td>
     <td style="color:var(--ink3);font-size:.68rem">${t.created_at?new Date(t.created_at).toLocaleDateString('en-NG',{day:'numeric',month:'short'}):'—'}</td>
+  </tr>`;}).join('');
+}
+
+// ── KYC RECORDS ───────────────────────────────────────────────
+let allKyc=[];
+async function loadKyc() {
+  try {
+    const { data } = await sb.from('electricity_purchases')
+      .select('id,created_at,kyc_name,kyc_id_type,kyc_id_number,kyc_dob,email,amount,reference')
+      .not('kyc_id_number','is',null)
+      .order('created_at',{ascending:false}).limit(500);
+    allKyc=data||[];
+    filterKyc();
+  } catch(e) {
+    document.getElementById('kycTable').innerHTML=`<tr><td colspan="8" class="empty-state">Could not load KYC records.</td></tr>`;
+  }
+}
+function filterKyc() {
+  const q=document.getElementById('kyc-search').value.toLowerCase();
+  const idType=document.getElementById('kyc-idtype').value;
+  const f=allKyc.filter(r=>
+    (!q||(r.kyc_name||'').toLowerCase().includes(q)||(r.kyc_id_number||'').includes(q)||(r.email||'').toLowerCase().includes(q))&&
+    (!idType||r.kyc_id_type===idType)
+  );
+  const tb=document.getElementById('kycTable');
+  if(!f.length){tb.innerHTML=`<tr><td colspan="8" class="empty-state">No KYC records found.</td></tr>`;return;}
+  tb.innerHTML=f.map(r=>`<tr>
+    <td style="font-size:.68rem;color:var(--ink3)">${r.created_at?new Date(r.created_at).toLocaleDateString('en-NG',{day:'numeric',month:'short',year:'numeric'}):'—'}</td>
+    <td style="font-weight:600;font-size:.75rem">${r.kyc_name||'—'}</td>
+    <td><span class="badge delivered" style="font-size:.6rem">${r.kyc_id_type||'—'}</span></td>
+    <td class="mono" style="font-size:.68rem;letter-spacing:.05em">${maskId(r.kyc_id_number)}</td>
+    <td style="font-size:.7rem;color:var(--ink3)">${r.kyc_dob||'—'}</td>
+    <td style="font-size:.7rem">${r.email||'—'}</td>
+    <td style="color:var(--p);font-weight:600">₦${(r.amount||0).toLocaleString()}</td>
+    <td class="mono" style="font-size:.63rem;color:var(--ink3)">${(r.reference||'—').substring(0,18)}</td>
   </tr>`).join('');
+}
+function maskId(id) {
+  if(!id||id.length<6) return id||'—';
+  return id.substring(0,3)+'•'.repeat(id.length-6)+id.substring(id.length-3);
 }
 
 // ── BROADCAST ─────────────────────────────────────────────────
@@ -1079,36 +1160,52 @@ function renderBcHistory() {
 }
 
 // ── TEST PUSH ──────────────────────────────────────────────────
+// Stores which userIds have push subs
+let _tpSubSet = new Set();
+
 async function loadPushSubscribers() {
   const sel = document.getElementById('tp-user');
   if (!sel) return;
   try {
-    // Get all subscriptions joined with profile email/name
-    const { data: subs, error } = await sb
-      .from('push_subscriptions')
-      .select('user_id, area, updated_at');
-    if (error) { sel.innerHTML='<option value="">— error loading —</option>'; return; }
-    if (!subs || !subs.length) { sel.innerHTML='<option value="">— no push subscribers yet —</option>'; return; }
-    // Build lookup from allUsers (loaded by loadUsers already, or load now)
-    const userMap = {};
-    allUsers.forEach(u => { userMap[u.id] = u; });
-    // For any missing, fetch from profiles directly
-    const missing = subs.map(s=>s.user_id).filter(uid=>!userMap[uid]);
-    if (missing.length) {
-      const { data: extra } = await sb.from('profiles').select('id,email,name').in('id', missing);
-      (extra||[]).forEach(u => { userMap[u.id] = u; });
-    }
-    sel.innerHTML = '<option value="">— select a subscriber —</option>' +
-      subs.map(s => {
-        const u = userMap[s.user_id] || {};
-        const label = u.email || u.name || s.user_id.slice(0,8);
-        const area = s.area ? ` · ${s.area}` : '';
-        const ago = s.updated_at ? ` · ${_tpAgo(s.updated_at)}` : '';
-        return `<option value="${s.user_id}">${label}${area}${ago}</option>`;
+    // Load all users AND all push subscriptions in parallel
+    const [{ data: profiles }, { data: subs }] = await Promise.all([
+      sb.from('profiles').select('id,email,name'),
+      sb.from('push_subscriptions').select('user_id,area,updated_at'),
+    ]);
+    _tpSubSet = new Set((subs||[]).map(s => s.user_id));
+    const subMap = {};
+    (subs||[]).forEach(s => { subMap[s.user_id] = s; });
+    const users = profiles || [];
+    if (!users.length) { sel.innerHTML='<option value="">— no users yet —</option>'; return; }
+    // Sort: push subscribers first, then alphabetical by email
+    users.sort((a,b) => {
+      const aHas = _tpSubSet.has(a.id) ? 0 : 1;
+      const bHas = _tpSubSet.has(b.id) ? 0 : 1;
+      if (aHas !== bHas) return aHas - bHas;
+      return (a.email||'').localeCompare(b.email||'');
+    });
+    sel.innerHTML = '<option value="">— select a user —</option>' +
+      users.map(u => {
+        const hasSub = _tpSubSet.has(u.id);
+        const sub = subMap[u.id];
+        const label = u.email || u.name || u.id.slice(0,8);
+        const area = sub?.area ? ` · ${sub.area}` : '';
+        const ago = sub?.updated_at ? ` · ${_tpAgo(sub.updated_at)}` : '';
+        const noPush = hasSub ? '' : ' ⚠ no push';
+        return `<option value="${u.id}" data-has-sub="${hasSub}">${label}${area}${ago}${noPush}</option>`;
       }).join('');
   } catch(e) {
     sel.innerHTML = `<option value="">— failed: ${e.message} —</option>`;
   }
+}
+
+function onTpUserChange() {
+  const sel = document.getElementById('tp-user');
+  const warn = document.getElementById('tp-no-sub-warn');
+  if (!sel || !warn) return;
+  const opt = sel.options[sel.selectedIndex];
+  const hasSub = opt?.getAttribute('data-has-sub') === 'true';
+  warn.style.display = (sel.value && !hasSub) ? 'block' : 'none';
 }
 function _tpAgo(ts) {
   const s = Math.floor((Date.now() - new Date(ts).getTime()) / 1000);
@@ -1119,16 +1216,19 @@ function _tpAgo(ts) {
 }
 async function sendTestPush() {
   const userId = document.getElementById('tp-user').value;
+  const title  = (document.getElementById('tp-title')?.value || '').trim() || 'NEPAWatch';
+  const body   = (document.getElementById('tp-body')?.value || '').trim() || 'You have a new notification from NEPAWatch.';
   const btn    = document.getElementById('tp-btn');
   const result = document.getElementById('tp-result');
   if (!userId) { toast('Select a user first', 'err'); return; }
+  if (!_tpSubSet.has(userId)) { toast('This user has no push subscription', 'err'); return; }
   btn.textContent = 'Sending…'; btn.disabled = true;
   result.style.display = 'none';
   try {
     const res  = await fetch(EMAIL_FN, {
       method: 'POST',
       headers: { 'Content-Type':'application/json', 'apikey':SUPA_ANON, 'Authorization':`Bearer ${SUPA_ANON}` },
-      body: JSON.stringify({ mode: 'test_push', userId }),
+      body: JSON.stringify({ mode: 'test_push', userId, title, body }),
     });
     const json = await res.json().catch(()=>({}));
     result.style.display = 'block';
