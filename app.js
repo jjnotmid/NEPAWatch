@@ -2205,13 +2205,13 @@ function initTheme(){let saved;try{saved=localStorage.getItem("nw-theme");}catch
 function toast(msg,cls="ok"){const t=document.getElementById("toast");const ico={ok:IC.ok,err:IC.err,info:IC.inf}[cls]||"";t.innerHTML=ico+`<span>${msg}</span>`;t.className=`toast ${cls} show`;clearTimeout(t._tid);t._tid=setTimeout(()=>t.className="toast",cls==="err"?7000:3600);}
 
 async function initAuth(){
-  try{const{data:{session}}=await sb.auth.getSession();CU=session?.user||null;if(CU){await loadProfile();setTimeout(()=>checkNotifNudge(),5000);}}catch(e){}
+  try{const{data:{session}}=await sb.auth.getSession();CU=session?.user||null;if(CU)await loadProfile();}catch(e){}
   updateBanner();
   sb.auth.onAuthStateChange(async(event,session)=>{
     if(_inResetFlow)return;
     CU=session?.user||null;
     if(CU){
-      if(event==="SIGNED_IN"||event==="USER_UPDATED"||!PR){await loadProfile();if(event==="SIGNED_IN"){_maybeStartTour();setTimeout(()=>checkNotifNudge(),3000);}}
+      if(event==="SIGNED_IN"||event==="USER_UPDATED"||!PR){await loadProfile();if(event==="SIGNED_IN")_maybeStartTour();}
       if(event==="TOKEN_REFRESHED"){await loadProfile();}
     } else {
       PR=null;savedPlaces=[];
@@ -2233,31 +2233,7 @@ function _resetFormHTML(){return`<div class="auth-wrap"><div class="auth-logo"><
 
 async function loadProfile(){if(!CU)return;try{const{data,error}=await sb.from("profiles").select("*").eq("id",CU.id).single();if(!error&&data){PR=data;if(PR.location_id){document.getElementById("locTag").classList.add("on");document.getElementById("locLabel").textContent=PR.location_label||PR.location_name;}}else if(error&&error.code==="PGRST116"){const name=CU.user_metadata?.name||CU.email.split("@")[0];await sb.from("profiles").upsert({id:CU.id,email:CU.email,name,notif_on:true},{onConflict:"id"});PR={id:CU.id,email:CU.email,name,notif_on:true,location_id:null};}}catch(e){}}
 
-async function checkNotifNudge(){
-  if(!CU||!PR)return;
-  // Only nudge if push notifications are not active
-  const hasPushSub=await(async()=>{try{const{data}=await sb.from('push_subscriptions').select('user_id').eq('user_id',CU.id).maybeSingle();return!!data;}catch(e){return false;}})();
-  if(hasPushSub)return; // push is on — no nudge needed
-  const nudgeCount=PR.nudge_count||0;
-  const nudgeLast=PR.nudge_last_sent?new Date(PR.nudge_last_sent).getTime():0;
-  const signedUpAt=CU.created_at?new Date(CU.created_at).getTime():Date.now();
-  const now=Date.now();
-  const hoursSinceSignup=(now-signedUpAt)/(1000*60*60);
-  const daysSinceLast=(now-nudgeLast)/(1000*60*60*24);
-  // Conditions: max 3 nudges, 24h after signup for first, 7 days between subsequent
-  if(nudgeCount>=3)return;
-  if(nudgeCount===0&&hoursSinceSignup<24)return;
-  if(nudgeCount>0&&daysSinceLast<7)return;
-  // All checks passed — fire nudge email
-  try{
-    const newCount=nudgeCount+1;
-    await sb.from('profiles').update({nudge_count:newCount,nudge_last_sent:new Date().toISOString()}).eq('id',CU.id);
-    PR.nudge_count=newCount;PR.nudge_last_sent=new Date().toISOString();
-    await fetch(EMAIL_FN,{method:'POST',headers:{'Content-Type':'application/json','apikey':SUPA_ANON,'Authorization':`Bearer ${SUPA_ANON}`},body:JSON.stringify({mode:'notif_nudge',userId:CU.id,email:CU.email,name:PR.name||'there',nudgeCount:newCount})});
-  }catch(e){}
-}
-
-async function doRegister(name,email,pass){const{data,error}=await sb.auth.signUp({email,password:pass,options:{data:{name},emailRedirectTo:APP_URL}});if(error){if(error.message?.toLowerCase().includes("rate limit")||error.message?.toLowerCase().includes("over_email_send_rate_limit"))throw new Error("RATE_LIMIT");throw new Error(error.message);}if(data.user){await sb.from("profiles").upsert({id:data.user.id,email,name,notif_on:true},{onConflict:"id"});}if(data.session){CU=data.user;await loadProfile();renderAccount();updateBanner();toast(`Welcome, ${name}!`,"ok");_maybeStartTour();}sendEmail(email,"Welcome to NEPAWatch Lagos",`Hi ${name},\n\nWelcome to NEPAWatch Lagos!\n\nYou will receive real-time email alerts whenever power goes out or is restored near your street.\n\nOpen the app and set your location to activate alerts.\n\nStay powered,\nNEPAWatch Lagos`,buildEmailHtml({type:'welcome',name,appUrl:APP_URL}));return data;}
+async function doRegister(name,email,pass){const{data,error}=await sb.auth.signUp({email,password:pass,options:{data:{name},emailRedirectTo:APP_URL+"?mode=reset"}});if(error){if(error.message?.toLowerCase().includes("rate limit")||error.message?.toLowerCase().includes("over_email_send_rate_limit"))throw new Error("RATE_LIMIT");throw new Error(error.message);}if(data.user){await sb.from("profiles").upsert({id:data.user.id,email,name,notif_on:true},{onConflict:"id"});}if(data.session){CU=data.user;await loadProfile();renderAccount();updateBanner();toast(`Welcome, ${name}!`,"ok");_maybeStartTour();}sendEmail(email,"Welcome to NEPAWatch Lagos",`Hi ${name},\n\nWelcome to NEPAWatch Lagos!\n\nYou will receive real-time email alerts whenever power goes out or is restored near your street.\n\nOpen the app and set your location to activate alerts.\n\nStay powered,\nNEPAWatch Lagos`,buildEmailHtml({type:'welcome',name,appUrl:APP_URL}));return data;}
 async function doLogin(email,pass){const{data,error}=await sb.auth.signInWithPassword({email,password:pass});if(error)throw new Error(error.message);return data;}
 async function doLogout(){try{await sb.auth.signOut();}catch(e){}CU=null;PR=null;savedPlaces=[];document.getElementById("locTag").classList.remove("on");updateBanner();renderAccount();toast("Signed out","info");}
 
@@ -3195,79 +3171,6 @@ async function renderCommunity(){
 
 function renderFallbackLeaderboard(){document.getElementById("lbList").innerHTML=`<div class="empty" style="padding:24px 18px"><div class="empty-ico">${IC.user}</div><p>Be the first to report! Top reporters will appear here.</p></div>`;}
 
-function renderPrivacy(){
-  const el=document.getElementById('privacyContent');
-  if(!el)return;
-  el.innerHTML=`
-    <div style="background:var(--sf);border-radius:12px;padding:16px 18px;margin-bottom:18px;border:1px solid var(--bd)">
-      <div style="font-weight:700;font-size:.85rem;margin-bottom:6px;color:var(--ink)">Who we are</div>
-      <p style="margin:0">NEPAWatch is a crowd-sourced electricity outage tracking platform for Lagos, Nigeria, operated by Usifoh Eseosa Joshua (trading as NEPAWatch / Nepawatch Technologies). Our app lets users report, track and get alerted about power outages in their areas.</p>
-    </div>
-
-    <div style="background:var(--sf);border-radius:12px;padding:16px 18px;margin-bottom:18px;border:1px solid var(--bd)">
-      <div style="font-weight:700;font-size:.85rem;margin-bottom:6px;color:var(--ink)">What we collect</div>
-      <p style="margin:4px 0">When you create an account we collect your <strong>name and email address</strong>. When you report outages we store the <strong>location and timestamp</strong> of your report. If you enable push notifications we store your <strong>device push subscription</strong>. We do not collect your phone number, payment card details or any government ID.</p>
-    </div>
-
-    <div style="background:var(--sf);border-radius:12px;padding:16px 18px;margin-bottom:18px;border:1px solid var(--bd)">
-      <div style="font-weight:700;font-size:.85rem;margin-bottom:6px;color:var(--ink)">How we use it</div>
-      <p style="margin:4px 0">We use your data to:</p>
-      <ul style="margin:8px 0 0 16px;padding:0">
-        <li style="margin-bottom:4px">Send you alerts about outages in areas you save</li>
-        <li style="margin-bottom:4px">Show your reports in the community feed</li>
-        <li style="margin-bottom:4px">Improve the accuracy of area reliability scores</li>
-        <li style="margin-bottom:4px">Communicate service updates to you by email</li>
-      </ul>
-    </div>
-
-    <div style="background:var(--sf);border-radius:12px;padding:16px 18px;margin-bottom:18px;border:1px solid var(--bd)">
-      <div style="font-weight:700;font-size:.85rem;margin-bottom:6px;color:var(--ink)">Third-party services</div>
-      <p style="margin:4px 0">We use the following third-party services which may process your data:</p>
-      <ul style="margin:8px 0 0 16px;padding:0">
-        <li style="margin-bottom:6px"><strong>Supabase</strong> — our database and authentication provider. Your account data is stored on their servers.</li>
-        <li style="margin-bottom:6px"><strong>Resend</strong> — used to send alert emails to you.</li>
-        <li style="margin-bottom:6px"><strong>VTpass / Broadshift Technologies</strong> — if you use the electricity top-up feature, your meter number and transaction details are processed by Broadshift Technologies Limited (RC #1339977) and their partners to fulfil the purchase. By using the top-up feature you consent to this processing. Broadshift may store your data outside Nigeria subject to applicable data protection laws.</li>
-      </ul>
-      <p style="margin:10px 0 0;font-size:.75rem;color:var(--ink3)">We do not sell your personal data to any third party.</p>
-    </div>
-
-    <div style="background:var(--sf);border-radius:12px;padding:16px 18px;margin-bottom:18px;border:1.5px solid rgba(255,180,0,.25)">
-      <div style="font-weight:700;font-size:.85rem;margin-bottom:6px;color:var(--ink)">Identity Verification (KYC)</div>
-      <p style="margin:4px 0">To comply with Nigerian Anti-Money Laundering (AML) regulations and our obligations under the VTpass distributor agreement, purchases of <strong>&#8358;5,000 and above</strong> require you to submit a government-issued ID number (NIN or BVN), your full legal name, and date of birth.</p>
-      <p style="margin:10px 0 0">This information is:</p>
-      <ul style="margin:8px 0 0 16px;padding:0">
-        <li style="margin-bottom:4px">Stored securely in our database linked to your transaction record</li>
-        <li style="margin-bottom:4px">Shared with Broadshift Technologies (VTpass) as required by our distributor agreement</li>
-        <li style="margin-bottom:4px">Never sold to third parties or used for marketing</li>
-        <li style="margin-bottom:4px">Retained for a minimum of 5 years as required by Nigerian AML law (MLPA 2022)</li>
-        <li style="margin-bottom:4px">Only accessible by NEPAWatch administrators and authorised VTpass personnel</li>
-      </ul>
-      <p style="margin:10px 0 0;font-size:.75rem;color:var(--ink3)">By submitting your ID information you consent to this collection and processing. If you do not wish to submit KYC details, you may still make purchases below &#8358;5,000 without any identity verification.</p>
-    </div>
-
-    <div style="background:var(--sf);border-radius:12px;padding:16px 18px;margin-bottom:18px;border:1px solid var(--bd)">
-      <div style="font-weight:700;font-size:.85rem;margin-bottom:6px;color:var(--ink)">Your rights</div>
-      <p style="margin:4px 0">Under the Nigeria Data Protection Act (NDPA) 2023 you have the right to access, correct or delete your personal data at any time. To exercise these rights email us at <strong>support@nepawatch.app</strong>. You can also delete your account from the Account page which removes all your data from our systems.</p>
-    </div>
-
-    <div style="background:var(--sf);border-radius:12px;padding:16px 18px;margin-bottom:18px;border:1px solid var(--bd)">
-      <div style="font-weight:700;font-size:.85rem;margin-bottom:6px;color:var(--ink)">Notifications</div>
-      <p style="margin:4px 0">Push notifications and emails are opt-in. You can turn them off at any time from the Account page. We will never send you promotional messages unrelated to power outages in your saved areas.</p>
-    </div>
-
-    <div style="background:var(--sf);border-radius:12px;padding:16px 18px;margin-bottom:18px;border:1px solid var(--bd)">
-      <div style="font-weight:700;font-size:.85rem;margin-bottom:6px;color:var(--ink)">Data retention</div>
-      <p style="margin:4px 0">Outage reports are kept for 90 days then automatically deleted. Your account information is kept until you delete your account. Push notification subscriptions are removed immediately when you disable notifications.</p>
-    </div>
-
-    <div style="background:var(--sf);border-radius:12px;padding:16px 18px;margin-bottom:18px;border:1px solid var(--bd)">
-      <div style="font-weight:700;font-size:.85rem;margin-bottom:6px;color:var(--ink)">Contact</div>
-      <p style="margin:4px 0">Questions about this policy? Email <strong>support@nepawatch.app</strong> or reach us through the app. We respond within 3 business days.</p>
-      <p style="margin:8px 0 0;font-size:.74rem;color:var(--ink3)">This policy is governed by the laws of the Federal Republic of Nigeria.</p>
-    </div>
-  \`;
-}
-
 function renderAccount(){const el=document.getElementById("authWrap");if(CU&&PR){renderProfile(el);_maybeShowA2HSOnAccount();}else if(CU&&!PR)el.innerHTML=`<div class="loading-row"><div class="spin w"></div>Loading profile...</div>`;else renderAuthForm(el,"login");}
 
 const LOGO_IMG_TAG=`<img src="logo.jpg" alt="NEPAWatch" style="width:100%;height:100%;object-fit:cover;border-radius:8px">`;
@@ -3290,9 +3193,7 @@ function renderProfile(el){const locText=PR.location_label||PR.location_name||"N
     pushSt==='ios-needs-install'?`<a href="https://support.apple.com/guide/iphone/bookmark-favorite-webpages-iph42ab2f3a7/ios" target="_blank" style="font-size:.65rem;font-weight:600;color:var(--p);background:var(--pp);border:1px solid var(--pb);border-radius:6px;padding:4px 9px;cursor:pointer;text-decoration:none">How?</a>`:
     `<button class="toggle ${pushSt==='enabled'?'on':''}" onclick="togglePushNotif()"></button>`;
 el.innerHTML=`<div class="ph"><h2>Account</h2><p>Manage your alerts and locations</p></div><div class="profile-card"><div class="pc-top"><div class="pc-av">${(PR.name||"?")[0].toUpperCase()}</div><div><div class="pc-name">${PR.name||"User"}</div><div class="pc-email">${PR.email||CU.email}</div></div></div><div class="pc-row"><div class="pc-rl-wrap"><div class="pc-ico"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1A3 3 0 0 0 4 4C4 7.5 7 12 7 12S10 7.5 10 4A3 3 0 0 0 7 1z" stroke="currentColor" stroke-width="1.3"/><circle cx="7" cy="4" r="1.2" fill="currentColor"/></svg></div><div><div class="pc-rl">Watching area</div><div class="pc-rs">${locText}</div></div></div>${PR.location_id?`<button onclick="clearLoc()" style="font-size:.65rem;font-weight:600;color:var(--ink3);background:none;border:1px solid var(--bd);border-radius:6px;padding:4px 9px;cursor:pointer">Clear</button>`:""}</div><div class="pc-row"><div class="pc-rl-wrap"><div class="pc-ico"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M1.5 7L7 1.5L12.5 7V12.5H9V9H5V12.5H1.5V7Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg></div><div><div class="pc-rl">Saved Places</div><div class="pc-rs">${savedCount} place${savedCount!==1?"s":""} saved</div></div></div><button onclick="go('myarea')" style="font-size:.65rem;font-weight:600;color:var(--p);background:var(--pp);border:1px solid var(--pb);border-radius:6px;padding:4px 9px;cursor:pointer">Manage</button></div><div class="pc-row"><div class="pc-rl-wrap"><div class="pc-ico"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="1" y="2.5" width="12" height="9" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M1 5L7 8.5L13 5" stroke="currentColor" stroke-width="1.3"/></svg></div><div><div class="pc-rl">Email Alerts</div><div class="pc-rs">${notifOn?"On — receiving alerts":"Off — tap to enable"}</div></div></div><button class="toggle ${notifOn?"on":""}" id="notifToggle" onclick="toggleNotif()"></button></div>
-<div class="pc-row"><div class="pc-rl-wrap"><div class="pc-ico"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1.5L5 5H2.5l2 2-1 3.5L7 8.5 9.5 10.5l-1-3.5 2-2H8L7 1.5z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg></div><div><div class="pc-rl">Push Notifications</div><div class="pc-rs" id="pushStatusTxt">${pushStatusText}</div></div></div>${pushBtn}</div><div class="pc-row"><div class="pc-rl-wrap"><div class="pc-ico"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="5" r="3" stroke="currentColor" stroke-width="1.3"/><path d="M1.5 13c0-3 2.5-4.5 5.5-4.5s5.5 1.5 5.5 4.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></div><div><div class="pc-rl">Alert address</div><div class="pc-rs">${CU.email}</div></div></div></div>${emailLog.length?`<div class="email-log"><div class="email-log-hd">Recent Alerts Sent</div>${emailLog.map(e=>`<div class="ei"><div class="ei-s">${e.subject}</div><div class="ei-m">${e.to} &middot; ${e.time}</div></div>`).join("")}</div>`:""}<button class="logout-btn" onclick="doLogout()">Sign Out</button>
-    <button onclick="go('privacy')" style="width:100%;background:none;border:none;color:var(--ink3);font-size:.7rem;margin-top:6px;cursor:pointer;padding:6px 0;text-decoration:underline">Privacy Policy &amp; Terms</button>
-  </div>\`;}`
+<div class="pc-row"><div class="pc-rl-wrap"><div class="pc-ico"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1.5L5 5H2.5l2 2-1 3.5L7 8.5 9.5 10.5l-1-3.5 2-2H8L7 1.5z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg></div><div><div class="pc-rl">Push Notifications</div><div class="pc-rs" id="pushStatusTxt">${pushStatusText}</div></div></div>${pushBtn}</div><div class="pc-row"><div class="pc-rl-wrap"><div class="pc-ico"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="5" r="3" stroke="currentColor" stroke-width="1.3"/><path d="M1.5 13c0-3 2.5-4.5 5.5-4.5s5.5 1.5 5.5 4.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></div><div><div class="pc-rl">Alert address</div><div class="pc-rs">${CU.email}</div></div></div></div>${emailLog.length?`<div class="email-log"><div class="email-log-hd">Recent Alerts Sent</div>${emailLog.map(e=>`<div class="ei"><div class="ei-s">${e.subject}</div><div class="ei-m">${e.to} &middot; ${e.time}</div></div>`).join("")}</div>`:""}<button class="logout-btn" onclick="doLogout()">Sign Out</button></div>`;}
 
 /* ━━━ PATCH 3: go() — handles predict page + widget refresh ━━━ */
 function go(page){
