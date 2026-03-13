@@ -220,7 +220,7 @@ main{padding-top:calc(58px + env(safe-area-inset-top,0px));padding-bottom:calc(8
 <header>
   <a class="logo" href="/index.html">
     <div class="logo-icon">
-      <img src="/logo2.jpg" alt="NEPAWatch" onerror="this.parentElement.textContent='⚡'">
+      <img src="/logo.jpg" alt="NEPAWatch" onerror="this.parentElement.textContent='⚡'">
     </div>
     <span class="logo-txt">NEPA<em>Watch</em></span>
   </a>
@@ -245,7 +245,7 @@ main{padding-top:calc(58px + env(safe-area-inset-top,0px));padding-bottom:calc(8
   <div id="mainForm">
     <div class="page-header">
       <h1>Buy <em>Electricity</em></h1>
-      <p>Instant token for any Nigerian DISCO</p>
+      <p>Instant electricity token for IKEDC &amp; EKEDC</p>
     </div>
 
     <div class="how">
@@ -260,57 +260,17 @@ main{padding-top:calc(58px + env(safe-area-inset-top,0px));padding-bottom:calc(8
     <div class="disco-grid" id="discoGrid">
       <div class="disco-card active" onclick="selectDisco('IKEDC','ikeja-electric',this)">
         <div class="disco-icon" style="background:rgba(255,184,0,.12)">⚡</div>
-        <div><div class="disco-name">Ikeja Electric</div><div class="disco-area">Ikeja, Ikorodu, Shomolu</div></div>
+        <div><div class="disco-name">Ikeja Electric</div><div class="disco-area">IKEDC · Ikeja, Ikorodu, Shomolu</div></div>
         <div class="disco-check"></div>
       </div>
       <div class="disco-card" onclick="selectDisco('EKEDC','eko-electric',this)">
         <div class="disco-icon" style="background:rgba(170,255,0,.1)">🔌</div>
-        <div><div class="disco-name">Eko Electric</div><div class="disco-area">Lekki, VI, Apapa, Island</div></div>
-        <div class="disco-check"></div>
-      </div>
-      <div class="disco-card" onclick="selectDisco('AEDC','abuja-electric',this)">
-        <div class="disco-icon" style="background:rgba(100,160,255,.1)">🏛️</div>
-        <div><div class="disco-name">Abuja Electric</div><div class="disco-area">FCT, Niger, Kogi, Nassarawa</div></div>
-        <div class="disco-check"></div>
-      </div>
-      <div class="disco-card" onclick="selectDisco('IBEDC','ibadan-electric',this)">
-        <div class="disco-icon" style="background:rgba(255,100,100,.1)">🌀</div>
-        <div><div class="disco-name">Ibadan Electric</div><div class="disco-area">Oyo, Osun, Ogun, Kwara</div></div>
-        <div class="disco-check"></div>
-      </div>
-      <div class="disco-card" onclick="selectDisco('PHED','phed',this)">
-        <div class="disco-icon" style="background:rgba(0,200,150,.1)">⚓</div>
-        <div><div class="disco-name">Port Harcourt</div><div class="disco-area">Rivers, Bayelsa, AkwaIbom</div></div>
-        <div class="disco-check"></div>
-      </div>
-      <div class="disco-card" onclick="selectDisco('EEDC','eedc',this)">
-        <div class="disco-icon" style="background:rgba(200,150,0,.1)">🌿</div>
-        <div><div class="disco-name">Enugu Electric</div><div class="disco-area">Enugu, Anambra, Imo, Ebonyi</div></div>
-        <div class="disco-check"></div>
-      </div>
-      <div class="disco-card" onclick="selectDisco('KEDCO','kedco',this)">
-        <div class="disco-icon" style="background:rgba(150,100,200,.1)">🌙</div>
-        <div><div class="disco-name">Kano Electric</div><div class="disco-area">Kano, Katsina, Jigawa</div></div>
-        <div class="disco-check"></div>
-      </div>
-      <div class="disco-card" onclick="selectDisco('JED','jos-electric',this)">
-        <div class="disco-icon" style="background:rgba(100,200,100,.1)">🏔️</div>
-        <div><div class="disco-name">Jos Electric</div><div class="disco-area">Plateau, Benue, Taraba</div></div>
-        <div class="disco-check"></div>
-      </div>
-      <div class="disco-card" onclick="selectDisco('KAEDCO','kaedco',this)">
-        <div class="disco-icon" style="background:rgba(255,150,50,.1)">🌄</div>
-        <div><div class="disco-name">Kaduna Electric</div><div class="disco-area">Kaduna, Kebbi, Sokoto, Zamfara</div></div>
-        <div class="disco-check"></div>
-      </div>
-      <div class="disco-card" onclick="selectDisco('BEDC','benin-electric',this)">
-        <div class="disco-icon" style="background:rgba(50,200,200,.1)">🦁</div>
-        <div><div class="disco-name">Benin Electric</div><div class="disco-area">Edo, Delta, Ondo, Ekiti</div></div>
+        <div><div class="disco-name">Eko Electric</div><div class="disco-area">EKEDC · Lekki, VI, Apapa, Island</div></div>
         <div class="disco-check"></div>
       </div>
     </div>
 
-    <!-- METER TYPE -->
+        <!-- METER TYPE -->
     <div class="section-label">Meter type</div>
     <div class="type-row">
       <div class="type-btn active" onclick="selectType('prepaid',this)">Prepaid (Token)</div>
@@ -354,7 +314,7 @@ main{padding-top:calc(58px + env(safe-area-inset-top,0px));padding-bottom:calc(8
     <!-- CONTACT -->
     <div class="card">
       <div class="fld">
-        <label>Email (for receipt)</label>
+        <label>Email</label>
         <input type="email" id="emailInput" placeholder="you@example.com" oninput="checkReady()">
       </div>
       <div class="fld">
