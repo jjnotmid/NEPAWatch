@@ -258,8 +258,9 @@ const AIReporter = {
   _rebuildState() {
     if (typeof reports === 'undefined') return;
     this._areaState = {};
+    // Include both confirmed DB rows AND local optimistic ai- inserts
     const sorted = [...reports]
-      .filter(r => r.isAI || r.userId === AI_USER_ID)
+      .filter(r => r.isAI || r.userId === AI_USER_ID || String(r.id).startsWith('ai-'))
       .sort((a,b) => a.time - b.time);
     for (const r of sorted) {
       if (!r.area) continue;
@@ -377,11 +378,11 @@ const AIReporter = {
     const tempId = `ai-${Date.now()}-${Math.random().toString(36).slice(2,6)}`;
     if (typeof reports!=='undefined') {
       reports.unshift({ id:tempId, name:locName, area, type, time:Date.now(), confirms:1, userId:AI_USER_ID, isAI:true, aiProb:prob });
-      if (reports.length>500) {
-        // Only remove non-AI, non-local reports from the tail to preserve AI history
-        const lastNonAI = [...reports].reverse().findIndex(r=>!r.isAI&&!String(r.id).startsWith('local-')&&!String(r.id).startsWith('ai-'));
-        if (lastNonAI!==-1) reports.splice(reports.length-1-lastNonAI,1);
-        else if(reports.length>500) reports.pop();
+      // Trim to 500 — only remove old non-AI reports from the tail
+      if (reports.length > 500) {
+        const tail = reports.slice(400); // check beyond 400
+        const firstDeletable = tail.findIndex(r => !r.isAI && r.userId !== AI_USER_ID && !String(r.id).startsWith('local-'));
+        if (firstDeletable !== -1) reports.splice(400 + firstDeletable, 1);
       }
       if (typeof renderStats==='function') renderStats();
       if (typeof prependReportCard==='function') prependReportCard(reports[0],'liveFeed');
@@ -399,32 +400,37 @@ const AIReporter = {
 
     console.log(`[NEPAWatch AI] Filing ${type} — ${locName} (${area}) @ ${(prob*100).toFixed(0)}%`);
 
-    /* Persist to Supabase */
+    /* Persist via edge function — uses service role key, bypasses RLS */
+    /* This makes AI reports identical to human reports in the DB */
     try {
-      /* Try with AI columns first */
-      let { data, error } = await sb.from('reports').insert({
-        user_id: AI_USER_ID, location_name: locName, location_area: area,
-        type, confirms: 1, ai_generated: true, ai_prob: parseFloat(prob.toFixed(3)),
-      }).select().single();
-
-      /* Fallback without AI columns if schema doesn't have them yet */
-      if (error && (error.message?.includes('ai_generated') || error.message?.includes('ai_prob'))) {
-        ({ data, error } = await sb.from('reports').insert({
-          user_id: AI_USER_ID, location_name: locName, location_area: area, type, confirms: 1,
-        }).select().single());
-      }
-
-      if (!error && data) {
-        this._replaceLocal(tempId, data, prob);
-        /* Alert is handled by the realtime INSERT listener in app.js */
+      const res = await fetch(
+        'https://djurokbkkqrmpafcxlez.supabase.co/functions/v1/send-alert',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            mode: 'ai_report',
+            location_name: locName,
+            location_area: area,
+            type,
+            ai_prob: parseFloat(prob.toFixed(3)),
+          }),
+        }
+      );
+      const result = await res.json();
+      if (result?.report) {
+        this._replaceLocal(tempId, result.report, prob);
         /* Refresh predict page AI count if visible */
         const aiBanner = document.querySelector('.pred-ai-sub strong');
         if (aiBanner && typeof reports!=='undefined') {
-          const cnt = reports.filter(r=>r.userId===AI_USER_ID).length;
+          const cnt = reports.filter(r=>r.isAI||r.userId===AI_USER_ID).length;
           aiBanner.textContent = `${cnt} AI report${cnt!==1?'s':''}`;
         }
+        console.log('[NEPAWatch AI] Report persisted via edge fn, id:', result.report.id);
+      } else {
+        console.warn('[NEPAWatch AI] Edge fn response:', result);
       }
-    } catch(e) { console.warn('[NEPAWatch AI] Supabase insert failed:', e); }
+    } catch(e) { console.warn('[NEPAWatch AI] Report persist failed:', e?.message); }
   },
 
   _replaceLocal(tempId, dbRow, prob) {
