@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 
 <!-- ── SEO ──────────────────────────────────────────────────── -->
 <title>Buy Electricity Token Online — NEPAWatch Lagos</title>
@@ -130,7 +130,7 @@ main{padding-top:calc(58px + env(safe-area-inset-top,0px));padding-bottom:calc(8
 .fld{margin-bottom:14px}
 .fld:last-child{margin-bottom:0}
 .fld label{display:block;font-size:.71rem;font-weight:600;color:var(--ink2);margin-bottom:6px;letter-spacing:.02em}
-.fld input,.fld select{width:100%;background:var(--bg);border:1.5px solid var(--bd);border-radius:10px;padding:12px 14px;color:var(--ink);font-family:var(--font-body);font-size:.92rem;outline:none;transition:border-color .15s;-webkit-appearance:none}
+.fld input,.fld select{width:100%;background:var(--bg);border:1.5px solid var(--bd);border-radius:10px;padding:12px 14px;color:var(--ink);font-family:var(--font-body);font-size:16px;outline:none;transition:border-color .15s;-webkit-appearance:none}
 .fld input:focus,.fld select:focus{border-color:var(--p)}
 .fld input::placeholder{color:var(--ink3)}
 .hint{font-size:.67rem;color:var(--ink3);margin-top:5px;min-height:14px}
@@ -151,7 +151,7 @@ main{padding-top:calc(58px + env(safe-area-inset-top,0px));padding-bottom:calc(8
 .pill.active{border-color:var(--p);background:var(--pp)}
 .pill-amt{font-size:.88rem;font-weight:700;color:var(--ink)}
 .pill-sub{font-size:.6rem;color:var(--ink3);margin-top:2px}
-.custom-amt{width:100%;background:var(--bg);border:1.5px solid var(--bd);border-radius:10px;padding:11px 14px;color:var(--ink);font-family:var(--font-body);font-size:.92rem;outline:none;transition:border-color .15s;margin-top:8px;display:none}
+.custom-amt{width:100%;background:var(--bg);border:1.5px solid var(--bd);border-radius:10px;padding:11px 14px;color:var(--ink);font-family:var(--font-body);font-size:16px;outline:none;transition:border-color .15s;margin-top:8px;display:none}
 .custom-amt:focus{border-color:var(--p)}
 
 /* ── KYC ─────────────────────────────────────────────────────── */
@@ -236,8 +236,8 @@ main{padding-top:calc(58px + env(safe-area-inset-top,0px));padding-bottom:calc(8
   <!-- WAITING -->
   <div id="waitingScreen">
     <div class="wait-spinner"></div>
-    <h2>Vending your token…</h2>
-    <p>Payment confirmed ✓<br>This usually takes 3–5 seconds.</p>
+    <h2 id="waitingTitle">Processing…</h2>
+    <p id="waitingDesc">Payment confirmed ✓<br>This usually takes a few seconds.</p>
     <p class="sub" id="waitingDots">Please wait</p>
   </div>
 
@@ -371,7 +371,7 @@ main{padding-top:calc(58px + env(safe-area-inset-top,0px));padding-bottom:calc(8
     <p id="successSubtitle">Enter this code into your meter keypad.</p>
 
     <!-- Prepaid token box -->
-    <div class="token-box" id="tokenBox">
+    <div class="token-box" id="tokenBox" style="display:none">
       <div class="token-label">Your 20-Digit Meter Token</div>
       <div class="token-code" id="tokenCode">— — — — —</div>
       <button class="copy-btn" onclick="copyToken()">Copy</button>
@@ -595,7 +595,13 @@ async function checkCallbackReturn(){
 let dotsInterval=null;
 function startWaitingDots(){
   const el=document.getElementById('waitingDots');
-  const msgs=['Please wait','Contacting VTpass','Processing payment','Almost done'];
+  // Set title/desc based on meter type
+  const isPost = meterType === 'postpaid';
+  document.getElementById('waitingTitle').textContent = isPost ? 'Processing payment…' : 'Loading your units…';
+  document.getElementById('waitingDesc').innerHTML = 'Payment confirmed ✓<br>' + (isPost ? 'Updating your account.' : 'Your token will appear in seconds.');
+  const msgs = isPost
+    ? ['Please wait', 'Verifying payment', 'Updating account', 'Almost done']
+    : ['Please wait', 'Verifying payment', 'Loading units', 'Almost done'];
   let i=0;
   el.textContent=msgs[0];
   dotsInterval=setInterval(()=>{i=(i+1)%msgs.length;el.textContent=msgs[i];},2500);
@@ -659,7 +665,7 @@ function showSuccess(d){
     document.getElementById('successSubtitle').textContent='Enter this code into your meter keypad.';
     document.getElementById('tokenBox').style.display='block';
     document.getElementById('postpaidBanner').style.display='none';
-    document.getElementById('tokenCode').textContent=fmt(d.token);
+    document.getElementById('tokenCode').textContent=fmt(d.token||'');
     document.getElementById('infoUnits').textContent=d.units||'—';
   }
 
