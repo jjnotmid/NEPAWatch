@@ -17,6 +17,71 @@ const APP_URL = 'https://nepawatch.app';
 const APP_LOGO_URL = APP_URL + '/logo2.jpg';
 const VAPID_PUBLIC_KEY = 'BCucUDvVmV6cHGeMRideIWul16t336GXMypUT4nYwIs5RRPNVtAy0h5D0diwOY56OTjDCRFyzZbXeaXRcCUTnqw';
 
+/* ━━━ OUTSIDE LAGOS DETECTION ━━━ */
+const LAGOS_BOUNDS={latMin:6.18,latMax:6.92,lngMin:2.60,lngMax:4.05};
+function isInLagos(lat,lng){return lat>=LAGOS_BOUNDS.latMin&&lat<=LAGOS_BOUNDS.latMax&&lng>=LAGOS_BOUNDS.lngMin&&lng<=LAGOS_BOUNDS.lngMax;}
+
+function checkIfOutsideLagos(){
+  // Check localStorage — if dismissed or Lagos-confirmed in past 7 days, skip
+  try{
+    const saved=localStorage.getItem("nw_location_check");
+    if(saved){
+      const {result,ts}=JSON.parse(saved);
+      if(Date.now()-ts<7*86400000){
+        if(result==="lagos"||result==="dismissed")return;
+      }
+    }
+  }catch(e){}
+
+  // Try IP geolocation first (fast, no permission needed)
+  fetch("https://ipapi.co/json/",{signal:AbortSignal.timeout(5000)})
+    .then(r=>r.json())
+    .then(d=>{
+      const lat=parseFloat(d.latitude);
+      const lng=parseFloat(d.longitude);
+      const city=(d.city||"").toLowerCase();
+      const region=(d.region||"").toLowerCase();
+      // If IP says Lagos or within bounds — skip
+      if(region.includes("lagos")||city.includes("lagos")||isInLagos(lat,lng))return;
+      // Outside Lagos — show overlay
+      showOutsideLagosOverlay();
+    })
+    .catch(()=>{
+      // IP geo failed — try GPS silently (no toast on error)
+      if(!navigator.geolocation)return;
+      navigator.geolocation.getCurrentPosition(pos=>{
+        const{latitude:lat,longitude:lng}=pos.coords;
+        if(!isInLagos(lat,lng)) showOutsideLagosOverlay();
+      },()=>{/* silent fail */},{timeout:6000,maximumAge:300000});
+    });
+}
+
+function showOutsideLagosOverlay(){
+  const el=document.getElementById("outsideLagosOverlay");
+  if(el)el.style.display="flex";
+}
+
+function oloDismiss(){
+  const el=document.getElementById("outsideLagosOverlay");
+  if(el)el.style.display="none";
+  try{localStorage.setItem("nw_location_check",JSON.stringify({result:"dismissed",ts:Date.now()}));}catch(e){}
+}
+
+async function oloNotify(){
+  const email=prompt("Enter your email to be notified when we launch in your city:");
+  if(!email||!email.includes("@"))return;
+  // Store in Supabase — just insert into a waitlist or profiles note
+  try{
+    await sb.from("outside_lagos_waitlist").insert({email,created_at:new Date().toISOString()}).maybeSingle();
+  }catch(e){}
+  try{localStorage.setItem("nw_location_check",JSON.stringify({result:"waitlist",ts:Date.now()}));}catch(e){}
+  const el=document.getElementById("outsideLagosOverlay");
+  if(el)el.style.display="none";
+  toast("You're on the list! We'll notify you 🎉","ok");
+}
+
+
+
 
 function appTogglePw(btn){
   const inp=btn.previousElementSibling||btn.parentElement.querySelector('input');
@@ -2167,7 +2232,7 @@ function buildBaseLocs(){
 }
 buildBaseLocs();
 
-let reports=[],filterArea="",feedFilter="today",mType=null,mSel=null,CU=null,PR=null,emailLog=[],_inResetFlow=false;
+let reports=[],filterArea="",feedFilter="today",statusFilter="all",feedPage=1,FEED_PAGE_SIZE=20,mType=null,mSel=null,CU=null,PR=null,emailLog=[],_inResetFlow=false;
 const _alertCooldowns={};
 const ALERT_COOLDOWN_MS=5*60*1000;
 let savedPlaces=[];
@@ -2989,7 +3054,7 @@ sel.innerHTML=`<option value="">All Lagos areas</option>`;
 topLevel.forEach(a=>{const o=document.createElement("option");o.value=a;o.textContent=a;sel.appendChild(o);});
 if(childAreas.length){const grp=document.createElement("optgroup");grp.label="Specific areas";childAreas.forEach(a=>{const o=document.createElement("option");o.value=a;o.textContent=`${a} (${AREA_PARENT[a]})`;grp.appendChild(o);});sel.appendChild(grp);}
 }
-function applyFilter(){filterArea=document.getElementById("areaFilter").value;renderFeed("liveFeed");}
+function applyFilter(){filterArea=document.getElementById("areaFilter").value;feedPage=1;renderFeed("liveFeed");}
 function toggleSuggestLoc(){const form=document.getElementById("suggestLocForm");const txt=document.getElementById("suggestLocToggleTxt");if(!form)return;const show=form.style.display==="none";form.style.display=show?"block":"none";txt.textContent=show?"Hide":"+ Cannot find your street? Add it for everyone";if(show){setTimeout(()=>{const si=document.getElementById("suggestStreet");if(si)si.focus();},80);}}
 async function handleSuggestLoc(){if(!CU){toast("Sign in to add a location","info");closeModal();go("account");return;}const street=(document.getElementById("suggestStreet")?.value||"").trim();const area=(document.getElementById("suggestArea")?.value||"").trim();if(!street){toast("Enter a street name","info");return;}if(!area){toast("Enter the area name","info");return;}const btn=document.querySelector("#suggestLocForm .mconfirm");if(btn){btn.innerHTML='Checking location... <span class="spin"></span>';btn.disabled=true;}// submitCustomLocation now geocodes + deduplicates automatically
 const newLoc=await submitCustomLocation(street,area);if(btn){btn.innerHTML="Save and Use This Location";btn.disabled=false;}if(newLoc){mSel=newLoc;const mBtn=document.getElementById("mBtn");if(mBtn){mBtn.disabled=false;mBtn.textContent=mType==="out"?`Report — ${newLoc.name}`:`Restored — ${newLoc.name}`;}buildFilter();const q=document.getElementById("mSearch")?.value.trim().toLowerCase()||"";renderMList(q?LOCS.filter(l=>l.label.toLowerCase().includes(q)).slice(0,50):LOCS.slice(0,60));const form=document.getElementById("suggestLocForm");if(form)form.style.display="none";const txt=document.getElementById("suggestLocToggleTxt");if(txt)txt.textContent="+ Cannot find your street? Add it for everyone";}}
@@ -3033,6 +3098,7 @@ function animateNum(id,target){const el=document.getElementById(id);if(!el)retur
 /* ━━━ PATCH 1: renderFeed — AI badge on AI-generated reports + hide own confirm button ━━━ */
 function setFeedFilter(f){
   feedFilter=f;
+  feedPage=1;
   document.getElementById("ftToday").classList.toggle("active",f==="today");
   document.getElementById("ftAll").classList.toggle("active",f==="all");
   renderStats();
@@ -3100,6 +3166,31 @@ function prependReportCard(r, feedId="liveFeed"){
   if(cards.length>40)cards[cards.length-1].remove();
 }
 
+function setStatusFilter(f){
+  statusFilter=f;
+  feedPage=1;
+  document.getElementById("sfAll")?.classList.toggle("active-bck",f==="all");
+  document.getElementById("sfAll")?.classList.remove("active-out");
+  document.getElementById("sfOut")?.classList.toggle("active-out",f==="out");
+  document.getElementById("sfBck")?.classList.toggle("active-bck",f==="bck");
+  // reset all to neutral first
+  ["sfAll","sfOut","sfBck"].forEach(id=>{
+    const el=document.getElementById(id);
+    if(!el)return;
+    el.classList.remove("active-out","active-bck");
+  });
+  if(f==="out") document.getElementById("sfOut")?.classList.add("active-out");
+  else if(f==="bck") document.getElementById("sfBck")?.classList.add("active-bck");
+  else document.getElementById("sfAll")?.classList.add("active-bck");
+  renderFeed("liveFeed");
+}
+
+function loadMoreFeed(){
+  feedPage++;
+  renderFeed("liveFeed");
+  window.scrollBy({top:300,behavior:"smooth"});
+}
+
 function renderFeed(id="liveFeed", aF=null){
   const el=document.getElementById(id);if(!el)return;
   const fa=aF!==null?aF:(id==="liveFeed"?filterArea:null);
@@ -3108,8 +3199,34 @@ function renderFeed(id="liveFeed", aF=null){
     const midnight=new Date();midnight.setHours(0,0,0,0);
     data=data.filter(r=>r.time>=midnight.getTime());
   }
-  if(!data.length){el.innerHTML=`<div class="empty"><div class="empty-ico">${IC.bck}</div><p>${id==="liveFeed"&&feedFilter==="today"?"No reports today yet — be the first!":fa?`No reports for ${fa} yet.`:"No reports yet — be the first to report!"}</p></div>`;return;}
-  el.innerHTML=data.slice(0,40).map((r,i)=>_buildReportCard(r,i)).join("");
+  // Status filter (light on / off)
+  if(id==="liveFeed"&&statusFilter!=="all"){
+    data=data.filter(r=>r.type===statusFilter);
+  }
+  if(!data.length){
+    el.innerHTML=`<div class="empty"><div class="empty-ico">${IC.bck}</div><p>${
+      statusFilter!=="all"?`No "${statusFilter==="out"?"light out":"light restored"}" reports${feedFilter==="today"?" today":""} yet.`:
+      id==="liveFeed"&&feedFilter==="today"?"No reports today yet — be the first!":
+      fa?`No reports for ${fa} yet.`:"No reports yet — be the first to report!"
+    }</p></div>`;
+    const lmb=document.getElementById("loadMoreBtn");if(lmb)lmb.style.display="none";
+    const fc=document.getElementById("feedCount");if(fc)fc.textContent="";
+    return;
+  }
+  // Pagination — only for liveFeed
+  if(id==="liveFeed"){
+    const total=data.length;
+    const pageSize=FEED_PAGE_SIZE;
+    const shown=Math.min(feedPage*pageSize,total);
+    const pageData=data.slice(0,shown);
+    el.innerHTML=pageData.map((r,i)=>_buildReportCard(r,i)).join("");
+    const lmb=document.getElementById("loadMoreBtn");
+    const fc=document.getElementById("feedCount");
+    if(lmb)lmb.style.display=shown<total?"block":"none";
+    if(fc)fc.textContent=shown<total?`Showing ${shown} of ${total} reports`:`${total} report${total!==1?"s":""}`;
+  } else {
+    el.innerHTML=data.slice(0,40).map((r,i)=>_buildReportCard(r,i)).join("");
+  }
 }
 
 function renderDiscos(){const el=document.getElementById("discoZones");if(!el)return;el.innerHTML=DISCO.map(d=>{const outN=d.lgas.filter(a=>areaStatus(a)==="out").length;const rel=Math.max(10,Math.round(100-(outN/Math.max(d.lgas.length,1))*100));const c=rel>70?"var(--p)":rel>40?"var(--am)":"var(--rd)";const dot=outN>d.lgas.length*.5?"var(--rd)":outN>0?"var(--am)":"var(--p)";return`<div class="zc"><div class="zdot" style="background:${dot}"></div><div class="zb"><div class="zn">${d.name}<span>${d.lgas.slice(0,3).join(" · ")}...</span></div><div class="zt"><div class="zf" style="width:${rel}%;background:${c}"></div></div></div><div class="zp" style="color:${c}">${rel}%</div></div>`;}).join("");}
