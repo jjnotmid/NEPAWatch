@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <link rel="manifest" href="/manifest.json">
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=5">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <title>NEPAWatch Lagos — Live Power Outage Tracker</title>
 <meta name="description" content="Real-time crowd-sourced power outage tracker for Lagos. Know when light don go or come back in Lekki, Ikeja, VI, Surulere and every area. Get instant email alerts for your street.">
 <meta name="theme-color" content="#AAFF00">
@@ -226,7 +226,7 @@
 .lp-sh-label { font-size: .57rem; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; color: rgba(238,244,238,.3); display: block; margin-bottom: 6px; }
 .lp-sh-input {
   width: 100%; background: rgba(0,0,0,.35); border: 1px solid rgba(255,255,255,.1);
-  border-radius: 10px; padding: 12px 14px; font-size: .84rem;
+  border-radius: 10px; padding: 12px 14px; font-size:16px;
   color: #EEF4EE; outline: none; font-family: 'DM Sans', sans-serif;
   transition: border-color .18s, box-shadow .18s;
   -webkit-appearance: none; box-sizing: border-box; display: block;
@@ -265,6 +265,10 @@
 
 body.lp-active header, body.lp-active main, body.lp-active > nav { display: none !important; }
 body.lp-active #nepaBotBubble, body.lp-active #botWin, body.lp-active #botNotif { display: none !important; }
+</style>
+
+<style>/* Prevent iOS zoom on input focus */
+input,select,textarea{font-size:max(16px,1em)!important}
 </style>
 </head>
 <body>
