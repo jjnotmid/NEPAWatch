@@ -2,12 +2,15 @@
 <html lang="en" data-theme="dark">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <title>NEPAWatch Admin</title>
 <meta name="robots" content="noindex,nofollow">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
+/* Prevent iOS zoom */
+input,select,textarea{font-size:max(16px,1em)!important}
+
 :root {
   --bg:#0d1117; --bg2:#161b22; --bg3:#1c2128;
   --p:#00E676; --pp:rgba(0,230,118,.1); --pb:rgba(0,230,118,.25);
@@ -145,7 +148,7 @@ tr:hover td{background:rgba(128,128,128,.04)}
 
 /* ── FILTER BAR ── */
 .filter-bar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
-.filter-bar input,.filter-bar select{background:var(--bg2);border:1px solid var(--bd2);border-radius:9px;padding:8px 12px;font-size:.78rem;color:var(--ink);outline:none;transition:border-color .15s}
+.filter-bar input,.filter-bar select{background:var(--bg2);border:1px solid var(--bd2);border-radius:9px;padding:8px 12px;font-size:16px;color:var(--ink);outline:none;transition:border-color .15s}
 .filter-bar input{flex:1;min-width:150px}
 .filter-bar input:focus,.filter-bar select:focus{border-color:var(--p)}
 .filter-bar input::placeholder{color:var(--ink3)}
