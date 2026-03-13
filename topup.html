@@ -638,7 +638,7 @@ async function pollForToken(ref, attempt) {
   if (attempt >= MAX) {
     document.getElementById('waitingScreen').style.display = 'none';
     document.getElementById('mainForm').style.display = 'block';
-    toast('Taking longer than usual — your token will be sent to your email', 'err');
+    toast('Taking longer than usual — please contact support with ref: ' + ref, 'err');
     return;
   }
 
@@ -651,14 +651,24 @@ async function pollForToken(ref, attempt) {
     const d = await res.json();
 
     if (d.success && d.token) {
+      // Token ready — show it
       document.getElementById('waitingScreen').style.display = 'none';
       showSuccess(d);
       return;
     }
 
-    // Still pending or payment not yet confirmed — retry
+    if (d.fatal) {
+      // Hard error — stop polling, show the error
+      document.getElementById('waitingScreen').style.display = 'none';
+      document.getElementById('mainForm').style.display = 'block';
+      toast(d.error || 'Something went wrong — please contact support', 'err');
+      return;
+    }
+
+    // Payment not confirmed yet — retry
     setTimeout(() => pollForToken(ref, attempt + 1), 3000);
   } catch(e) {
+    // Network blip — retry
     setTimeout(() => pollForToken(ref, attempt + 1), 3000);
   }
 }
