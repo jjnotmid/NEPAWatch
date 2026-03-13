@@ -1,4 +1,7 @@
 /* ===== NEPAWatch Lagos — styles.css (Cinema UI redesign) ===== */
+/* Prevent iOS zoom on input focus — font-size must be >= 16px */
+input, select, textarea { font-size: max(16px, 1em) !important; }
+
 
 :root{
   /* Dark (default) */
@@ -145,7 +148,7 @@ nav{
 
 /* ===== SEARCH BAR ===== */
 .sbar{margin:0 18px 14px;padding:11px 14px;display:flex;align-items:center;gap:9px;background:var(--sf);border-radius:12px;border:1px solid var(--bd)}
-.sbar select{flex:1;background:transparent;border:none;outline:none;font-size:.8rem;color:var(--ink);cursor:pointer;appearance:none}
+.sbar select{flex:1;background:transparent;border:none;outline:none;font-size:16px;color:var(--ink);cursor:pointer;appearance:none}
 .sbar select option{background:var(--sf);color:var(--ink)}
 
 /* ===== STATS ROW ===== */
@@ -325,14 +328,14 @@ nav{
 .fld label{display:block;font-size:.7rem;font-weight:700;color:var(--ink3);margin-bottom:7px;text-transform:uppercase;letter-spacing:.07em}
 .fld input{
   width:100%;background:var(--sf);border:1px solid var(--bd);border-radius:12px;
-  color:var(--ink);font-size:.85rem;padding:13px 15px;outline:none;
+  color:var(--ink);font-size:16px;padding:13px 15px;outline:none;
   transition:border-color .2s,box-shadow .2s;-webkit-appearance:none;
 }
 .fld input:focus{border-color:var(--p);box-shadow:0 0 0 3px var(--pp)}
 .fld input::placeholder{color:var(--ink3)}
 .auth-btn{
   width:100%;border:none;border-radius:50px;padding:15px;
-  background:var(--p);color:#0A0D0B;font-weight:800;font-size:.88rem;
+  background:var(--p);color:#0A0D0B;font-weight:800;font-size:16px;
   cursor:pointer;margin-top:8px;display:flex;align-items:center;
   justify-content:center;gap:8px;transition:opacity .15s,transform .1s,box-shadow .2s;
   font-family:var(--font-display);letter-spacing:.01em;
@@ -448,7 +451,7 @@ nav{
 /* ===== PLACE NAME INPUT ===== */
 .place-name-input{
   width:100%;background:var(--sf2);border:1px solid var(--bd);border-radius:12px;
-  color:var(--ink);font-size:.82rem;padding:12px 15px;outline:none;
+  color:var(--ink);font-size:16px;padding:12px 15px;outline:none;
   transition:border-color .2s,box-shadow .2s;margin-bottom:13px;-webkit-appearance:none;
 }
 .place-name-input:focus{border-color:var(--p);box-shadow:0 0 0 3px var(--pp)}
@@ -481,7 +484,7 @@ nav{
 /* ===== SUGGEST LOC FORM ===== */
 #suggestLocForm{margin-top:14px;padding-top:14px;border-top:1px solid var(--bd)}
 .suggest-title{font-size:.72rem;font-weight:700;color:var(--ink2);margin-bottom:10px;display:flex;align-items:center;gap:6px}
-#suggestLocForm input{width:100%;background:var(--sf2);border:1px solid var(--bd);border-radius:12px;color:var(--ink);font-size:.82rem;padding:11px 14px;outline:none;transition:border-color .2s;margin-bottom:8px;-webkit-appearance:none}
+#suggestLocForm input{width:100%;background:var(--sf2);border:1px solid var(--bd);border-radius:12px;color:var(--ink);font-size:16px;padding:11px 14px;outline:none;transition:border-color .2s;margin-bottom:8px;-webkit-appearance:none}
 #suggestLocForm input:focus{border-color:var(--p)}
 #suggestLocForm input::placeholder{color:var(--ink3)}
 
@@ -490,7 +493,7 @@ nav{
 .home-search-inner{display:flex;align-items:center;background:var(--sf2);border:1.5px solid var(--bd);border-radius:14px;overflow:visible;transition:border-color .2s,box-shadow .2s;gap:0}
 .home-search-wrap.focused .home-search-inner{border-color:var(--p);box-shadow:0 0 0 3px rgba(170,255,0,.1)}
 .hs-icon{display:flex;align-items:center;justify-content:center;padding:0 10px 0 14px;color:var(--ink3);flex-shrink:0;pointer-events:none}
-.hs-input{flex:1;background:transparent;border:none;outline:none;font-family:var(--font-body);font-size:.84rem;color:var(--ink);padding:13px 4px;min-width:0}
+.hs-input{flex:1;background:transparent;border:none;outline:none;font-family:var(--font-body);font-size:16px;color:var(--ink);padding:13px 4px;min-width:0}
 .hs-input::placeholder{color:var(--ink3)}
 .hs-clear{background:none;border:none;padding:0 10px;color:var(--ink3);cursor:pointer;display:flex;align-items:center;flex-shrink:0;transition:color .15s}
 .hs-clear:hover{color:var(--ink)}
@@ -540,7 +543,7 @@ nav{
 .mp-sel-row{display:flex;align-items:center;gap:8px}
 .mp-name-input{
   flex:1;min-width:0;background:transparent;border:none;outline:none;
-  font-family:var(--font-body);font-size:.86rem;font-weight:600;color:var(--p);
+  font-family:var(--font-body);font-size:16px;font-weight:600;color:var(--p);
   padding:0;cursor:text;
 }
 .mp-name-input::placeholder{color:rgba(170,255,0,.4)}
