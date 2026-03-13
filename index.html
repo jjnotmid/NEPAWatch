@@ -629,6 +629,30 @@ input,select,textarea{font-size:max(16px,1em)!important}
 
 <main>
 <!-- HOME -->
+
+<!-- OUTSIDE LAGOS OVERLAY -->
+<div id="outsideLagosOverlay" style="display:none">
+  <div class="olo-sheet">
+    <div class="olo-icon">🗺️</div>
+    <div class="olo-title">NEPAWatch is<br>Lagos-only for now</div>
+    <div class="olo-sub">We detect that you're outside Lagos. NEPAWatch currently covers Lagos State only — but we're expanding!</div>
+    <div class="olo-tag">
+      <svg width="8" height="8" viewBox="0 0 8 8" fill="none"><circle cx="4" cy="4" r="3" stroke="currentColor" stroke-width="1.2"/><path d="M4 2v2.5l1.5 1" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/></svg>
+      Coming soon to your city
+    </div>
+    <div class="olo-cities">
+      <div class="olo-city">Abuja</div>
+      <div class="olo-city">Port Harcourt</div>
+      <div class="olo-city">Ibadan</div>
+      <div class="olo-city">Kano</div>
+      <div class="olo-city">Enugu</div>
+      <div class="olo-city">Benin City</div>
+    </div>
+    <button class="olo-notify" onclick="oloNotify()">🔔 Notify Me When It Launches</button>
+    <button class="olo-dismiss" onclick="oloDismiss()">I'm actually in Lagos →</button>
+  </div>
+</div>
+
 <div class="page active" id="page-home">
   <div class="rep-grid">
     <button class="rep-btn out" onclick="openModal('out')">
@@ -700,7 +724,20 @@ input,select,textarea{font-size:max(16px,1em)!important}
       <button class="ft-btn" id="ftAll" onclick="setFeedFilter('all')">All Time</button>
     </div>
   </div>
+  <div class="status-filter">
+    <button class="sf-btn" id="sfAll" onclick="setStatusFilter('all')">
+      <div class="sf-dot" style="background:var(--ink3)"></div> All Reports
+    </button>
+    <button class="sf-btn" id="sfOut" onclick="setStatusFilter('out')">
+      <div class="sf-dot" style="background:var(--rd)"></div> Light Out
+    </button>
+    <button class="sf-btn" id="sfBck" onclick="setStatusFilter('bck')">
+      <div class="sf-dot" style="background:var(--p)"></div> Light Restored
+    </button>
+  </div>
   <div class="feed" id="liveFeed"><div class="loading-row"><div class="spin w"></div>Loading reports...</div></div>
+  <div class="feed-count" id="feedCount"></div>
+  <button class="load-more-btn" id="loadMoreBtn" style="display:none" onclick="loadMoreFeed()">Load more reports</button>
   <div class="slbl">DISCO Zone Status</div>
   <div class="zones" id="discoZones"></div>
 </div>
