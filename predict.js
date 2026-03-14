@@ -420,6 +420,10 @@ const AIReporter = {
       const result = await res.json();
       if (result?.report) {
         this._replaceLocal(tempId, result.report, prob);
+        /* Fire push + email alerts — exactly like a human report */
+        if (typeof sendAreaAlerts === 'function') {
+          sendAreaAlerts(locName, area, type).catch(() => {});
+        }
         /* Refresh predict page AI count if visible */
         const aiBanner = document.querySelector('.pred-ai-sub strong');
         if (aiBanner && typeof reports!=='undefined') {
