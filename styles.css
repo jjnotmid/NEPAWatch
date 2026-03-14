@@ -170,7 +170,7 @@ body::after{content:"";display:block;position:fixed;bottom:0;left:0;right:0;heig
 .sbar select option{background:var(--sf);color:var(--ink)}
 
 /* ===== STATS ROW ===== */
-.stats-row{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:0 18px 16px}
+.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:0 18px 16px}
 .sc{
   background:var(--sf);border-radius:var(--r-card);padding:18px 10px 16px;text-align:center;
   transition:transform .15s;border:1px solid var(--bd);
@@ -612,3 +612,65 @@ body::after{content:"";display:block;position:fixed;bottom:0;left:0;right:0;heig
 
 @keyframes onb-pop{from{opacity:0;transform:scale(.93)}to{opacity:1;transform:scale(1)}}
 @keyframes a2hs-up{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+
+/* ===== OVERLAY + BOTTOM SHEET MODALS ===== */
+/* .overlay is the scrim backdrop */
+.overlay{
+  position:fixed;inset:0;z-index:600;
+  background:var(--ov);
+  display:none;align-items:flex-end;justify-content:center;
+  -webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);
+  animation:scrimIn .2s ease;
+}
+.overlay.open{display:flex}
+
+/* .sheet is the white card that slides up */
+.sheet{
+  position:relative;z-index:1;
+  width:100%;max-width:520px;
+  background:var(--sf);
+  border-radius:28px 28px 0 0;
+  border:1px solid var(--bd);border-bottom:none;
+  overflow-y:auto;
+  max-height:90svh;
+  padding-bottom:env(safe-area-inset-bottom,0px);
+  animation:sheetUp .26s cubic-bezier(.25,.46,.45,.94);
+  box-shadow:0 -8px 40px rgba(0,0,0,.5);
+}
+
+/* Sheet header */
+.sheet-hd{
+  padding:6px 18px 16px;
+  border-bottom:1px solid var(--bd);
+  margin-bottom:0;
+}
+.sheet-hd h3{
+  font-family:var(--font-display);font-size:1.1rem;font-weight:800;
+  color:var(--ink);letter-spacing:-.02em;margin-bottom:3px;
+}
+.sheet-sub{
+  font-size:.72rem;color:var(--ink3);line-height:1.5;
+}
+
+/* Sheet body */
+.sheet-body{
+  padding:16px 18px 24px;
+}
+
+/* Search wrapper inside sheet — icon + input row */
+.msw{
+  position:relative;margin-bottom:10px;
+}
+.msico{
+  position:absolute;left:13px;top:50%;transform:translateY(-50%);
+  color:var(--ink3);display:flex;align-items:center;pointer-events:none;
+}
+
+/* .prim — primary green variant of mconfirm */
+.mconfirm.prim{background:var(--p);color:#080B09}
+[data-theme="light"] .mconfirm.prim{color:#091A0B}
+.mconfirm.bck{background:var(--p);color:#080B09}
+[data-theme="light"] .mconfirm.bck{color:#091A0B}
+.mconfirm.out{background:var(--rd);color:#fff;box-shadow:0 4px 20px rgba(255,64,85,.25)}
+.mconfirm.out:hover{opacity:.9}
+.mconfirm:disabled{opacity:.45;cursor:not-allowed}
