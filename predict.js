@@ -52,20 +52,40 @@ const DAY_FACTOR = [0.88,1.06,1.06,1.03,1.00,0.97,0.90]; /* 0=Sun */
 /* ─── HISTORY ENGINE ────────────────────────────────────────────────────── */
 const PredictHistory = {
   _data: {},
+  _liveAdded: 0,  // count of live-added reports since last full ingest
   ingest(rows) {
     this._data = {};
+    this._liveAdded = 0;
     rows.forEach(r => {
       if (!r.location_area) return;
-      const t = new Date(r.created_at);
+      const t = new Date(r.created_at || r.time);
       const k = `${r.location_area}|${t.getHours()}|${t.getDay()}`;
-      if (!this._data[k]) this._data[k] = { out:0, total:0 };
+      if (!this._data[k]) this._data[k] = { out:0, total:0, confirms:0 };
       this._data[k].total++;
       if (r.type === 'out') this._data[k].out++;
+      // Weight confirmed reports more — they represent stronger ground truth
+      this._data[k].confirms += (r.confirms||1);
     });
+  },
+  // Live-train from a single new report (called on every real-time INSERT)
+  addReport(r) {
+    if (!r.location_area && !r.area) return;
+    const area = r.location_area || r.area;
+    const t = new Date(r.created_at || r.time);
+    const k = `${area}|${t.getHours()}|${t.getDay()}`;
+    if (!this._data[k]) this._data[k] = { out:0, total:0, confirms:0 };
+    this._data[k].total++;
+    if ((r.type||'') === 'out') this._data[k].out++;
+    this._data[k].confirms += (r.confirms||1);
+    this._liveAdded++;
   },
   getRate(area, hour, day) {
     const b = this._data[`${area}|${hour}|${day}`];
-    return (b && b.total >= 3) ? b.out / b.total : null;
+    if (!b || b.total < 3) return null;
+    // Boost accuracy when many confirmations exist (each confirm = another data point)
+    const confirmBoost = Math.min(0.15, (b.confirms / (b.total * 3)) * 0.15);
+    const raw = b.out / b.total;
+    return Math.min(0.97, raw + (raw > 0.5 ? confirmBoost : -confirmBoost));
   },
   getAreaRate(area) {
     let out=0, total=0;
@@ -452,9 +472,16 @@ const AIReporter = {
 
   start() {
     if (this._timer) clearInterval(this._timer);
+    if (this._retrainTimer) clearInterval(this._retrainTimer);
     setTimeout(()=>{ this.scan(); this.scanRestorations(); }, 9000);
     this._timer = setInterval(()=>{ this.scan(); this.scanRestorations(); }, AI_SCAN_INTERVAL_MS);
-    console.log('[NEPAWatch AI] Auto-reporter started.');
+    // Re-ingest full history every 2 hours so model stays fresh with all DB reports
+    this._retrainTimer = setInterval(()=>{
+      this.loadHistory().then(()=>{
+        console.log(`[NEPAWatch AI] Periodic re-training complete. Live updates since last ingest: ${PredictHistory._liveAdded}`);
+      });
+    }, 2 * 60 * 60 * 1000);
+    console.log('[NEPAWatch AI] Auto-reporter started. Model trains on every live report.');
   },
 };
 
