@@ -79,18 +79,28 @@
 /* NAV */
 .lp-nav {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 14px 20px; position: relative; z-index: 2; flex-shrink: 0;
+  padding: 12px 16px; position: relative; z-index: 2; flex-shrink: 0;
   border-bottom: 1px solid rgba(255,255,255,.04);
 }
-.lp-nav-logo { display: flex; align-items: center; gap: 10px; }
+.lp-nav-logo { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .lp-nav-logo-icon { width: 28px; height: 28px; border-radius: 7px; overflow: hidden; border: 1px solid rgba(255,255,255,.1); flex-shrink: 0; }
 .lp-nav-logo-icon img { width: 100%; height: 100%; object-fit: cover; }
-.lp-nav-wordmark { font-family: 'Bebas Neue', sans-serif; font-size: 1.35rem; letter-spacing: .04em; color: #EEF4EE; line-height: 1; }
+.lp-nav-wordmark { font-family: 'Bebas Neue', sans-serif; font-size: 1.3rem; letter-spacing: .04em; color: #EEF4EE; line-height: 1; white-space: nowrap; }
 .lp-nav-wordmark em { color: #AAFF00; font-style: normal; }
-.lp-nav-btns { display: flex; gap: 8px; align-items: center; }
-.lp-btn-ghost { font-size: .72rem; font-weight: 600; color: rgba(238,244,238,.5); background: none; border: 1px solid rgba(255,255,255,.1); border-radius: 8px; padding: 7px 15px; cursor: pointer; transition: all .18s; }
-.lp-btn-ghost:hover { color: #EEF4EE; border-color: rgba(255,255,255,.2); }
-.lp-btn-solid { font-size: .72rem; font-weight: 700; color: #07090A; background: #AAFF00; border: none; border-radius: 50px; padding: 7px 16px; cursor: pointer; transition: all .18s; box-shadow: 0 0 16px rgba(170,255,0,.28); }
+.lp-nav-btns { display: flex; gap: 7px; align-items: center; flex-shrink: 0; }
+.lp-btn-ghost {
+  font-size: .72rem; font-weight: 600; color: rgba(238,244,238,.7);
+  background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.12);
+  border-radius: 9px; padding: 8px 14px; cursor: pointer; transition: all .18s;
+  white-space: nowrap; line-height: 1;
+}
+.lp-btn-ghost:hover { color: #EEF4EE; border-color: rgba(255,255,255,.25); background: rgba(255,255,255,.09); }
+.lp-btn-solid {
+  font-size: .72rem; font-weight: 700; color: #07090A; background: #AAFF00;
+  border: none; border-radius: 50px; padding: 8px 16px; cursor: pointer;
+  transition: all .18s; box-shadow: 0 0 16px rgba(170,255,0,.28);
+  white-space: nowrap; line-height: 1;
+}
 .lp-btn-solid:hover { background: #CCFF44; }
 
 /* HERO */
@@ -131,9 +141,9 @@
 
 /* STATS */
 .lp-stats { display: flex; margin-top: 36px; animation: lp-rise .5s ease .36s both; border: 1px solid rgba(255,255,255,.07); border-radius: 13px; overflow: hidden; background: rgba(255,255,255,.02); width: 100%; max-width: 380px; }
-.lp-stat { padding: 14px 14px; text-align: center; border-right: 1px solid rgba(255,255,255,.06); flex: 1; }
+.lp-stat { padding: 10px 6px; text-align: center; border-right: 1px solid rgba(255,255,255,.06); flex: 1; min-width: 0; }
 .lp-stat:last-child { border-right: none; }
-.lp-stat-n { font-family: 'Bricolage Grotesque', sans-serif; font-size: 2rem; font-weight: 900; color: #AAFF00; line-height: 1; text-shadow: 0 0 16px rgba(170,255,0,.25); }
+.lp-stat-n { font-family: 'Bricolage Grotesque', sans-serif; font-size: clamp(.95rem, 3.8vw, 1.6rem); font-weight: 900; color: #AAFF00; line-height: 1; text-shadow: 0 0 16px rgba(170,255,0,.25); }
 .lp-stat-l { font-size: .5rem; color: rgba(238,244,238,.22); text-transform: uppercase; letter-spacing: .12em; margin-top: 4px; font-weight: 700; }
 
 @keyframes lp-rise { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:none; } }
@@ -292,7 +302,7 @@ input,select,textarea{font-size:max(16px,1em)!important}
     </div>
     <div class="lp-nav-btns">
       <button class="lp-btn-ghost" onclick="lpOpenAuth('login')">Sign In</button>
-      <button class="lp-btn-solid" onclick="lpOpenAuth('register')">Get Started — Free</button>
+      <button class="lp-btn-solid" onclick="lpOpenAuth('register')">Get Started</button>
     </div>
   </div>
 
@@ -858,34 +868,36 @@ async function lpPopulate() {
 }
 
 const LP_AREAS_ALL = [
-  /* Lagos */
-  "Victoria Island","Ikoyi","Lekki Phase 1","Ikeja GRA","Chevron/Lekki-Epe Expressway",
-  "Magodo","Ojodu/Omole","Gbagada","Maryland/Anthony","Kosofe/Ketu",
-  "Surulere","Yaba","Ilupeju","Shomolu/Bariga","Ebute Metta",
-  "Agege","Mushin","Oshodi/Isolo","Festac Town","Amuwo Odofin",
-  "Lagos Island","Obalende/CMS","Apapa","Ajah","Alimosho/Ipaja",
-  "Ikorodu","Badagry","Ojo/Alaba","Ibeju-Lekki","Epe",
-  /* Abuja / FCT */
-  "Maitama","Wuse 2","Garki","Asokoro","Gwarinpa","Kubwa","Jabi",
-  /* South South */
-  "Port Harcourt GRA Phase 1","D-Line PH","Trans Amadi PH","Rumuola",
-  "Yenagoa GRA","Calabar GRA","Uyo GRA",
-  /* South East */
-  "GRA Enugu","Independence Layout Enugu","Owerri GRA","New Owerri",
-  "Awka GRA","Onitsha GRA","Umuahia GRA","Abakaliki GRA",
-  /* South West */
-  "Ibadan GRA","Bodija","Mokola","Challenge Ibadan",
-  "Abeokuta GRA","Osogbo GRA","Ilorin GRA","Akure GRA","Ado Ekiti GRA",
-  /* South South */
-  "Benin City GRA","Ring Road Benin","Warri GRA","Asaba GRA",
-  /* North Central */
-  "Minna GRA","Lokoja GRA","Lafia GRA","Makurdi GRA",
-  /* North West */
-  "Kaduna GRA","Kano Nassarawa GRA","Sokoto GRA","Gusau GRA","Birnin Kebbi GRA",
-  /* North East */
-  "Maiduguri GRA","Bauchi GRA","Gombe GRA","Yola GRA","Jalingo GRA",
-  /* Plateau */
-  "Jos GRA","Rayfield",
+  {area:"Victoria Island", state:"Lagos"},{area:"Lekki Phase 1", state:"Lagos"},
+  {area:"Ikeja GRA", state:"Lagos"},{area:"Surulere", state:"Lagos"},
+  {area:"Yaba", state:"Lagos"},{area:"Gbagada", state:"Lagos"},
+  {area:"Ikorodu", state:"Lagos"},{area:"Alimosho/Ipaja", state:"Lagos"},
+  {area:"Ajah", state:"Lagos"},{area:"Apapa", state:"Lagos"},
+  {area:"Maitama", state:"FCT"},{area:"Wuse 2", state:"FCT"},
+  {area:"Garki", state:"FCT"},{area:"Gwarinpa", state:"FCT"},
+  {area:"Asokoro", state:"FCT"},{area:"Kubwa", state:"FCT"},
+  {area:"GRA PH Phase 1", state:"Rivers"},{area:"D-Line PH", state:"Rivers"},
+  {area:"Trans Amadi", state:"Rivers"},{area:"Rumuola", state:"Rivers"},
+  {area:"GRA Enugu", state:"Enugu"},{area:"Independence Layout", state:"Enugu"},
+  {area:"Owerri GRA", state:"Imo"},{area:"New Owerri", state:"Imo"},
+  {area:"Onitsha GRA", state:"Anambra"},{area:"Awka GRA", state:"Anambra"},
+  {area:"Ibadan GRA", state:"Oyo"},{area:"Bodija", state:"Oyo"},
+  {area:"Mokola", state:"Oyo"},{area:"Abeokuta GRA", state:"Ogun"},
+  {area:"Ilorin GRA", state:"Kwara"},{area:"Akure GRA", state:"Ondo"},
+  {area:"Ado Ekiti GRA", state:"Ekiti"},{area:"Osogbo GRA", state:"Osun"},
+  {area:"Benin City GRA", state:"Edo"},{area:"Warri GRA", state:"Delta"},
+  {area:"Yenagoa GRA", state:"Bayelsa"},{area:"Calabar GRA", state:"Cross River"},
+  {area:"Uyo GRA", state:"Akwa Ibom"},{area:"Asaba GRA", state:"Delta"},
+  {area:"Kaduna GRA", state:"Kaduna"},{area:"Barnawa", state:"Kaduna"},
+  {area:"Nassarawa GRA", state:"Kano"},{area:"Fagge", state:"Kano"},
+  {area:"Sokoto GRA", state:"Sokoto"},{area:"Birnin Kebbi GRA", state:"Kebbi"},
+  {area:"Gusau GRA", state:"Zamfara"},{area:"Dutse GRA", state:"Jigawa"},
+  {area:"Minna GRA", state:"Niger"},{area:"Lokoja GRA", state:"Kogi"},
+  {area:"Makurdi GRA", state:"Benue"},{area:"Lafia GRA", state:"Nasarawa"},
+  {area:"Jos GRA", state:"Plateau"},{area:"Rayfield", state:"Plateau"},
+  {area:"Maiduguri GRA", state:"Borno"},{area:"Bauchi GRA", state:"Bauchi"},
+  {area:"Gombe GRA", state:"Gombe"},{area:"Yola GRA", state:"Adamawa"},
+  {area:"Jalingo GRA", state:"Taraba"},{area:"Damaturu GRA", state:"Yobe"},
 ];
 
 const LP_TICKER_SEED = [
@@ -926,7 +938,7 @@ function lpBuildAreaGrid() {
   const liveReps = (typeof reports !== 'undefined') ? reports : [];
   const statusMap = {};
   liveReps.forEach(r => { if (!statusMap[r.area]) statusMap[r.area] = r; });
-  const html = LP_AREAS_ALL.slice(0, 24).map(area => {
+  const html = LP_AREAS_ALL.slice(0, 24).map(({area, state}) => {
     const rep = statusMap[area];
     const st = rep ? rep.type : 'unk';
     const label = st === 'out' ? 'Power out' : st === 'bck' ? 'Power on' : 'No reports';
@@ -934,6 +946,7 @@ function lpBuildAreaGrid() {
     return `<div class="lp-area-card ${st === 'out' ? 'out' : st === 'bck' ? 'bck' : ''}">
       <div class="lp-ac-row"><div class="lp-ac-dot ${st}"></div><div class="lp-ac-name">${area}</div></div>
       <div class="lp-ac-status ${st}">${label}${ago}</div>
+      <div style="font-size:.6rem;color:rgba(238,244,238,.28);margin-top:3px;letter-spacing:.05em">${state}</div>
     </div>`;
   }).join('');
   grid.innerHTML = html;
