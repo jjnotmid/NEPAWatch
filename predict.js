@@ -52,20 +52,40 @@ const DAY_FACTOR = [0.88,1.06,1.06,1.03,1.00,0.97,0.90]; /* 0=Sun */
 /* ─── HISTORY ENGINE ────────────────────────────────────────────────────── */
 const PredictHistory = {
   _data: {},
+  _liveAdded: 0,  // count of live-added reports since last full ingest
   ingest(rows) {
     this._data = {};
+    this._liveAdded = 0;
     rows.forEach(r => {
       if (!r.location_area) return;
-      const t = new Date(r.created_at);
+      const t = new Date(r.created_at || r.time);
       const k = `${r.location_area}|${t.getHours()}|${t.getDay()}`;
-      if (!this._data[k]) this._data[k] = { out:0, total:0 };
+      if (!this._data[k]) this._data[k] = { out:0, total:0, confirms:0 };
       this._data[k].total++;
       if (r.type === 'out') this._data[k].out++;
+      // Weight confirmed reports more — they represent stronger ground truth
+      this._data[k].confirms += (r.confirms||1);
     });
+  },
+  // Live-train from a single new report (called on every real-time INSERT)
+  addReport(r) {
+    if (!r.location_area && !r.area) return;
+    const area = r.location_area || r.area;
+    const t = new Date(r.created_at || r.time);
+    const k = `${area}|${t.getHours()}|${t.getDay()}`;
+    if (!this._data[k]) this._data[k] = { out:0, total:0, confirms:0 };
+    this._data[k].total++;
+    if ((r.type||'') === 'out') this._data[k].out++;
+    this._data[k].confirms += (r.confirms||1);
+    this._liveAdded++;
   },
   getRate(area, hour, day) {
     const b = this._data[`${area}|${hour}|${day}`];
-    return (b && b.total >= 3) ? b.out / b.total : null;
+    if (!b || b.total < 3) return null;
+    // Boost accuracy when many confirmations exist (each confirm = another data point)
+    const confirmBoost = Math.min(0.15, (b.confirms / (b.total * 3)) * 0.15);
+    const raw = b.out / b.total;
+    return Math.min(0.97, raw + (raw > 0.5 ? confirmBoost : -confirmBoost));
   },
   getAreaRate(area) {
     let out=0, total=0;
@@ -83,10 +103,13 @@ const WeatherState = {
   lastFetch: 0,
   FETCH_INTERVAL: 15 * 60 * 1000, // every 15 min
 
-  async refresh() {
+  async refresh(lat, lng) {
     if (Date.now() - this.lastFetch < this.FETCH_INTERVAL) return;
+    /* Use provided coords or default to Nigeria centroid (approx Abuja) */
+    const la = lat ?? 9.0765;
+    const lo = lng ?? 7.3986;
     try {
-      const url = 'https://api.open-meteo.com/v1/forecast?latitude=6.5244&longitude=3.3792&current=weathercode,precipitation,windspeed_10m&timezone=Africa%2FLagos';
+      const url = `https://api.open-meteo.com/v1/forecast?latitude=${la}&longitude=${lo}&current=weathercode,precipitation,windspeed_10m&timezone=Africa%2FLagos`;
       const res = await fetch(url);
       const d = await res.json();
       const c = d.current || {};
@@ -284,7 +307,11 @@ const AIReporter = {
   },
 
   async scan() {
-    await WeatherState.refresh();
+    /* Pass approximate coordinates for weather: default to Nigeria centroid */
+    const firstArea = Object.keys(AREA_BANDS)[0];
+    const coords = (typeof AREA_COORDS !== 'undefined' && AREA_COORDS[firstArea])
+      ? AREA_COORDS[firstArea] : null;
+    await WeatherState.refresh(coords?.lat, coords?.lng);
     this._rebuildState();
     const now=new Date(), h=now.getHours(), d=now.getDay();
     for (const area of Object.keys(AREA_BANDS)) {
@@ -452,11 +479,122 @@ const AIReporter = {
 
   start() {
     if (this._timer) clearInterval(this._timer);
+    if (this._retrainTimer) clearInterval(this._retrainTimer);
     setTimeout(()=>{ this.scan(); this.scanRestorations(); }, 9000);
     this._timer = setInterval(()=>{ this.scan(); this.scanRestorations(); }, AI_SCAN_INTERVAL_MS);
-    console.log('[NEPAWatch AI] Auto-reporter started.');
+    // Re-ingest full history every 2 hours so model stays fresh with all DB reports
+    this._retrainTimer = setInterval(()=>{
+      this.loadHistory().then(()=>{
+        console.log(`[NEPAWatch AI] Periodic re-training complete. Live updates since last ingest: ${PredictHistory._liveAdded}`);
+      });
+    }, 2 * 60 * 60 * 1000);
+    console.log('[NEPAWatch AI] Auto-reporter started. Model trains on every live report.');
   },
 };
+
+/* ─── NEXT POWER EVENT PREDICTION ────────────────────────────────────── */
+/**
+ * Predicts when power will next turn ON or OFF for a given area.
+ * Scans the next 24 hours using the statistical model + ground truth.
+ *
+ * Returns:
+ *  { eventType, hoursUntil, estimatedTime, estimatedHour, prob, confidence,
+ *    currentlyOut, allHours }
+ */
+function predictNextEvent(area) {
+  const now = new Date();
+  const h = now.getHours();
+  const d = now.getDay();
+
+  /* Determine current power status */
+  const gt = getGroundTruth(area);
+  const currentProb = predictOutage(area, h, d).prob;
+
+  /* currentlyOut: true if power is likely out right now */
+  let currentlyOut;
+  if (gt && gt.confidence !== 'low') {
+    currentlyOut = gt.prob > 0.55;
+  } else {
+    currentlyOut = currentProb > 0.55;
+  }
+
+  /* Compute hourly probabilities for next 24 hours */
+  const allHours = [];
+  for (let i = 0; i < 24; i++) {
+    const checkH = (h + i) % 24;
+    const checkD = (d + Math.floor((h + i) / 24)) % 7;
+    const { prob: p } = predictOutage(area, checkH, checkD);
+    allHours.push({ offset: i, hour: checkH, prob: p });
+  }
+
+  /* Find the next transition */
+  let eventType = null, hoursUntil = null, estimatedHour = null, eventProb = null;
+
+  if (currentlyOut) {
+    /* Looking for power RESTORATION: prob drops below 0.40 */
+    for (const { offset, hour, prob } of allHours) {
+      if (offset === 0) continue; // skip current hour
+      if (prob < 0.40) {
+        eventType = 'on';
+        hoursUntil = offset;
+        estimatedHour = hour;
+        eventProb = prob;
+        break;
+      }
+    }
+    if (!eventType) {
+      /* No restoration found — show best (lowest prob) hour */
+      const best = allHours.reduce((a, b) => a.prob < b.prob ? a : b);
+      eventType = 'on';
+      hoursUntil = best.offset;
+      estimatedHour = best.hour;
+      eventProb = best.prob;
+    }
+  } else {
+    /* Looking for next OUTAGE: prob rises above 0.60 */
+    for (const { offset, hour, prob } of allHours) {
+      if (offset === 0) continue;
+      if (prob > 0.60) {
+        eventType = 'off';
+        hoursUntil = offset;
+        estimatedHour = hour;
+        eventProb = prob;
+        break;
+      }
+    }
+    if (!eventType) {
+      /* No outage found — show worst (highest prob) hour */
+      const worst = allHours.reduce((a, b) => a.prob > b.prob ? a : b);
+      eventType = 'off';
+      hoursUntil = worst.offset;
+      estimatedHour = worst.hour;
+      eventProb = worst.prob;
+    }
+  }
+
+  const estimatedTime = new Date(now.getTime() + hoursUntil * 3600000);
+  const confidence = gt ? gt.confidence : 'low';
+
+  return {
+    eventType,       /* 'on' = power coming | 'off' = power going out */
+    hoursUntil,
+    estimatedTime,
+    estimatedHour,
+    prob: eventProb,
+    confidence,
+    currentlyOut,
+    allHours,
+  };
+}
+
+/* Format a time label for predicted event */
+function fmtEventTime(estimatedTime) {
+  const h = estimatedTime.getHours();
+  const m = estimatedTime.getMinutes();
+  const ampm = h < 12 ? 'am' : 'pm';
+  const h12 = h % 12 || 12;
+  return m > 0 ? `${h12}:${String(m).padStart(2,'0')}${ampm}` : `${h12}${ampm}`;
+}
 
 /* ─── PREDICT PAGE ───────────────────────────────────────────────────────── */
 function renderPredictPage() {
@@ -472,6 +610,18 @@ function renderPredictPage() {
   const duration = predictDuration(area, h);
   let bH=0,bP=1; for(let i=0;i<24;i++){const{prob:p}=predictOutage(area,i,d);if(p<bP){bP=p;bH=i;}}
   const aiCount = (typeof reports!=='undefined') ? reports.filter(r=>r.userId===AI_USER_ID).length : 0;
+
+  /* ── Next Power Event ── */
+  const nxt = predictNextEvent(area);
+  const nxtFmtH = x=>`${x%12||12}${x<12?'am':'pm'}`;
+  const nxtColor = nxt.eventType==='on' ? '#AAFF00' : '#FF3D57';
+  const nxtIcon = nxt.eventType==='on' ? '↗' : '↘';
+  const nxtLabel = nxt.eventType==='on' ? 'Power may return' : 'Power may cut';
+  const nxtTime = nxt.hoursUntil===0 ? 'Now' : nxt.hoursUntil===1 ? 'In ~1 hour' : `In ~${nxt.hoursUntil}h (${nxtFmtH(nxt.estimatedHour)})`;
+  const nxtConf = nxt.confidence==='high' ? 'High confidence' : nxt.confidence==='medium' ? 'Medium confidence' : 'Statistical estimate';
+  const nxtCurrentStatus = nxt.currentlyOut
+    ? `<span style="color:#FF3D57;font-weight:600">Currently OUT</span>`
+    : `<span style="color:#AAFF00;font-weight:600">Currently ON</span>`;
 
   const hourBars = Array.from({length:24},(_,i)=>{
     const{prob:p}=predictOutage(area,i,d); const r=getRiskLevel(p); const isNow=i===h;
@@ -532,6 +682,31 @@ function renderPredictPage() {
 
     <div class="pred-conf" id="predConf"><span class="pred-conf-dot">${cDot}</span><div><div class="pred-conf-title">${cNote}</div></div></div>
 
+    <!-- Next Power Event Prediction -->
+    <div class="pred-next-event-card" id="predNextEventCard" style="border-color:${nxtColor}33;background:${nxtColor}08">
+      <div class="pred-next-event-header">
+        <div class="pred-next-event-icon" style="color:${nxtColor}">${nxtIcon}</div>
+        <div class="pred-next-event-title">
+          <div class="pred-next-event-label" style="color:${nxtColor}">${nxtLabel}</div>
+          <div class="pred-next-event-time" id="predNextEventTime">${nxtTime}</div>
+        </div>
+        <div class="pred-next-event-right">
+          <div class="pred-next-event-status">${nxtCurrentStatus}</div>
+          <div class="pred-next-event-conf" id="predNextEventConf">${nxtConf}</div>
+        </div>
+      </div>
+      <div class="pred-next-event-timeline" id="predNextEventTimeline">
+        ${nxt.allHours.slice(0,12).map(({offset,hour,prob})=>{
+          const r=getRiskLevel(prob);
+          const isEvent=offset===nxt.hoursUntil;
+          return `<div class="pred-net-col${isEvent?' pred-net-event':''}">
+            <div class="pred-net-bar" style="height:${Math.round(prob*100)}%;background:${r.color}${isEvent?'':'66'};${isEvent?`box-shadow:0 0 6px ${r.color}88`:''};"></div>
+            <div class="pred-net-label" style="${isEvent?`color:${r.color};font-weight:600`:''}">${nxtFmtH(hour)}</div>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>
+
     <div class="pred-ai-banner">
       <div class="pred-ai-icon"><svg width="12" height="12" viewBox="0 0 12 12" fill="none"><circle cx="6" cy="6" r="4.5" stroke="currentColor" stroke-width="1.1"/><path d="M4 7.5L5.5 5 7 7.5M4.7 6.5h2.6" stroke="currentColor" stroke-width="1" stroke-linecap="round"/></svg></div>
       <div class="pred-ai-body">
@@ -559,7 +734,7 @@ function renderPredictPage() {
       <div class="pred-model-row">
         <div class="pred-model-ico"><svg width="12" height="12" viewBox="0 0 12 12" fill="none"><circle cx="6" cy="6" r="4.5" stroke="currentColor" stroke-width="1.1"/><path d="M4 7.5L5.5 5 7 7.5M4.7 6.5h2.6" stroke="currentColor" stroke-width="1" stroke-linecap="round"/></svg></div>
         <div><div class="pred-model-title">Auto-reports on your behalf</div>
-        <div class="pred-model-text">When the model detects outage probability above ${Math.round(AI_CONFIDENCE_THRESH*100)}% in any Lagos area, NEPAWatch AI automatically files a report — tagged as AI-generated in the live feed. No input needed from anyone.</div></div>
+        <div class="pred-model-text">When the model detects outage probability above ${Math.round(AI_CONFIDENCE_THRESH*100)}% in any area across Nigeria, NEPAWatch AI automatically files a report — tagged as AI-generated in the live feed. No input needed from anyone.</div></div>
       </div>
       <div class="pred-model-row">
         <div class="pred-model-ico"><svg width="12" height="12" viewBox="0 0 12 12" fill="none"><rect x="1" y="6" width="2" height="4" rx=".5" fill="currentColor"/><rect x="5" y="3.5" width="2" height="6.5" rx=".5" fill="currentColor"/><rect x="9" y="1.5" width="2" height="8.5" rx=".5" fill="currentColor"/></svg></div>
@@ -596,6 +771,27 @@ function switchPredictArea(area) {
   if(ge('pred24Bars')) ge('pred24Bars').innerHTML=Array.from({length:24},(_,i)=>{const{prob:p}=predictOutage(area,i,d);const r=getRiskLevel(p);const isNow=i===h;return`<div class="pred-bar-col${isNow?' pred-bar-now':''}" title="${fmtH(i)}: ${Math.round(p*100)}%"><div class="pred-bar-fill" style="height:${Math.round(p*100)}%;background:${r.color}${isNow?'':'55'};border-radius:2px 2px 0 0"></div>${isNow?'<div class="pred-bar-tick"></div>':''}</div>`;}).join('');
   if(ge('predWeekBars')) ge('predWeekBars').innerHTML=DAYS.map((day,i)=>{const{prob:p}=predictOutage(area,h,i);const r=getRiskLevel(p);const isT=i===d;return`<div class="pred-week-col${isT?' pred-week-today':''}"><div class="pred-week-bar-wrap"><div class="pred-week-fill" style="height:${Math.round(p*100)}%;background:${r.color}${isT?'':'99'}"></div></div><div class="pred-week-pct" style="color:${r.color}">${Math.round(p*100)}%</div><div class="pred-week-day">${day}</div></div>`;}).join('');
   if(ge('predAreaList')) ge('predAreaList').innerHTML=Object.keys(AREA_BANDS).map(a=>({a,p:predictOutage(a,h,d).prob,b:AREA_BANDS[a]})).sort((x,y)=>x.p-y.p).slice(0,8).map(({a,p,b})=>{const r=getRiskLevel(p);const sel=a===area;return`<div class="pred-area-row${sel?' pred-area-selected':''}" onclick="switchPredictArea('${a.replace(/'/g,"\\'")}')"><div class="pred-area-dot" style="background:${r.color};box-shadow:0 0 5px ${r.color}66"></div><div class="pred-area-name">${a}</div><span class="pred-band-badge" style="color:${BAND_COLOR[b]};border-color:${BAND_COLOR[b]}44;background:${BAND_COLOR[b]}11">B${b}</span><div class="pred-area-bar"><div class="pred-area-fill" style="width:${Math.round(p*100)}%;background:${r.color}88"></div></div><div class="pred-area-pct" style="color:${r.color}">${Math.round(p*100)}%</div></div>`;}).join('');
+
+  /* Update next event card */
+  const nxt2=predictNextEvent(area);
+  const nxtFmtH2=x=>`${x%12||12}${x<12?'am':'pm'}`;
+  const nxtColor2=nxt2.eventType==='on'?'#AAFF00':'#FF3D57';
+  const nxtIcon2=nxt2.eventType==='on'?'↗':'↘';
+  const nxtLabel2=nxt2.eventType==='on'?'Power may return':'Power may cut';
+  const nxtTime2=nxt2.hoursUntil===0?'Now':nxt2.hoursUntil===1?'In ~1 hour':`In ~${nxt2.hoursUntil}h (${nxtFmtH2(nxt2.estimatedHour)})`;
+  const nxtConf2=nxt2.confidence==='high'?'High confidence':nxt2.confidence==='medium'?'Medium confidence':'Statistical estimate';
+  const card=ge('predNextEventCard');
+  if(card){
+    card.style.borderColor=nxtColor2+'33';card.style.background=nxtColor2+'08';
+    card.querySelector('.pred-next-event-icon').textContent=nxtIcon2;
+    card.querySelector('.pred-next-event-icon').style.color=nxtColor2;
+    card.querySelector('.pred-next-event-label').textContent=nxtLabel2;
+    card.querySelector('.pred-next-event-label').style.color=nxtColor2;
+    if(ge('predNextEventTime'))ge('predNextEventTime').textContent=nxtTime2;
+    if(ge('predNextEventConf'))ge('predNextEventConf').textContent=nxtConf2;
+    const tl=ge('predNextEventTimeline');
+    if(tl)tl.innerHTML=nxt2.allHours.slice(0,12).map(({offset,hour,prob})=>{const r=getRiskLevel(prob);const isEv=offset===nxt2.hoursUntil;return`<div class="pred-net-col${isEv?' pred-net-event':''}"><div class="pred-net-bar" style="height:${Math.round(prob*100)}%;background:${r.color}${isEv?'':'66'};${isEv?`box-shadow:0 0 6px ${r.color}88`:''};"></div><div class="pred-net-label" style="${isEv?`color:${r.color};font-weight:600`:''}">${nxtFmtH2(hour)}</div></div>`;}).join('');
+  }
 }
 
 function renderMyAreaPredictWidget() {
@@ -606,15 +802,22 @@ function renderMyAreaPredictWidget() {
   const{prob}=predictOutage(area,h,d); const risk=getRiskLevel(prob);
   const duration=predictDuration(area,h);
   let bH=0,bP=1; for(let i=0;i<24;i++){const{prob:p}=predictOutage(area,i,d);if(p<bP){bP=p;bH=i;}}
+  /* Next event */
+  const nxt=predictNextEvent(area);
+  const nxtC=nxt.eventType==='on'?'#AAFF00':'#FF3D57';
+  const nxtIcon=nxt.eventType==='on'?'↗':'↘';
+  const nxtLbl=nxt.eventType==='on'?'Power coming':'Power cutting';
+  const nxtT=nxt.hoursUntil===0?'Now':nxt.hoursUntil===1?'~1h':`~${nxt.hoursUntil}h (${fmtH(nxt.estimatedHour)})`;
   el.innerHTML=`<div class="pred-widget" style="border-color:${risk.color}22" onclick="go('predict')">
     <div class="pred-widget-left">
-      <div class="pred-widget-label">AI Prediction</div>
+      <div class="pred-widget-label">AI Prediction · ${area}</div>
       <div class="pred-widget-prob" style="color:${risk.color}">${Math.round(prob*100)}%</div>
       <div class="pred-widget-risk" style="background:${risk.color}18;color:${risk.color}">${risk.label}</div>
     </div>
     <div class="pred-widget-right">
       <div class="pred-widget-stat"><span>${duration}h</span><small>if it cuts</small></div>
       <div class="pred-widget-stat"><span style="color:#B794F6">${fmtH(bH)}–${fmtH((bH+3)%24)}</span><small>best window</small></div>
+      <div class="pred-widget-stat" style="margin-top:2px"><span style="color:${nxtC}">${nxtIcon} ${nxtT}</span><small>${nxtLbl}</small></div>
     </div>
     <div class="pred-widget-arrow">›</div>
   </div>`;
