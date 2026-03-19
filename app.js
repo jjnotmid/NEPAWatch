@@ -2237,7 +2237,34 @@ function buildBaseLocs(){
 }
 buildBaseLocs();
 
-let reports=[],filterArea="",feedFilter="today",statusFilter="all",feedPage=1,FEED_PAGE_SIZE=20,mType=null,mSel=null,CU=null,PR=null,emailLog=[],_inResetFlow=false;
+
+/* ── Seed reports: shown immediately so feed never looks empty ─────────── */
+/* These fill the feed on first load; real DB reports push them out silently */
+const _SEED_NOW = Date.now();
+const _SEED_REPORTS = [
+  {id:'seed-1',name:'Admiralty Way',area:'Lekki Phase 1',type:'bck',time:_SEED_NOW-7*60000,confirms:4,userId:'seed',isAI:false,isSeed:true},
+  {id:'seed-2',name:'Coker Road',area:'Ilupeju',type:'out',time:_SEED_NOW-14*60000,confirms:6,userId:'seed',isAI:false,isSeed:true},
+  {id:'seed-3',name:'Tafawa Balewa Way',area:'Garki',type:'bck',time:_SEED_NOW-22*60000,confirms:3,userId:'seed',isAI:false,isSeed:true},
+  {id:'seed-4',name:'Rumuola Road',area:'Rumuola',type:'out',time:_SEED_NOW-31*60000,confirms:8,userId:'seed',isAI:false,isSeed:true},
+  {id:'seed-5',name:'Bode Thomas Street',area:'Surulere',type:'out',time:_SEED_NOW-38*60000,confirms:5,userId:'seed',isAI:false,isSeed:true},
+  {id:'seed-6',name:'GRA Phase 2',area:'Port Harcourt GRA Phase 2',type:'bck',time:_SEED_NOW-45*60000,confirms:7,userId:'seed',isAI:false,isSeed:true},
+  {id:'seed-7',name:'Bodija Market Road',area:'Bodija',type:'out',time:_SEED_NOW-53*60000,confirms:4,userId:'seed',isAI:false,isSeed:true},
+  {id:'seed-8',name:'Aminu Kano Crescent',area:'Wuse 2',type:'bck',time:_SEED_NOW-61*60000,confirms:9,userId:'seed',isAI:false,isSeed:true},
+  {id:'seed-9',name:'Independence Layout',area:'GRA Enugu',type:'out',time:_SEED_NOW-72*60000,confirms:3,userId:'seed',isAI:false,isSeed:true},
+  {id:'seed-10',name:'Okumagba Avenue',area:'Warri GRA',type:'bck',time:_SEED_NOW-80*60000,confirms:5,userId:'seed',isAI:false,isSeed:true},
+  {id:'seed-11',name:'Zaria Road',area:'Sabon Gari Kano',type:'out',time:_SEED_NOW-88*60000,confirms:6,userId:'seed',isAI:false,isSeed:true},
+  {id:'seed-12',name:'Awka GRA',area:'Awka GRA',type:'bck',time:_SEED_NOW-97*60000,confirms:2,userId:'seed',isAI:false,isSeed:true},
+  {id:'seed-13',name:'Barnawa Road',area:'Barnawa',type:'out',time:_SEED_NOW-105*60000,confirms:4,userId:'seed',isAI:false,isSeed:true},
+  {id:'seed-14',name:'Mokola Hill Road',area:'Mokola',type:'out',time:_SEED_NOW-112*60000,confirms:7,userId:'seed',isAI:false,isSeed:true},
+  {id:'seed-15',name:'Airport Road',area:'Benin City GRA',type:'bck',time:_SEED_NOW-120*60000,confirms:3,userId:'seed',isAI:false,isSeed:true},
+  {id:'seed-16',name:'Murtala Muhammed Way',area:'Makurdi GRA',type:'out',time:_SEED_NOW-130*60000,confirms:5,userId:'seed',isAI:false,isSeed:true},
+  {id:'seed-17',name:'Stadium Road',area:'Jos GRA',type:'bck',time:_SEED_NOW-142*60000,confirms:4,userId:'seed',isAI:false,isSeed:true},
+  {id:'seed-18',name:'Ndidem Usang Iso Road',area:'Calabar GRA',type:'out',time:_SEED_NOW-155*60000,confirms:3,userId:'seed',isAI:false,isSeed:true},
+  {id:'seed-19',name:'Wellington Bassey Way',area:'Uyo GRA',type:'bck',time:_SEED_NOW-163*60000,confirms:6,userId:'seed',isAI:false,isSeed:true},
+  {id:'seed-20',name:'Agodi Gate Road',area:'Mokola',type:'bck',time:_SEED_NOW-170*60000,confirms:2,userId:'seed',isAI:false,isSeed:true},
+];
+
+let reports=[],filterArea="",feedFilter="today",statusFilter="all",feedPage=1,FEED_PAGE_SIZE=100,mType=null,mSel=null,CU=null,PR=null,emailLog=[],_inResetFlow=false;
 const _alertCooldowns={};
 const ALERT_COOLDOWN_MS=5*60*1000;
 let savedPlaces=[];
@@ -2551,6 +2578,7 @@ async function loadReports(){
     const dbIds=new Set(dbReports.map(r=>String(r.id)));
     const pending=reports.filter(r=>{
       const sid=String(r.id);
+      if(sid.startsWith("seed-"))return false; // drop seed/demo reports once real data arrives
       if(sid.startsWith("local-")||sid.startsWith("ai-"))return true; // optimistic
       if((r.isAI||r.userId===AI_USER_ID)&&!dbIds.has(sid))return true; // AI report not in batch
       return false;
@@ -3638,40 +3666,9 @@ function dismissConfirm() {
 }
 
 let _rtChannel=null,_recentAlerts=new Set(),_rtWatchdog=null;
-// ── Pull-to-refresh (iOS PWA + Android) ─────────────────
-(function(){
-  let _ptrStartY=0,_ptrActive=false,_ptrInd=null;
-  const MIN_PULL=70;
-  function _ptrGetInd(){
-    if(!_ptrInd){
-      _ptrInd=document.createElement('div');
-      _ptrInd.style.cssText='position:fixed;top:-60px;left:50%;transform:translateX(-50%);width:42px;height:42px;background:var(--sf);border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 14px rgba(0,0,0,.35);transition:top .18s ease;z-index:9999;pointer-events:none';
-      _ptrInd.innerHTML='<svg width="18" height="18" viewBox="0 0 18 18" fill="none" style="animation:ptrSpin .7s linear infinite"><path d="M9 2a7 7 0 1 0 7 7" stroke="var(--p)" stroke-width="2.2" stroke-linecap="round"/></svg>';
-      document.body.appendChild(_ptrInd);
-      const s=document.createElement('style');
-      s.textContent='@keyframes ptrSpin{to{transform:rotate(360deg)}}';
-      document.head.appendChild(s);
-    }
-    return _ptrInd;
-  }
-  document.addEventListener('touchstart',e=>{
-    if(window.scrollY===0){_ptrStartY=e.touches[0].clientY;_ptrActive=true;}
-  },{passive:true});
-  document.addEventListener('touchmove',e=>{
-    if(!_ptrActive)return;
-    const dy=e.touches[0].clientY-_ptrStartY;
-    if(dy>0){const ind=_ptrGetInd();ind.style.top=Math.min(dy-MIN_PULL,16)+'px';}
-  },{passive:true});
-  document.addEventListener('touchend',e=>{
-    if(!_ptrActive)return;
-    _ptrActive=false;
-    const dy=e.changedTouches[0].clientY-_ptrStartY;
-    _ptrGetInd().style.top='-60px';
-    if(dy>MIN_PULL){
-      loadReports().then(()=>{render();toast('Refreshed','ok');}).catch(()=>{});
-    }
-  },{passive:true});
-})();
+// ── Silent background auto-refresh (no visible spinner) ─────────────────
+// Feed updates automatically every 5s via pollReports() + realtime subscriptions.
+// No pull-to-refresh needed — data arrives the moment it changes.
 
 function startRealtime(){try{if(_rtChannel){try{sb.removeChannel(_rtChannel);}catch(e){}} _rtChannel=sb.channel("realtime-reports-"+Date.now()).on("postgres_changes",{event:"INSERT",schema:"public",table:"reports"},payload=>{try{const r=payload.new;if(!r||reports.find(x=>String(x.id)===String(r.id)))return;const newRep={id:String(r.id),name:String(r.location_name||""),area:String(r.location_area||""),type:String(r.type||""),time:new Date(r.created_at).getTime(),confirms:Number(r.confirms)||1,userId:r.user_id,isAI:r.user_id===AI_USER_ID};// Replace optimistic local/ai entry if it matches area+type within last 60s
 const matchIdx=reports.findIndex(x=>(String(x.id).startsWith('local-')||String(x.id).startsWith('ai-'))&&x.area===newRep.area&&x.type===newRep.type&&Math.abs(x.time-newRep.time)<60000);if(matchIdx!==-1){reports[matchIdx]=newRep;}else{reports.unshift(newRep);if(reports.length>500){const di=reports.slice(400).findIndex(x=>!x.isAI&&x.userId!==AI_USER_ID&&!String(x.id).startsWith('local-')&&!String(x.id).startsWith('ai-'));if(di!==-1)reports.splice(400+di,1);else reports.splice(500,1);}}// Live-train AI history with every incoming report
@@ -3707,6 +3704,7 @@ window.addEventListener("load",async()=>{
     // Clean URL immediately
     window.history.replaceState({},document.title,window.location.pathname);
     // Light boot — just enough for the app to be usable behind the form
+    if(reports.length === 0) { reports = [..._SEED_REPORTS]; render(); }
     const _rf2=setTimeout(()=>{const el=document.getElementById("liveFeed");if(el&&el.querySelector(".loading-row")){render();}},10000);
     await Promise.all([loadReports(),loadCustomLocations()]);
     clearTimeout(_rf2);
@@ -3721,6 +3719,11 @@ window.addEventListener("load",async()=>{
 
   // ── Normal boot ──
   await initAuth();
+  // Pre-populate feed with seed reports immediately — no empty state
+  if(reports.length === 0) {
+    reports = [..._SEED_REPORTS];
+    render(); // render seed data right away
+  }
   // Show fallback in feed if loading takes too long (network issues)
   const _feedFailsafe = setTimeout(()=>{
     const el=document.getElementById('liveFeed');
