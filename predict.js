@@ -14,6 +14,8 @@ const AI_CONFIDENCE_THRESH  = 0.65;   /* min prob to auto-file an outage report 
 const AI_SCAN_INTERVAL_MS   = 5 * 60 * 1000;   /* scan every 5 min */
 /* AI_COOLDOWN_MS removed — replaced by per-area state machine in AIReporter */
 const AI_RESTORE_THRESH     = 0.25;   /* below this → file restoration report */
+const AI_MAX_PER_SCAN       = 3;      /* max new AI reports fired per scan cycle */
+const AI_MIN_REFIRE_MS      = 2 * 60 * 60 * 1000; /* min 2h between AI reports for same area */
 
 /* ─── BAND CLASSIFICATION ────────────────────────────────────────────────── */
 const AREA_BANDS = {
@@ -275,6 +277,7 @@ const AIReporter = {
   // 'bck' = AI said power is back (or area is known to have light)
   //  null = unknown, AI has never spoken about this area
   _areaState: {},
+  _lastFired: {},  /* area -> timestamp of last _fire() call */
 
   // Rebuild state from AI-only reports — human reports must NOT reset this
   // state machine or scan() will re-fire an AI "out" every time humans say bck
@@ -314,11 +317,22 @@ const AIReporter = {
     await WeatherState.refresh(coords?.lat, coords?.lng);
     this._rebuildState();
     const now=new Date(), h=now.getHours(), d=now.getDay();
-    for (const area of Object.keys(AREA_BANDS)) {
+    let firedCount = 0;
+    const areas = Object.keys(AREA_BANDS);
+    // Shuffle to avoid always picking same areas first
+    for (let i = areas.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [areas[i], areas[j]] = [areas[j], areas[i]];
+    }
+    for (const area of areas) {
+      if (firedCount >= AI_MAX_PER_SCAN) break;
       const { prob, groundTruth } = predictOutage(area, h, d);
       if (prob < AI_CONFIDENCE_THRESH) continue;
       const currentState = this._areaState[area];
       if (currentState === 'out') continue;
+      // Rate-limit: don't re-fire same area too soon
+      const lastFiredAt = this._lastFired[area] || 0;
+      if (Date.now() - lastFiredAt < AI_MIN_REFIRE_MS) continue;
       // If ground truth has a fresh human bck report, power is on — skip
       if (groundTruth?.hasFreshHuman && groundTruth.prob < 0.4) continue;
       const recentRestore = (typeof reports!=='undefined') &&
@@ -326,7 +340,10 @@ const AIReporter = {
           (r.area===area || (typeof AREA_PARENT!=='undefined' && AREA_PARENT[r.area]===area))
           && r.type==='bck' && (now-r.time) < 30*60000);
       if (recentRestore) continue;
+      // Stagger fires: small delay between each to avoid burst
+      if (firedCount > 0) await new Promise(res => setTimeout(res, 800));
       await this._fire(area, 'out', prob);
+      firedCount++;
     }
   },
 
@@ -337,15 +354,25 @@ const AIReporter = {
     const outAreas = Object.entries(this._areaState)
       .filter(([area, state]) => state === 'out')
       .map(([area]) => area);
+    let firedCount = 0;
     for (const area of outAreas) {
+      if (firedCount >= AI_MAX_PER_SCAN) break;
       if (!AREA_BANDS[area]) continue;
       const { prob, groundTruth } = predictOutage(area, h, d);
       // Fresh human bck report — act fast, dont wait
       if (groundTruth?.hasFreshHuman && groundTruth.prob < 0.35) {
         const alreadyRestored = reports.some(x => x.area===area && x.type==='bck' && (now-x.time)<15*60000);
-        if (!alreadyRestored) { await this._fire(area, 'bck', 1-prob); continue; }
+        if (!alreadyRestored) {
+          if (firedCount > 0) await new Promise(res => setTimeout(res, 800));
+          await this._fire(area, 'bck', 1-prob);
+          firedCount++;
+        }
+        continue;
       }
       if (prob >= AI_RESTORE_THRESH) continue;
+      // Rate-limit: don't restore too soon after outage was filed
+      const lastFiredAt = this._lastFired[area] || 0;
+      if (Date.now() - lastFiredAt < AI_MIN_REFIRE_MS) continue;
       const outageReport = [...reports]
         .filter(r => r.area===area && r.type==='out')
         .sort((a,b) => b.time - a.time)[0];
@@ -356,13 +383,16 @@ const AIReporter = {
         x.area===area && x.type==='bck' &&
         (outageReport ? x.time > outageReport.time : true));
       if (alreadyRestored) continue;
+      if (firedCount > 0) await new Promise(res => setTimeout(res, 800));
       await this._fire(area, 'bck', 1-prob);
+      firedCount++;
     }
   },
 
   async _fire(area, type, prob) {
     // Update state machine — this is the source of truth
     this._areaState[area] = type;
+    this._lastFired[area] = Date.now();
 
     // Pick the most specific location name we can:
     // 1. Most recent human report for this area that has a real street name → use that
@@ -480,7 +510,7 @@ const AIReporter = {
   start() {
     if (this._timer) clearInterval(this._timer);
     if (this._retrainTimer) clearInterval(this._retrainTimer);
-    setTimeout(()=>{ this.scan(); this.scanRestorations(); }, 9000);
+    setTimeout(()=>{ this.scan(); this.scanRestorations(); }, 60000); /* wait 60s after boot */
     this._timer = setInterval(()=>{ this.scan(); this.scanRestorations(); }, AI_SCAN_INTERVAL_MS);
     // Re-ingest full history every 2 hours so model stays fresh with all DB reports
     this._retrainTimer = setInterval(()=>{
