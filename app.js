@@ -4349,7 +4349,11 @@ async function _triggerA2HS() {
   const { outcome } = await _deferredA2HSPrompt.userChoice;
   _deferredA2HSPrompt = null;
   document.getElementById('a2hsModal')?.remove();
-  if (outcome !== 'accepted') _snoozeA2HS(); // snooze if they declined the native prompt
+  if (outcome === 'accepted') {
+    _onPWAInstalled(); // auto-enable push, disable email
+  } else {
+    _snoozeA2HS(); // snooze if they declined the native prompt
+  }
 }
 
 function _snoozeA2HS() {
@@ -4364,3 +4368,24 @@ function _maybeShowA2HSOnAccount() {
   if (document.getElementById('a2hsModal')) return;
   setTimeout(_maybeShowA2HS, 300);
 }
+
+/* When PWA is installed (via our button or browser menu):
+   auto-enable push notifications and turn off email to save costs */
+async function _onPWAInstalled() {
+  // Enable push notifications silently
+  if (typeof requestPushPermission === 'function') {
+    try { await requestPushPermission(); } catch(e) {}
+  }
+  // Turn off email alerts for this user — they have push now
+  if (CU && PR) {
+    try {
+      await sb.from('profiles').update({ notif_on: false }).eq('id', CU.id);
+      PR.notif_on = false;
+      if (typeof renderAccount === 'function') renderAccount();
+    } catch(e) {}
+  }
+  toast('Push notifications enabled — email alerts turned off', 'ok');
+}
+
+// Fires when user installs via browser menu (outside our custom modal)
+window.addEventListener('appinstalled', () => { _onPWAInstalled(); });
