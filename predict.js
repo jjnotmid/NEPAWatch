@@ -269,6 +269,8 @@ function getRiskLevel(prob) {
 }
 
 /* ─── AI AUTO-REPORTER ───────────────────────────────────────────────────── */
+const _AI_FIRED_KEY = 'nw_ai_lastfired_v2';
+
 const AIReporter = {
   _timer: null,
 
@@ -277,7 +279,17 @@ const AIReporter = {
   // 'bck' = AI said power is back (or area is known to have light)
   //  null = unknown, AI has never spoken about this area
   _areaState: {},
-  _lastFired: {},  /* area -> timestamp of last _fire() call */
+  _lastFired: {},  /* area -> timestamp of last _fire() call — persisted to localStorage */
+
+  _loadFiredState() {
+    try {
+      const stored = localStorage.getItem(_AI_FIRED_KEY);
+      if (stored) this._lastFired = JSON.parse(stored);
+    } catch(e) { this._lastFired = {}; }
+  },
+  _saveFiredState() {
+    try { localStorage.setItem(_AI_FIRED_KEY, JSON.stringify(this._lastFired)); } catch(e) {}
+  },
 
   // Rebuild state from AI-only reports — human reports must NOT reset this
   // state machine or scan() will re-fire an AI "out" every time humans say bck
@@ -295,6 +307,7 @@ const AIReporter = {
   },
 
   async loadHistory() {
+    this._loadFiredState(); // restore _lastFired from localStorage before first scan
     try {
       const { data, error } = await sb
         .from('reports')
@@ -370,15 +383,16 @@ const AIReporter = {
         continue;
       }
       if (prob >= AI_RESTORE_THRESH) continue;
-      // Rate-limit: don't restore too soon after outage was filed
-      const lastFiredAt = this._lastFired[area] || 0;
-      if (Date.now() - lastFiredAt < AI_MIN_REFIRE_MS) continue;
       const outageReport = [...reports]
         .filter(r => r.area===area && r.type==='out')
         .sort((a,b) => b.time - a.time)[0];
-      // Shorter wait when ground truth confident: 20min vs 45min
-      const minWait = (groundTruth?.confidence === 'high') ? 20*60000 : 45*60000;
+      // Must wait at least 90min since the outage was filed before auto-restoring
+      // (prevents the out→bck→out→bck loop on each scan cycle)
+      const minWait = (groundTruth?.confidence === 'high') ? 90*60000 : 3*60*60000;
       if (outageReport && (now - outageReport.time) < minWait) continue;
+      // Also respect _lastFired rate-limit for the area
+      const lastFiredAt = this._lastFired[area] || 0;
+      if (Date.now() - lastFiredAt < AI_MIN_REFIRE_MS) continue;
       const alreadyRestored = reports.some(x =>
         x.area===area && x.type==='bck' &&
         (outageReport ? x.time > outageReport.time : true));
@@ -393,6 +407,7 @@ const AIReporter = {
     // Update state machine — this is the source of truth
     this._areaState[area] = type;
     this._lastFired[area] = Date.now();
+    this._saveFiredState(); // persist so rate-limit survives page reloads
 
     // Pick the most specific location name we can:
     // 1. Most recent human report for this area that has a real street name → use that
@@ -457,8 +472,14 @@ const AIReporter = {
 
     console.log(`[NEPAWatch AI] Filing ${type} — ${locName} (${area}) @ ${(prob*100).toFixed(0)}%`);
 
+    /* Fire push + email alerts immediately — don't wait for DB persistence.
+       Notifications should go out the moment the AI makes a call, not contingent
+       on the edge function returning a report object. */
+    if (typeof sendAreaAlerts === 'function') {
+      sendAreaAlerts(locName, area, type).catch(() => {});
+    }
+
     /* Persist via edge function — uses service role key, bypasses RLS */
-    /* This makes AI reports identical to human reports in the DB */
     try {
       const res = await fetch(
         'https://djurokbkkqrmpafcxlez.supabase.co/functions/v1/send-alert',
@@ -477,10 +498,6 @@ const AIReporter = {
       const result = await res.json();
       if (result?.report) {
         this._replaceLocal(tempId, result.report, prob);
-        /* Fire push + email alerts — exactly like a human report */
-        if (typeof sendAreaAlerts === 'function') {
-          sendAreaAlerts(locName, area, type).catch(() => {});
-        }
         /* Refresh predict page AI count if visible */
         const aiBanner = document.querySelector('.pred-ai-sub strong');
         if (aiBanner && typeof reports!=='undefined') {
@@ -489,7 +506,7 @@ const AIReporter = {
         }
         console.log('[NEPAWatch AI] Report persisted via edge fn, id:', result.report.id);
       } else {
-        console.warn('[NEPAWatch AI] Edge fn response:', result);
+        console.warn('[NEPAWatch AI] Edge fn response (no report returned):', result);
       }
     } catch(e) { console.warn('[NEPAWatch AI] Report persist failed:', e?.message); }
   },
