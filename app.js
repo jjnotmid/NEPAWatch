@@ -4277,62 +4277,70 @@ function _maybeStartTour() {
 }
 
 /* ═══════════════════════════════════════════════════════
-   ADD TO HOME SCREEN BANNER
-   Shows after welcome modal (and on repeat visits if not installed)
+   ADD TO HOME SCREEN — full-screen modal
+   "Remind me later" snoozes 3 days; no permanent dismiss.
    ═══════════════════════════════════════════════════════ */
-const A2HS_KEY = 'nw_a2hs_dismissed_v1';
-let _deferredA2HSPrompt = null; // captured from beforeinstallprompt
+const A2HS_SNOOZE_KEY = 'nw_a2hs_snooze_until';
+const A2HS_SNOOZE_DAYS = 3;
+let _deferredA2HSPrompt = null;
 
-// Capture the native install prompt on Android/desktop Chrome
 window.addEventListener('beforeinstallprompt', e => {
   e.preventDefault();
   _deferredA2HSPrompt = e;
-  // Only auto-show if they haven't dismissed it before
-  if (!localStorage.getItem(A2HS_KEY) && !_isInStandaloneMode()) {
-    _maybeShowA2HS();
-  }
+  if (!_isInStandaloneMode()) _maybeShowA2HS();
 });
 
+function _a2hsSnoozed() {
+  const until = parseInt(localStorage.getItem(A2HS_SNOOZE_KEY) || '0', 10);
+  return Date.now() < until;
+}
+
 function _maybeShowA2HS() {
-  if (_isInStandaloneMode()) return; // already installed
-  if (document.getElementById('a2hsBanner')) return; // already showing
-  if (localStorage.getItem(A2HS_KEY)) return; // user dismissed
+  if (_isInStandaloneMode()) return;
+  if (document.getElementById('a2hsModal')) return;
+  if (_a2hsSnoozed()) return;
 
   const isIos = _isIos();
-  // On iOS we always show (instructions-based), on other platforms only if we have the prompt
   if (!isIos && !_deferredA2HSPrompt) return;
 
-  const banner = document.createElement('div');
-  banner.id = 'a2hsBanner';
+  const modal = document.createElement('div');
+  modal.id = 'a2hsModal';
+  modal.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(7,9,10,.92);display:flex;align-items:flex-end;justify-content:center;animation:onb-fade .2s ease';
 
-  const iosInstructions = `
-    <div style="font-size:.72rem;color:var(--ink3);line-height:1.6;margin-top:4px">
-      In <strong style="color:var(--ink2)">Safari</strong>: tap
-      <svg style="vertical-align:middle;margin:0 2px" width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1v8M4 4l3-3 3 3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><path d="M2 8v4h10V8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      Share &rarr; <strong style="color:var(--ink2)">Add to Home Screen</strong>
-    </div>`;
-
-  const androidBtn = `<button onclick="_triggerA2HS()" style="background:var(--p);color:#07090A;border:none;border-radius:7px;padding:7px 14px;font-size:.75rem;font-weight:700;cursor:pointer;white-space:nowrap">Install App</button>`;
-
-  banner.style.cssText = 'position:fixed;bottom:72px;left:12px;right:12px;z-index:9000;background:var(--sf,#111815);border:1.5px solid var(--p,#AAFF00);border-radius:14px;padding:14px 16px;box-shadow:0 8px 40px rgba(0,0,0,.95);animation:onb-pop .25s ease';
-  banner.innerHTML = `
-    <div style="display:flex;align-items:flex-start;gap:12px">
-      <div style="flex-shrink:0;width:36px;height:36px;background:var(--pp);border-radius:9px;display:flex;align-items:center;justify-content:center">
-        <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><rect x="2" y="2" width="14" height="14" rx="3" stroke="var(--p)" stroke-width="1.4"/><path d="M9 6v6M6 9h6" stroke="var(--p)" stroke-width="1.4" stroke-linecap="round"/></svg>
-      </div>
-      <div style="flex:1;min-width:0">
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
-          <div style="font-size:.82rem;font-weight:700;color:var(--ink1)">Add to Home Screen</div>
-          <button onclick="_dismissA2HS()" style="background:none;border:none;color:var(--ink3);cursor:pointer;padding:2px;flex-shrink:0;line-height:1">
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 2l10 10M12 2L2 12" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
-          </button>
+  const iosSteps = `
+    <div style="margin-top:20px;background:rgba(255,255,255,.04);border-radius:12px;padding:16px;text-align:left">
+      <div style="font-size:.78rem;color:var(--ink3);line-height:1.8">
+        <div style="margin-bottom:6px;color:var(--ink2);font-weight:600">How to install on iPhone:</div>
+        <div>1. Open this page in <strong style="color:var(--p)">Safari</strong> (not Chrome)</div>
+        <div>2. Tap the <strong style="color:var(--p)">Share</strong> button
+          <svg style="vertical-align:middle;margin:0 3px" width="13" height="13" viewBox="0 0 14 14" fill="none"><path d="M7 1v8M4 4l3-3 3 3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><path d="M2 8v4h10V8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          at the bottom
         </div>
-        <div style="font-size:.73rem;color:var(--ink3);margin-top:2px">Get instant push notifications even when the app is closed.</div>
-        ${isIos ? iosInstructions : androidBtn}
+        <div>3. Scroll down and tap <strong style="color:var(--p)">Add to Home Screen</strong></div>
       </div>
     </div>`;
 
-  document.body.appendChild(banner);
+  const androidContent = `
+    <button onclick="_triggerA2HS()" style="width:100%;background:var(--p);color:#07090A;border:none;border-radius:12px;padding:15px;font-size:1rem;font-weight:800;cursor:pointer;margin-top:20px;letter-spacing:.01em">
+      Install NEPAWatch
+    </button>`;
+
+  modal.innerHTML = `
+    <div style="width:100%;max-width:480px;background:var(--sf,#111815);border-radius:24px 24px 0 0;padding:28px 24px 36px;text-align:center">
+      <div style="width:64px;height:64px;background:var(--pp);border-radius:16px;margin:0 auto 16px;display:flex;align-items:center;justify-content:center">
+        <svg width="32" height="32" viewBox="0 0 32 32" fill="none"><path d="M18 4L8 18h10l-4 10 14-16H18L22 4z" fill="var(--p)"/></svg>
+      </div>
+      <div style="font-size:1.25rem;font-weight:800;color:var(--ink1);margin-bottom:8px">Install NEPAWatch</div>
+      <div style="font-size:.88rem;color:var(--ink3);line-height:1.5">
+        Get <strong style="color:var(--ink2)">free push notifications</strong> the moment light goes or comes back in your area — even when your browser is closed.
+      </div>
+      ${isIos ? iosSteps : androidContent}
+      <button onclick="_snoozeA2HS()" style="width:100%;background:none;border:1.5px solid rgba(255,255,255,.1);border-radius:12px;padding:13px;font-size:.88rem;font-weight:600;color:var(--ink3);cursor:pointer;margin-top:10px">
+        Remind me later
+      </button>
+    </div>`;
+
+  document.body.appendChild(modal);
 }
 
 async function _triggerA2HS() {
@@ -4340,18 +4348,19 @@ async function _triggerA2HS() {
   _deferredA2HSPrompt.prompt();
   const { outcome } = await _deferredA2HSPrompt.userChoice;
   _deferredA2HSPrompt = null;
-  if (outcome === 'accepted') _dismissA2HS();
+  document.getElementById('a2hsModal')?.remove();
+  if (outcome !== 'accepted') _snoozeA2HS(); // snooze if they declined the native prompt
 }
 
-function _dismissA2HS() {
-  document.getElementById('a2hsBanner')?.remove();
-  localStorage.setItem(A2HS_KEY, '1');
+function _snoozeA2HS() {
+  document.getElementById('a2hsModal')?.remove();
+  const until = Date.now() + A2HS_SNOOZE_DAYS * 24 * 60 * 60 * 1000;
+  localStorage.setItem(A2HS_SNOOZE_KEY, String(until));
 }
 
-// Also show the banner on Account page if push is not set up and app isn't installed
+// Also show on Account page if not installed
 function _maybeShowA2HSOnAccount() {
   if (_isInStandaloneMode()) return;
-  if (localStorage.getItem(A2HS_KEY)) return;
-  if (document.getElementById('a2hsBanner')) return;
+  if (document.getElementById('a2hsModal')) return;
   setTimeout(_maybeShowA2HS, 300);
 }
