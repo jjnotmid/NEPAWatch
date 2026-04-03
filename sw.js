@@ -2,7 +2,7 @@
    NEPAWatch Lagos — Service Worker v1.3.0
    !! BUMP VERSION STRING ON EVERY DEPLOY !!
    ===================================================== */
-const VERSION = 'v1.3.0';
+const VERSION = 'v1.4.0';
 const CACHE   = `nepawatch-${VERSION}`;
 const OFFLINE_KEY = 'nw-offline-state';
 
