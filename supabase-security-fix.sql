@@ -4,6 +4,19 @@
 --   https://supabase.com/dashboard/project/djurokbkkqrmpafcxlez/sql
 -- ============================================================
 
+-- ── 0. ADD MISSING COLUMNS TO reports TABLE ──────────────────
+-- The AI reporter tries to save ai_prob to the reports table.
+-- Without these columns every AI report INSERT returns 400.
+-- Run this section FIRST — everything else depends on it.
+
+ALTER TABLE reports
+  ADD COLUMN IF NOT EXISTS ai_prob     FLOAT   DEFAULT NULL,
+  ADD COLUMN IF NOT EXISTS wrong_votes INTEGER DEFAULT 0;
+
+-- Index so queries filtering by AI reports stay fast
+CREATE INDEX IF NOT EXISTS idx_reports_ai_prob ON reports (ai_prob) WHERE ai_prob IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_reports_wrong_votes ON reports (wrong_votes) WHERE wrong_votes > 0;
+
 -- ── 1. FIND & DELETE THE MALICIOUS ANNOUNCEMENT ─────────────
 -- Review it first (uncomment next line to preview):
 -- SELECT * FROM announcements ORDER BY created_at DESC LIMIT 10;
@@ -89,8 +102,49 @@ LIMIT 20;
 -- timestamp against your Supabase API logs here:
 --   Dashboard → Logs → API Logs → filter by table=announcements & method=POST
 
--- ── 5. VERIFY ────────────────────────────────────────────────
--- These should all show your new policies:
+-- ── 5. LOCK DOWN email_alert_log WITH RLS ───────────────────
+-- Supabase Advisor flagged this table as public with no RLS.
+-- This table logs every email alert sent — it should NEVER be
+-- readable or writable by anonymous users.
+
+ALTER TABLE email_alert_log ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "allow_all"          ON email_alert_log;
+DROP POLICY IF EXISTS "email_log_select"   ON email_alert_log;
+DROP POLICY IF EXISTS "email_log_insert"   ON email_alert_log;
+DROP POLICY IF EXISTS "email_log_delete"   ON email_alert_log;
+
+-- Only the service role (edge functions) can INSERT log entries.
+-- No anon / authenticated user should read or write this table directly.
+-- The service role bypasses RLS entirely, so edge functions still work.
+-- Authenticated admin can SELECT for auditing purposes only.
+CREATE POLICY "email_log_select"
+  ON email_alert_log FOR SELECT
+  USING (
+    auth.email() IN (
+      'usifohjosh47@gmail.com'   -- ← REPLACE THIS (same as above)
+    )
+  );
+
+-- Block all direct INSERT/UPDATE/DELETE from the client (edge fn uses service role)
+-- No INSERT policy = only service role can insert. This is intentional.
+
+-- ── 6. SCAN FOR OTHER UNPROTECTED TABLES ─────────────────────
+-- Run this to find any other public tables missing RLS:
+SELECT relname AS table_name
+FROM pg_class c
+JOIN pg_namespace n ON n.oid = c.relnamespace
+WHERE n.nspname = 'public'
+  AND c.relkind = 'r'
+  AND NOT EXISTS (
+    SELECT 1 FROM pg_policies p
+    WHERE p.tablename = c.relname
+  )
+ORDER BY relname;
+-- Any table listed here has NO RLS policies. Review each one carefully.
+
+-- ── 7. VERIFY ALL POLICIES ───────────────────────────────────
 SELECT tablename, policyname, cmd, qual
 FROM pg_policies
-WHERE tablename = 'announcements';
+WHERE tablename IN ('announcements', 'email_alert_log')
+ORDER BY tablename, cmd;

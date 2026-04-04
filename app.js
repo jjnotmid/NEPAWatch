@@ -2563,15 +2563,33 @@ async function loadReports(){
     new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')),ms))
   ]);
   try{
-    const {data, error} = await fetchWithTimeout(
+    /* Try extended schema (ai_prob, wrong_votes). If those columns don't exist yet
+       the DB returns 400 — we catch that and fall back to the base columns so the
+       app never breaks while the migration is pending. */
+    let data, error;
+    const extResult = await fetchWithTimeout(
       sb.from("reports")
         .select("id,user_id,location_name,location_area,type,confirms,created_at,ai_prob,wrong_votes")
         .order("created_at",{ascending:false})
         .limit(300),
       8000
     );
+    if(extResult.error && (extResult.error.code==='42703'||extResult.error.message?.includes('column')||(extResult.error.details||'').includes('ai_prob')||(extResult.error.details||'').includes('wrong_votes'))) {
+      // Columns missing — fall back to base schema
+      console.warn('[loadReports] ai_prob/wrong_votes columns missing — run the migration SQL');
+      const base = await fetchWithTimeout(
+        sb.from("reports")
+          .select("id,user_id,location_name,location_area,type,confirms,created_at")
+          .order("created_at",{ascending:false})
+          .limit(300),
+        8000
+      );
+      data = base.data; error = base.error;
+    } else {
+      data = extResult.data; error = extResult.error;
+    }
     if(error) throw error;
-    const mapRow=r=>({id:r.id,name:r.location_name,area:r.location_area,type:r.type,time:new Date(r.created_at).getTime(),confirms:r.confirms||1,userId:r.user_id,isAI:r.user_id===AI_USER_ID||r.ai_prob!=null,aiProb:r.ai_prob||null,wrongVotes:r.wrong_votes||0,flagged:(r.wrong_votes||0)>=3});
+    const mapRow=r=>({id:r.id,name:r.location_name,area:r.location_area,type:r.type,time:new Date(r.created_at).getTime(),confirms:r.confirms||1,userId:r.user_id,isAI:r.user_id===AI_USER_ID||(r.ai_prob!=null),aiProb:r.ai_prob||null,wrongVotes:r.wrong_votes||0,flagged:(r.wrong_votes||0)>=3});
     const dbReports=(data||[]).map(mapRow);
     dbReports.sort((a,b)=>b.time-a.time);
     // Preserve: optimistic inserts (local-/ai- prefix) AND in-memory AI reports not in this DB batch
@@ -2591,7 +2609,11 @@ async function loadReports(){
   if(_nearbyAreas.length) renderNearbyDashboard();
 }
 
-async function pollReports(){try{const{data,error}=await sb.from("reports").select("id,user_id,location_name,location_area,type,confirms,created_at,ai_prob,wrong_votes").order("created_at",{ascending:false}).limit(300);if(error||!data)return;const dbReports=data.map(r=>({id:r.id,name:r.location_name,area:r.location_area,type:r.type,time:new Date(r.created_at).getTime(),confirms:r.confirms||1,userId:r.user_id,isAI:r.user_id===AI_USER_ID||r.ai_prob!=null,aiProb:r.ai_prob||null,wrongVotes:r.wrong_votes||0,flagged:(r.wrong_votes||0)>=3}));const dbIds=new Set(dbReports.map(r=>String(r.id)));const pending=reports.filter(r=>{const sid=String(r.id);if(sid.startsWith("local-")||sid.startsWith("ai-"))return true;if((r.isAI||r.userId===AI_USER_ID)&&!dbIds.has(sid))return true;return false;});const newList=[...pending,...dbReports];const oldIds=reports.filter(r=>!String(r.id).startsWith("local-")&&!String(r.id).startsWith("ai-")).map(r=>r.id+r.confirms).join(",");const newIds=dbReports.map(r=>r.id+r.confirms).join(",");if(oldIds!==newIds){reports=newList;render();if(_nearbyAreas.length)renderNearbyDashboard();renderSavedPlacesHome();renderMyPlacesList();}}catch(e){}}
+async function pollReports(){try{
+  const _mapRow=r=>({id:r.id,name:r.location_name,area:r.location_area,type:r.type,time:new Date(r.created_at).getTime(),confirms:r.confirms||1,userId:r.user_id,isAI:r.user_id===AI_USER_ID||(r.ai_prob!=null),aiProb:r.ai_prob||null,wrongVotes:r.wrong_votes||0,flagged:(r.wrong_votes||0)>=3});
+  let _pollRes=await sb.from("reports").select("id,user_id,location_name,location_area,type,confirms,created_at,ai_prob,wrong_votes").order("created_at",{ascending:false}).limit(300);
+  if(_pollRes.error&&(_pollRes.error.code==='42703'||_pollRes.error.message?.includes('column'))){_pollRes=await sb.from("reports").select("id,user_id,location_name,location_area,type,confirms,created_at").order("created_at",{ascending:false}).limit(300);}
+  const{data,error}=_pollRes;if(error||!data)return;const dbReports=data.map(_mapRow);const dbIds=new Set(dbReports.map(r=>String(r.id)));const pending=reports.filter(r=>{const sid=String(r.id);if(sid.startsWith("local-")||sid.startsWith("ai-"))return true;if((r.isAI||r.userId===AI_USER_ID)&&!dbIds.has(sid))return true;return false;});const newList=[...pending,...dbReports];const oldIds=reports.filter(r=>!String(r.id).startsWith("local-")&&!String(r.id).startsWith("ai-")).map(r=>r.id+r.confirms).join(",");const newIds=dbReports.map(r=>r.id+r.confirms).join(",");if(oldIds!==newIds){reports=newList;render();if(_nearbyAreas.length)renderNearbyDashboard();renderSavedPlacesHome();renderMyPlacesList();}}catch(e){}}
 
 function startPolling(){
   if(_pollTimer)clearInterval(_pollTimer);
