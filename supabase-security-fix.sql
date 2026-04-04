@@ -4,6 +4,19 @@
 --   https://supabase.com/dashboard/project/djurokbkkqrmpafcxlez/sql
 -- ============================================================
 
+-- ── 0. ADD MISSING COLUMNS TO reports TABLE ──────────────────
+-- The AI reporter tries to save ai_prob to the reports table.
+-- Without these columns every AI report INSERT returns 400.
+-- Run this section FIRST — everything else depends on it.
+
+ALTER TABLE reports
+  ADD COLUMN IF NOT EXISTS ai_prob     FLOAT   DEFAULT NULL,
+  ADD COLUMN IF NOT EXISTS wrong_votes INTEGER DEFAULT 0;
+
+-- Index so queries filtering by AI reports stay fast
+CREATE INDEX IF NOT EXISTS idx_reports_ai_prob ON reports (ai_prob) WHERE ai_prob IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_reports_wrong_votes ON reports (wrong_votes) WHERE wrong_votes > 0;
+
 -- ── 1. FIND & DELETE THE MALICIOUS ANNOUNCEMENT ─────────────
 -- Review it first (uncomment next line to preview):
 -- SELECT * FROM announcements ORDER BY created_at DESC LIMIT 10;
