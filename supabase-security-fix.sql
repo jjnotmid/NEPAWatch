@@ -38,7 +38,7 @@ CREATE POLICY "announcements_insert"
   ON announcements FOR INSERT
   WITH CHECK (
     auth.email() IN (
-      'your-admin-email@example.com'   -- ← REPLACE THIS
+      'usifohjosh47@gmail.com'   -- ← REPLACE THIS
     )
   );
 
@@ -46,7 +46,7 @@ CREATE POLICY "announcements_update"
   ON announcements FOR UPDATE
   USING (
     auth.email() IN (
-      'your-admin-email@example.com'   -- ← REPLACE THIS
+      'usifohjosh47@gmail.com'   -- ← REPLACE THIS
     )
   );
 
@@ -54,7 +54,7 @@ CREATE POLICY "announcements_delete"
   ON announcements FOR DELETE
   USING (
     auth.email() IN (
-      'your-admin-email@example.com'   -- ← REPLACE THIS
+      'usifohjosh47@gmail.com'   -- ← REPLACE THIS
     )
   );
 
