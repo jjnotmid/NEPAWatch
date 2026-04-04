@@ -1442,18 +1442,23 @@ async function loadAreaHealth() {
 }
 
 // ── ANNOUNCEMENTS ─────────────────────────────────────────────
+function _escHtml(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
 async function loadAnnouncementsList() {
   const { data } = await sb.from('announcements')
-    .select('*').order('scheduled_for', { ascending: false }).limit(20);
+    .select('id,area,message,scheduled_for,ends_at').order('scheduled_for', { ascending: false }).limit(20);
   const el = document.getElementById('ann-list');
   if (!data?.length) { el.innerHTML = '<p class="empty-state">No announcements yet.</p>'; return; }
   el.innerHTML = `<table class="data-table"><thead><tr><th>Area</th><th>Starts</th><th>Ends</th><th>Message</th><th>Action</th></tr></thead><tbody>` +
     data.map(a => `<tr>
-      <td>${a.area || 'All Lagos'}</td>
+      <td>${_escHtml(a.area) || 'All Areas'}</td>
       <td>${new Date(a.scheduled_for).toLocaleDateString('en-NG')}</td>
       <td>${a.ends_at ? new Date(a.ends_at).toLocaleDateString('en-NG') : '—'}</td>
-      <td style="max-width:200px;font-size:.74rem">${a.message}</td>
-      <td><button class="btn btn-ghost" style="font-size:.7rem;padding:3px 8px;color:var(--rd)" onclick="deleteAnnouncement('${a.id}')">Delete</button></td>
+      <td style="max-width:200px;font-size:.74rem">${_escHtml(a.message)}</td>
+      <td><button class="btn btn-ghost" style="font-size:.7rem;padding:3px 8px;color:var(--rd)" onclick="deleteAnnouncement('${_escHtml(a.id)}')">Delete</button></td>
     </tr>`).join('') + '</tbody></table>';
 }
 

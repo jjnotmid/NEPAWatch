@@ -2731,10 +2731,22 @@ function tickDurationTimers() {
 // ══════════════════════════════════════════════════════════════════
 let scheduledAnnouncements = [];
 
+/* Escape untrusted DB strings before inserting into innerHTML — prevents XSS */
+function _escHtml(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 async function loadAnnouncements() {
   try {
     const { data, error } = await sb.from("announcements")
-      .select("*").order("scheduled_for", { ascending: true })
+      .select("id,area,message,scheduled_for,ends_at")
+      .order("scheduled_for", { ascending: true })
       .gte("scheduled_for", new Date(Date.now() - 24 * 3600 * 1000).toISOString());
     if (!error && data) scheduledAnnouncements = data;
     renderAnnouncements();
@@ -2758,11 +2770,14 @@ function renderAnnouncements() {
     const timeStr = sf.toLocaleTimeString("en-NG", { hour: "2-digit", minute: "2-digit" });
     const dateStr = sf.toLocaleDateString("en-NG", { weekday: "short", month: "short", day: "numeric" });
     const isNow = new Date(a.scheduled_for).getTime() <= now;
+    /* _escHtml prevents XSS from malicious DB content */
+    const safeArea = _escHtml(a.area) || "Multiple Areas";
+    const safeMsg  = _escHtml(a.message);
     return `<div class="ann-card ${isNow ? "ann-active" : ""}">
       <div class="ann-icon"><svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M6.5 1.5L1 11.5H12L6.5 1.5Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M6.5 5V8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><circle cx="6.5" cy="9.5" r=".6" fill="currentColor"/></svg></div>
       <div class="ann-body">
-        <div class="ann-title">${isNow ? "Ongoing" : "Scheduled"} Outage — ${a.area || "Multiple Areas"}</div>
-        <div class="ann-sub">${a.message} · ${isNow ? "Started" : ""} ${dateStr} ${timeStr}</div>
+        <div class="ann-title">${isNow ? "Ongoing" : "Scheduled"} Outage — ${safeArea}</div>
+        <div class="ann-sub">${safeMsg} · ${isNow ? "Started" : ""} ${dateStr} ${timeStr}</div>
       </div>
     </div>`;
   }).join("");
