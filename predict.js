@@ -480,12 +480,18 @@ const AIReporter = {
     }
 
     /* Persist via edge function — uses service role key, bypasses RLS */
+    /* NOTE: apikey + Authorization headers are required or Supabase returns 401 */
+    const _anonKey = typeof SUPA_ANON !== 'undefined' ? SUPA_ANON : '';
     try {
       const res = await fetch(
         'https://djurokbkkqrmpafcxlez.supabase.co/functions/v1/send-alert',
         {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': _anonKey,
+            'Authorization': `Bearer ${_anonKey}`,
+          },
           body: JSON.stringify({
             mode: 'ai_report',
             location_name: locName,
@@ -495,6 +501,11 @@ const AIReporter = {
           }),
         }
       );
+      if (!res.ok) {
+        const errText = await res.text().catch(()=>'');
+        console.warn(`[NEPAWatch AI] Edge fn HTTP ${res.status}:`, errText);
+        throw new Error(`HTTP ${res.status}`);
+      }
       const result = await res.json();
       if (result?.report) {
         this._replaceLocal(tempId, result.report, prob);
@@ -505,10 +516,27 @@ const AIReporter = {
           aiBanner.textContent = `${cnt} AI report${cnt!==1?'s':''}`;
         }
         console.log('[NEPAWatch AI] Report persisted via edge fn, id:', result.report.id);
+        /* Trigger in-app AI feedback popup for users in the same area */
+        if (typeof window.showAIFeedbackPopup === 'function') {
+          const savedRep = reports.find(r => String(r.id) === String(result.report.id));
+          if (savedRep) setTimeout(() => window.showAIFeedbackPopup(savedRep), 1200);
+        }
       } else {
         console.warn('[NEPAWatch AI] Edge fn response (no report returned):', result);
+        /* Fallback: still show feedback popup using the optimistic entry */
+        if (typeof window.showAIFeedbackPopup === 'function') {
+          const optRep = typeof reports !== 'undefined' ? reports.find(r => r.id === tempId) : null;
+          if (optRep) setTimeout(() => window.showAIFeedbackPopup(optRep), 1200);
+        }
       }
-    } catch(e) { console.warn('[NEPAWatch AI] Report persist failed:', e?.message); }
+    } catch(e) {
+      console.warn('[NEPAWatch AI] Report persist failed:', e?.message);
+      /* Fallback: still trigger feedback popup so nearby users can validate */
+      if (typeof window.showAIFeedbackPopup === 'function') {
+        const optRep = typeof reports !== 'undefined' ? reports.find(r => r.id === tempId) : null;
+        if (optRep) setTimeout(() => window.showAIFeedbackPopup(optRep), 1200);
+      }
+    }
   },
 
   _replaceLocal(tempId, dbRow, prob) {

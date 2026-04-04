@@ -2565,13 +2565,13 @@ async function loadReports(){
   try{
     const {data, error} = await fetchWithTimeout(
       sb.from("reports")
-        .select("id,user_id,location_name,location_area,type,confirms,created_at")
+        .select("id,user_id,location_name,location_area,type,confirms,created_at,ai_prob,wrong_votes")
         .order("created_at",{ascending:false})
         .limit(300),
       8000
     );
     if(error) throw error;
-    const mapRow=r=>({id:r.id,name:r.location_name,area:r.location_area,type:r.type,time:new Date(r.created_at).getTime(),confirms:r.confirms||1,userId:r.user_id,isAI:r.user_id===AI_USER_ID});
+    const mapRow=r=>({id:r.id,name:r.location_name,area:r.location_area,type:r.type,time:new Date(r.created_at).getTime(),confirms:r.confirms||1,userId:r.user_id,isAI:r.user_id===AI_USER_ID||r.ai_prob!=null,aiProb:r.ai_prob||null,wrongVotes:r.wrong_votes||0,flagged:(r.wrong_votes||0)>=3});
     const dbReports=(data||[]).map(mapRow);
     dbReports.sort((a,b)=>b.time-a.time);
     // Preserve: optimistic inserts (local-/ai- prefix) AND in-memory AI reports not in this DB batch
@@ -2591,7 +2591,7 @@ async function loadReports(){
   if(_nearbyAreas.length) renderNearbyDashboard();
 }
 
-async function pollReports(){try{const{data,error}=await sb.from("reports").select("id,user_id,location_name,location_area,type,confirms,created_at").order("created_at",{ascending:false}).limit(300);if(error||!data)return;const dbReports=data.map(r=>({id:r.id,name:r.location_name,area:r.location_area,type:r.type,time:new Date(r.created_at).getTime(),confirms:r.confirms||1,userId:r.user_id,isAI:r.user_id===AI_USER_ID}));const dbIds=new Set(dbReports.map(r=>String(r.id)));const pending=reports.filter(r=>{const sid=String(r.id);if(sid.startsWith("local-")||sid.startsWith("ai-"))return true;if((r.isAI||r.userId===AI_USER_ID)&&!dbIds.has(sid))return true;return false;});const newList=[...pending,...dbReports];const oldIds=reports.filter(r=>!String(r.id).startsWith("local-")&&!String(r.id).startsWith("ai-")).map(r=>r.id+r.confirms).join(",");const newIds=dbReports.map(r=>r.id+r.confirms).join(",");if(oldIds!==newIds){reports=newList;render();if(_nearbyAreas.length)renderNearbyDashboard();renderSavedPlacesHome();renderMyPlacesList();}}catch(e){}}
+async function pollReports(){try{const{data,error}=await sb.from("reports").select("id,user_id,location_name,location_area,type,confirms,created_at,ai_prob,wrong_votes").order("created_at",{ascending:false}).limit(300);if(error||!data)return;const dbReports=data.map(r=>({id:r.id,name:r.location_name,area:r.location_area,type:r.type,time:new Date(r.created_at).getTime(),confirms:r.confirms||1,userId:r.user_id,isAI:r.user_id===AI_USER_ID||r.ai_prob!=null,aiProb:r.ai_prob||null,wrongVotes:r.wrong_votes||0,flagged:(r.wrong_votes||0)>=3}));const dbIds=new Set(dbReports.map(r=>String(r.id)));const pending=reports.filter(r=>{const sid=String(r.id);if(sid.startsWith("local-")||sid.startsWith("ai-"))return true;if((r.isAI||r.userId===AI_USER_ID)&&!dbIds.has(sid))return true;return false;});const newList=[...pending,...dbReports];const oldIds=reports.filter(r=>!String(r.id).startsWith("local-")&&!String(r.id).startsWith("ai-")).map(r=>r.id+r.confirms).join(",");const newIds=dbReports.map(r=>r.id+r.confirms).join(",");if(oldIds!==newIds){reports=newList;render();if(_nearbyAreas.length)renderNearbyDashboard();renderSavedPlacesHome();renderMyPlacesList();}}catch(e){}}
 
 function startPolling(){
   if(_pollTimer)clearInterval(_pollTimer);
@@ -2731,10 +2731,22 @@ function tickDurationTimers() {
 // ══════════════════════════════════════════════════════════════════
 let scheduledAnnouncements = [];
 
+/* Escape untrusted DB strings before inserting into innerHTML — prevents XSS */
+function _escHtml(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 async function loadAnnouncements() {
   try {
     const { data, error } = await sb.from("announcements")
-      .select("*").order("scheduled_for", { ascending: true })
+      .select("id,area,message,scheduled_for,ends_at")
+      .order("scheduled_for", { ascending: true })
       .gte("scheduled_for", new Date(Date.now() - 24 * 3600 * 1000).toISOString());
     if (!error && data) scheduledAnnouncements = data;
     renderAnnouncements();
@@ -2758,11 +2770,14 @@ function renderAnnouncements() {
     const timeStr = sf.toLocaleTimeString("en-NG", { hour: "2-digit", minute: "2-digit" });
     const dateStr = sf.toLocaleDateString("en-NG", { weekday: "short", month: "short", day: "numeric" });
     const isNow = new Date(a.scheduled_for).getTime() <= now;
+    /* _escHtml prevents XSS from malicious DB content */
+    const safeArea = _escHtml(a.area) || "Multiple Areas";
+    const safeMsg  = _escHtml(a.message);
     return `<div class="ann-card ${isNow ? "ann-active" : ""}">
       <div class="ann-icon"><svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M6.5 1.5L1 11.5H12L6.5 1.5Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M6.5 5V8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><circle cx="6.5" cy="9.5" r=".6" fill="currentColor"/></svg></div>
       <div class="ann-body">
-        <div class="ann-title">${isNow ? "Ongoing" : "Scheduled"} Outage — ${a.area || "Multiple Areas"}</div>
-        <div class="ann-sub">${a.message} · ${isNow ? "Started" : ""} ${dateStr} ${timeStr}</div>
+        <div class="ann-title">${isNow ? "Ongoing" : "Scheduled"} Outage — ${safeArea}</div>
+        <div class="ann-sub">${safeMsg} · ${isNow ? "Started" : ""} ${dateStr} ${timeStr}</div>
       </div>
     </div>`;
   }).join("");
@@ -3492,12 +3507,32 @@ if ('serviceWorker' in navigator) {
     if (event.data?.type === 'PUSH_CLICK') {
       go('home');
       const pushArea = event.data?.area;
-      const pushRepType = event.data?.repType;
       if (pushArea) {
-        setTimeout(() => {
-          const rep = reports.find(r => r.area === pushArea && (Date.now()-r.time)<60*60*1000);
-          if (rep) showPushInfoSheet(rep);
-        }, 800);
+        // Filter feed to the notified area immediately so user sees context
+        filterArea = pushArea;
+        const areaFilterEl = document.getElementById('areaFilter');
+        if (areaFilterEl) areaFilterEl.value = pushArea;
+        renderFeed('liveFeed');
+        // Load fresh reports then show the info/feedback sheet
+        loadReports().then(() => {
+          const rep = reports.find(r =>
+            (r.area === pushArea || areaMatches(r.area, pushArea)) &&
+            (Date.now() - r.time) < 2 * 60 * 60 * 1000
+          );
+          if (!rep) return;
+          if (rep.isAI) showAIFeedbackPopup(rep);
+          else showPushInfoSheet(rep);
+        }).catch(() => {
+          // Fallback: still try with whatever is in memory
+          const rep = reports.find(r =>
+            (r.area === pushArea || areaMatches(r.area, pushArea)) &&
+            (Date.now() - r.time) < 2 * 60 * 60 * 1000
+          );
+          if (rep) {
+            if (rep.isAI) showAIFeedbackPopup(rep);
+            else showPushInfoSheet(rep);
+          }
+        });
       }
     }
   });
@@ -3665,15 +3700,132 @@ function dismissConfirm() {
   _confirmRepId = null;
 }
 
+// ══════════════════════════════════════════════════════════════════
+// FEATURE: AI REPORT FEEDBACK — trains the model on yes/no answers
+// Shown to users in the same area when the AI files a report
+// ══════════════════════════════════════════════════════════════════
+function showAIFeedbackPopup(rep) {
+  if (!rep) return;
+  // Only show to logged-in users who are not the AI itself
+  if (!CU) return;
+  if (_confirmedReports.has(rep.id)) return;
+
+  // Only show for users whose saved area or GPS area matches the report area
+  const userArea = PR?.location_area || (_nearbyAreas[0]?.area);
+  const hasSaved = savedPlaces.some(p => areaMatches(p.location_area, rep.area));
+  if (!userArea && !hasSaved) return;
+  if (!hasSaved && userArea && !areaMatches(rep.area, userArea) && !areaMatches(userArea, rep.area)) return;
+
+  const isOut = rep.type === 'out';
+  const icon = isOut ? IC.out : IC.bck;
+  const color = isOut ? 'var(--rd)' : 'var(--p)';
+  const bg = isOut ? 'rgba(255,64,85,.08)' : 'rgba(170,255,0,.07)';
+  const border = isOut ? 'rgba(255,64,85,.2)' : 'rgba(170,255,0,.2)';
+  const probPct = rep.aiProb ? ` (${Math.round(rep.aiProb * 100)}% confidence)` : '';
+
+  _confirmRepId = rep.id;
+  document.getElementById('confirmTitle').textContent = 'AI Report — Can you verify?';
+  document.getElementById('confirmSub').textContent = rep.area;
+  document.getElementById('confirmBody').innerHTML =
+    `<div style="display:flex;align-items:center;gap:10px;padding:12px 14px;background:${bg};border-radius:10px;border:1px solid ${border};margin-bottom:12px">
+      <span style="flex-shrink:0">${icon}</span>
+      <div>
+        <div style="font-weight:600;font-size:.88rem;color:${color}">${rep.name}</div>
+        <div style="font-size:.74rem;color:var(--ink3);margin-top:2px">${rep.area} &middot; ${ago(rep.time)} ago</div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:7px;padding:8px 12px;background:rgba(100,180,255,.07);border-radius:8px;margin-bottom:10px;font-size:.75rem;color:var(--ink2)">
+      <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><circle cx="6.5" cy="6.5" r="5.5" stroke="#4fc3f7" stroke-width="1.2"/><path d="M6.5 5.5v4M6.5 4h.01" stroke="#4fc3f7" stroke-width="1.3" stroke-linecap="round"/></svg>
+      <span>NEPAWatch AI predicted ${isOut ? 'a power outage' : 'power restoration'}${probPct}. Your response trains the AI.</span>
+    </div>
+    <p style="font-size:.8rem;color:var(--ink2);margin:0;line-height:1.6">${isOut ? 'Is power actually out in your area right now?' : 'Has power actually been restored in your area?'}</p>`;
+
+  const btn = document.getElementById('confirmYesBtn');
+  btn.textContent = isOut ? 'Yes, power is out' : 'Yes, power is back';
+  btn.className = `mconfirm ${isOut ? 'out' : 'bck'}`;
+  btn.style.display = '';
+  btn.onclick = () => _submitAIFeedback(rep.id, true);
+
+  let noBtn = document.getElementById('confirmNoBtn');
+  if (!noBtn) {
+    noBtn = document.createElement('button');
+    noBtn.id = 'confirmNoBtn';
+    noBtn.className = 'mcancel';
+    btn.insertAdjacentElement('afterend', noBtn);
+  }
+  noBtn.textContent = isOut ? 'No, power is fine' : 'No, still no power';
+  noBtn.style.cssText = 'background:rgba(255,64,85,.07);color:var(--rd);border:1px solid rgba(255,64,85,.15)';
+  noBtn.style.display = '';
+  noBtn.onclick = () => _submitAIFeedback(rep.id, false);
+
+  document.getElementById('confirmOverlay').classList.add('open');
+  setTimeout(() => dismissConfirm(), 45000);
+}
+
+async function _submitAIFeedback(repId, isCorrect) {
+  const r = reports.find(x => String(x.id) === String(repId));
+  _confirmedReports.add(repId);
+  _confirmRepId = null;
+  document.getElementById('confirmOverlay').classList.remove('open');
+
+  if (isCorrect) {
+    // Positive: confirm the report + strengthen model signal
+    if (r) {
+      r.confirms = (r.confirms || 1) + 1;
+      const confirmsEl = document.querySelector(`[data-confirms="${repId}"]`);
+      if (confirmsEl) confirmsEl.textContent = `${r.confirms} confirmation${r.confirms !== 1 ? 's' : ''}`;
+      const isReal = !String(repId).startsWith('local-') && !String(repId).startsWith('ai-');
+      if (isReal) {
+        try { await sb.from('reports').update({ confirms: r.confirms }).eq('id', repId); } catch(e) {}
+      }
+      // Strengthen model: add a weighted data point for this area/hour/day
+      if (typeof PredictHistory !== 'undefined' && r.area) {
+        PredictHistory.addReport({
+          location_area: r.area,
+          type: r.type,
+          created_at: new Date(r.time).toISOString(),
+          confirms: 3, // extra weight — user validated the AI prediction
+        });
+      }
+    }
+    toast('Thanks! AI prediction confirmed — helps improve accuracy.', 'ok');
+  } else {
+    // Negative: flag wrong + add counter-signal to model
+    if (r) {
+      r.wrongVotes = (r.wrongVotes || 0) + 1;
+      if (r.wrongVotes >= 3) r.flagged = true;
+      const isReal = !String(repId).startsWith('local-') && !String(repId).startsWith('ai-');
+      if (isReal) {
+        try { await sb.from('reports').update({ wrong_votes: r.wrongVotes }).eq('id', repId); } catch(e) {}
+      }
+      // Weaken model: counter-signal — AI said 'out' but it's actually 'bck', or vice versa
+      if (typeof PredictHistory !== 'undefined' && r.area) {
+        const counterType = r.type === 'out' ? 'bck' : 'out';
+        PredictHistory.addReport({
+          location_area: r.area,
+          type: counterType,
+          created_at: new Date(r.time).toISOString(),
+          confirms: 2,
+        });
+      }
+      renderFeed('liveFeed');
+    }
+    toast('Thanks! AI will learn from this.', 'info');
+  }
+}
+
+// Expose globally so predict.js can call it after saving an AI report
+window.showAIFeedbackPopup = showAIFeedbackPopup;
+
 let _rtChannel=null,_recentAlerts=new Set(),_rtWatchdog=null;
 // ── Silent background auto-refresh (no visible spinner) ─────────────────
 // Feed updates automatically every 5s via pollReports() + realtime subscriptions.
 // No pull-to-refresh needed — data arrives the moment it changes.
 
-function startRealtime(){try{if(_rtChannel){try{sb.removeChannel(_rtChannel);}catch(e){}} _rtChannel=sb.channel("realtime-reports-"+Date.now()).on("postgres_changes",{event:"INSERT",schema:"public",table:"reports"},payload=>{try{const r=payload.new;if(!r||reports.find(x=>String(x.id)===String(r.id)))return;const newRep={id:String(r.id),name:String(r.location_name||""),area:String(r.location_area||""),type:String(r.type||""),time:new Date(r.created_at).getTime(),confirms:Number(r.confirms)||1,userId:r.user_id,isAI:r.user_id===AI_USER_ID};// Replace optimistic local/ai entry if it matches area+type within last 60s
+function startRealtime(){try{if(_rtChannel){try{sb.removeChannel(_rtChannel);}catch(e){}} _rtChannel=sb.channel("realtime-reports-"+Date.now()).on("postgres_changes",{event:"INSERT",schema:"public",table:"reports"},payload=>{try{const r=payload.new;if(!r||reports.find(x=>String(x.id)===String(r.id)))return;const newRep={id:String(r.id),name:String(r.location_name||""),area:String(r.location_area||""),type:String(r.type||""),time:new Date(r.created_at).getTime(),confirms:Number(r.confirms)||1,userId:r.user_id,isAI:r.user_id===AI_USER_ID||r.ai_prob!=null,aiProb:r.ai_prob||null,wrongVotes:r.wrong_votes||0,flagged:(r.wrong_votes||0)>=3};// Replace optimistic local/ai entry if it matches area+type within last 60s
 const matchIdx=reports.findIndex(x=>(String(x.id).startsWith('local-')||String(x.id).startsWith('ai-'))&&x.area===newRep.area&&x.type===newRep.type&&Math.abs(x.time-newRep.time)<60000);if(matchIdx!==-1){reports[matchIdx]=newRep;}else{reports.unshift(newRep);if(reports.length>500){const di=reports.slice(400).findIndex(x=>!x.isAI&&x.userId!==AI_USER_ID&&!String(x.id).startsWith('local-')&&!String(x.id).startsWith('ai-'));if(di!==-1)reports.splice(400+di,1);else reports.splice(500,1);}}// Live-train AI history with every incoming report
-if(typeof PredictHistory!=='undefined')PredictHistory.addReport(r);renderStats();prependReportCard(newRep,"liveFeed");renderDiscos();if(_nearbyAreas.length)renderNearbyDashboard();renderSavedPlacesHome();renderMyPlacesList();if(r.user_id&&r.user_id!==CU?.id){const alertKey=r.id+r.type;if(!_recentAlerts.has(alertKey)){_recentAlerts.add(alertKey);setTimeout(()=>_recentAlerts.delete(alertKey),30000);sendAreaAlerts(r.location_name,r.location_area,r.type);}}// Show in-app confirm popup for reports in user's area
-setTimeout(()=>{ if(!document.getElementById('confirmOverlay').classList.contains('open')) showConfirmPopup(newRep); },800);}catch(e){}}).on("postgres_changes",{event:"UPDATE",schema:"public",table:"reports"},payload=>{try{const r=payload.new;const existing=reports.find(x=>String(x.id)===String(r.id));if(existing){existing.confirms=Number(r.confirms)||1;const confirmsEl=document.querySelector(`[data-confirms="${existing.id}"]`);if(confirmsEl)confirmsEl.textContent=`${existing.confirms} confirmation${existing.confirms!==1?"s":""}`;else{renderFeed("liveFeed");renderFeed("myFeed",PR?.location_area||null);}}}catch(e){}}).subscribe(status=>{
+if(typeof PredictHistory!=='undefined')PredictHistory.addReport(r);renderStats();prependReportCard(newRep,"liveFeed");renderDiscos();if(_nearbyAreas.length)renderNearbyDashboard();renderSavedPlacesHome();renderMyPlacesList();if(r.user_id&&r.user_id!==CU?.id){const alertKey=r.id+r.type;if(!_recentAlerts.has(alertKey)){_recentAlerts.add(alertKey);setTimeout(()=>_recentAlerts.delete(alertKey),30000);sendAreaAlerts(r.location_name,r.location_area,r.type);}}// Show in-app confirm/feedback popup for reports in user's area
+setTimeout(()=>{ if(!document.getElementById('confirmOverlay').classList.contains('open')){if(newRep.isAI)showAIFeedbackPopup(newRep);else showConfirmPopup(newRep);}},800);}catch(e){}}).on("postgres_changes",{event:"UPDATE",schema:"public",table:"reports"},payload=>{try{const r=payload.new;const existing=reports.find(x=>String(x.id)===String(r.id));if(existing){existing.confirms=Number(r.confirms)||1;const confirmsEl=document.querySelector(`[data-confirms="${existing.id}"]`);if(confirmsEl)confirmsEl.textContent=`${existing.confirms} confirmation${existing.confirms!==1?"s":""}`;else{renderFeed("liveFeed");renderFeed("myFeed",PR?.location_area||null);}}}catch(e){}}).subscribe(status=>{
     // If realtime drops, restart it after 5s
     if(status==='CHANNEL_ERROR'||status==='TIMED_OUT'){
       clearTimeout(_rtWatchdog);
