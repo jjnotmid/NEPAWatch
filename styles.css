@@ -748,3 +748,35 @@ body::after{content:"";display:block;position:fixed;bottom:0;left:0;right:0;heig
 }
 .rep-hint svg{flex-shrink:0;color:var(--p);opacity:.75}
 .rep-hint strong{color:var(--p)}
+
+/* ── Ad units ── */
+.nw-ad-wrap {
+  margin: 4px 16px 8px;
+  min-height: 60px;
+  border-radius: 12px;
+  overflow: hidden;
+}
+.nw-ad-banner {
+  display: block;
+  width: 100%;
+}
+.nw-ad-infeed {
+  margin: 4px 0 8px;
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--bg2);
+  border: 1px solid var(--bd);
+}
+.nw-ad-label {
+  font-size: .55rem;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--ink3);
+  padding: 6px 12px 2px;
+  font-weight: 600;
+}
+.nw-ad-native {
+  display: block;
+  width: 100%;
+  min-height: 100px;
+}
