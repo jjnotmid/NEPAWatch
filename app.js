@@ -3271,7 +3271,7 @@ function loadMoreFeed(){
 /* ── AD HELPERS ──────────────────────────────────────────────────────────── */
 /* Replace XXXXXXXXXXXXXXXX with your AdSense publisher ID                    */
 /* Replace YYYYYYYYYY with the ad slot ID for your in-feed ad unit            */
-const _ADS_CLIENT = 'ca-pub-XXXXXXXXXXXXXXXX';
+const _ADS_CLIENT = 'ca-pub-6609646474162645';
 const _AD_SLOT_FEED = 'YYYYYYYYYY';
 const _AD_SLOT_BANNER = 'XXXXXXXXXX';
 
