@@ -10,12 +10,21 @@
 /* ─── IDENTITY ──────────────────────────────────────────────────────────── */
 const AI_USER_ID            = 'nepawatch-ai';
 const AI_USER_NAME          = 'NEPAWatch AI';
-const AI_CONFIDENCE_THRESH  = 0.65;   /* min prob to auto-file an outage report */
+
+/* ── Tuned for Nigerian power reality ──────────────────────────────────────
+   Key insight: Band D baseline is 0.58, Band E is 0.74.  A restore threshold
+   of 0.25 means restoration NEVER fires for those bands even at 3 AM.
+   Raised to 0.42 so restoration triggers during night low-demand hours.      */
+const AI_CONFIDENCE_THRESH  = 0.72;   /* higher bar → only fire when genuinely confident */
 const AI_SCAN_INTERVAL_MS   = 5 * 60 * 1000;   /* scan every 5 min */
-/* AI_COOLDOWN_MS removed — replaced by per-area state machine in AIReporter */
-const AI_RESTORE_THRESH     = 0.25;   /* below this → file restoration report */
-const AI_MAX_PER_SCAN       = 3;      /* max new AI reports fired per scan cycle */
-const AI_MIN_REFIRE_MS      = 2 * 60 * 60 * 1000; /* min 2h between AI reports for same area */
+const AI_RESTORE_THRESH     = 0.42;   /* raised from 0.25 — enables restoration for Band D/E */
+const AI_MAX_PER_SCAN       = 2;      /* reduced from 3 → less spammy bursts */
+const AI_MIN_REFIRE_MS      = 5 * 60 * 60 * 1000; /* raised from 2h → 5h per-area cooldown */
+
+/* Max time an AI outage can stay 'out' before auto-restoring if no human
+   reports confirm it.  Based on typical Nigerian DISCO supply rotation cycles:
+   Band A rotates every ~2h, Band E every ~12h.                               */
+const AI_BAND_MAX_OUT_MS = { A:2*3600000, B:4*3600000, C:6*3600000, D:9*3600000, E:12*3600000 };
 
 /* ─── BAND CLASSIFICATION ────────────────────────────────────────────────── */
 const AREA_BANDS = {
@@ -52,48 +61,76 @@ const HOURLY_FACTOR = [
 const DAY_FACTOR = [0.88,1.06,1.06,1.03,1.00,0.97,0.90]; /* 0=Sun */
 
 /* ─── HISTORY ENGINE ────────────────────────────────────────────────────── */
+/* Trains on crowd-sourced reports using:
+   - Time decay: recent reports weighted up to 3x more than 30-day-old ones
+   - Confirmation boost: confirmed reports count more (stronger ground truth)
+   - Wrong-vote penalty: flagged/disputed reports count less
+   - Minimum count guard: need ≥4 weighted reports before returning a rate  */
 const PredictHistory = {
   _data: {},
-  _liveAdded: 0,  // count of live-added reports since last full ingest
+  _liveAdded: 0,
+
+  /* Full re-ingest from DB — called on startup and every 2h */
   ingest(rows) {
     this._data = {};
     this._liveAdded = 0;
+    const nowMs = Date.now();
+    const HALF_LIFE_MS = 21 * 24 * 3600 * 1000; // 21-day half-life — recent matters more
+
     rows.forEach(r => {
       if (!r.location_area) return;
       const t = new Date(r.created_at || r.time);
       const k = `${r.location_area}|${t.getHours()}|${t.getDay()}`;
       if (!this._data[k]) this._data[k] = { out:0, total:0, confirms:0 };
-      this._data[k].total++;
-      if (r.type === 'out') this._data[k].out++;
-      // Weight confirmed reports more — they represent stronger ground truth
-      this._data[k].confirms += (r.confirms||1);
+
+      /* Time decay: weight = 1 (today) → 0.5 (21 days ago) → ~0.1 (60 days ago) */
+      const ageMs = Math.max(0, nowMs - t.getTime());
+      const timeWeight = Math.max(0.1, Math.pow(0.5, ageMs / HALF_LIFE_MS));
+
+      /* Confirmation boost: each community confirm = stronger evidence */
+      const confirmWeight = Math.min(3.0, 1 + (r.confirms || 1) * 0.25);
+
+      /* Wrong-vote penalty: disputed reports carry less weight */
+      const wrongPenalty = Math.max(0.2, 1 - (r.wrong_votes || 0) * 0.35);
+
+      const w = timeWeight * confirmWeight * wrongPenalty;
+      this._data[k].total += w;
+      if (r.type === 'out') this._data[k].out += w;
+      this._data[k].confirms += (r.confirms || 1) * w;
     });
   },
-  // Live-train from a single new report (called on every real-time INSERT)
+
+  /* Live-train from a single incoming report (real-time INSERT) */
   addReport(r) {
     if (!r.location_area && !r.area) return;
     const area = r.location_area || r.area;
-    const t = new Date(r.created_at || r.time);
+    const t = new Date(r.created_at || r.time || Date.now());
     const k = `${area}|${t.getHours()}|${t.getDay()}`;
     if (!this._data[k]) this._data[k] = { out:0, total:0, confirms:0 };
-    this._data[k].total++;
-    if ((r.type||'') === 'out') this._data[k].out++;
-    this._data[k].confirms += (r.confirms||1);
+    /* Live reports get full weight — they're the freshest signal we have */
+    const confirmWeight = Math.min(3.0, 1 + (r.confirms || 1) * 0.25);
+    const wrongPenalty  = Math.max(0.2, 1 - (r.wrong_votes || 0) * 0.35);
+    const w = confirmWeight * wrongPenalty;
+    this._data[k].total   += w;
+    if ((r.type||'') === 'out') this._data[k].out += w;
+    this._data[k].confirms += (r.confirms || 1) * w;
     this._liveAdded++;
   },
+
   getRate(area, hour, day) {
     const b = this._data[`${area}|${hour}|${day}`];
-    if (!b || b.total < 3) return null;
-    // Boost accuracy when many confirmations exist (each confirm = another data point)
-    const confirmBoost = Math.min(0.15, (b.confirms / (b.total * 3)) * 0.15);
+    /* Need at least 4 weighted data points — less than that is noise */
+    if (!b || b.total < 4) return null;
+    const confirmBoost = Math.min(0.12, (b.confirms / (b.total * 4)) * 0.12);
     const raw = b.out / b.total;
     return Math.min(0.97, raw + (raw > 0.5 ? confirmBoost : -confirmBoost));
   },
+
   getAreaRate(area) {
-    let out=0, total=0;
-    for (const [k,v] of Object.entries(this._data))
-      if (k.startsWith(area+'|')) { out+=v.out; total+=v.total; }
-    return total >= 5 ? out/total : null;
+    let out = 0, total = 0;
+    for (const [k, v] of Object.entries(this._data))
+      if (k.startsWith(area + '|')) { out += v.out; total += v.total; }
+    return total >= 6 ? out / total : null;
   },
 };
 
@@ -296,10 +333,23 @@ const AIReporter = {
   _rebuildState() {
     if (typeof reports === 'undefined') return;
     this._areaState = {};
-    // Include both confirmed DB rows AND local optimistic ai- inserts
+
+    /* Step 1: seed from _lastFired timestamps — if we fired an outage recently
+       and the AI report hasn't reached DB yet (e.g., migration pending), the
+       area should still be considered 'out' for rate-limit purposes. */
+    const nowMs = Date.now();
+    for (const [area, ts] of Object.entries(this._lastFired)) {
+      if (nowMs - ts < AI_MIN_REFIRE_MS) {
+        /* We fired something recently — seed as 'out' (worst case assumption).
+           The DB report pass below will correct this if 'bck' was actually filed. */
+        this._areaState[area] = 'out';
+      }
+    }
+
+    /* Step 2: override with actual DB / in-memory AI reports (most recent wins) */
     const sorted = [...reports]
       .filter(r => r.isAI || r.userId === AI_USER_ID || String(r.id).startsWith('ai-'))
-      .sort((a,b) => a.time - b.time);
+      .sort((a, b) => a.time - b.time);
     for (const r of sorted) {
       if (!r.area) continue;
       this._areaState[r.area] = r.type;
@@ -309,14 +359,24 @@ const AIReporter = {
   async loadHistory() {
     this._loadFiredState(); // restore _lastFired from localStorage before first scan
     try {
-      const { data, error } = await sb
+      /* Load 5000 reports — includes confirms + wrong_votes so the decay model
+         can weight crowd-validated reports correctly.
+         Falls back to base columns if wrong_votes column doesn't exist yet. */
+      let res = await sb
         .from('reports')
-        .select('location_area, type, created_at')
+        .select('location_area, type, created_at, confirms, wrong_votes')
         .order('created_at', { ascending:false })
-        .limit(2000);
-      if (!error && data?.length) {
-        PredictHistory.ingest(data);
-        console.log(`[NEPAWatch AI] History loaded: ${data.length} reports ingested.`);
+        .limit(5000);
+      if (res.error && (res.error.code === '42703' || res.error.message?.includes('column'))) {
+        res = await sb
+          .from('reports')
+          .select('location_area, type, created_at, confirms')
+          .order('created_at', { ascending:false })
+          .limit(5000);
+      }
+      if (!res.error && res.data?.length) {
+        PredictHistory.ingest(res.data);
+        console.log(`[NEPAWatch AI] History loaded: ${res.data.length} reports ingested (with time decay + confirm weighting).`);
       }
     } catch(e) { console.warn('[NEPAWatch AI] History load failed, using baseline model.'); }
     this._rebuildState();
@@ -339,21 +399,38 @@ const AIReporter = {
     }
     for (const area of areas) {
       if (firedCount >= AI_MAX_PER_SCAN) break;
-      const { prob, groundTruth } = predictOutage(area, h, d);
+      const { prob, confidence, groundTruth } = predictOutage(area, h, d);
       if (prob < AI_CONFIDENCE_THRESH) continue;
+
+      /* ── SPECULATION GUARD ──────────────────────────────────────────────
+         Don't fire based purely on the band baseline with no real data.
+         Require at least one of:
+           a) Historical crowd data for this area (getAreaRate not null), OR
+           b) Live ground truth from recent human reports, OR
+           c) Strong weather signal AND at least area-level history           */
+      const hasHistory = PredictHistory.getAreaRate(area) !== null;
+      const hasGroundTruth = !!groundTruth && groundTruth.reportCount >= 1;
+      if (!hasHistory && !hasGroundTruth) continue; // pure speculation — skip
+
       const currentState = this._areaState[area];
-      if (currentState === 'out') continue;
-      // Rate-limit: don't re-fire same area too soon
+      if (currentState === 'out') continue; // already reported out
+
+      /* Rate-limit — _lastFired persisted to localStorage across reloads */
       const lastFiredAt = this._lastFired[area] || 0;
       if (Date.now() - lastFiredAt < AI_MIN_REFIRE_MS) continue;
-      // If ground truth has a fresh human bck report, power is on — skip
+
+      /* If ground truth says power is on, don't override it */
       if (groundTruth?.hasFreshHuman && groundTruth.prob < 0.4) continue;
+
+      /* If a human restoration was filed in last 45 min, power is back */
       const recentRestore = (typeof reports!=='undefined') &&
         reports.some(r =>
           (r.area===area || (typeof AREA_PARENT!=='undefined' && AREA_PARENT[r.area]===area))
-          && r.type==='bck' && (now-r.time) < 30*60000);
+          && r.type==='bck' && !r.isAI && r.userId!==AI_USER_ID
+          && (now - r.time) < 45*60000);
       if (recentRestore) continue;
-      // Stagger fires: small delay between each to avoid burst
+
+      /* All checks passed — fire outage report */
       if (firedCount > 0) await new Promise(res => setTimeout(res, 800));
       await this._fire(area, 'out', prob);
       firedCount++;
@@ -363,40 +440,73 @@ const AIReporter = {
   async scanRestorations() {
     if (typeof reports==='undefined') return;
     this._rebuildState();
-    const now=new Date(), h=now.getHours(), d=now.getDay();
+    const nowMs = Date.now();
+    const now   = new Date(nowMs);
+    const h = now.getHours(), d = now.getDay();
     const outAreas = Object.entries(this._areaState)
-      .filter(([area, state]) => state === 'out')
+      .filter(([, state]) => state === 'out')
       .map(([area]) => area);
     let firedCount = 0;
+
     for (const area of outAreas) {
       if (firedCount >= AI_MAX_PER_SCAN) break;
       if (!AREA_BANDS[area]) continue;
+
+      const alreadyRestored = reports.some(x => {
+        const outRep = [...reports].filter(r=>r.area===area&&r.type==='out').sort((a,b)=>b.time-a.time)[0];
+        return x.area===area && x.type==='bck' && (outRep ? x.time > outRep.time : true);
+      });
+      if (alreadyRestored) { this._areaState[area]='bck'; continue; }
+
       const { prob, groundTruth } = predictOutage(area, h, d);
-      // Fresh human bck report — act fast, dont wait
-      if (groundTruth?.hasFreshHuman && groundTruth.prob < 0.35) {
-        const alreadyRestored = reports.some(x => x.area===area && x.type==='bck' && (now-x.time)<15*60000);
-        if (!alreadyRestored) {
+
+      /* ── PATH 1: Fresh human report says power is back — act immediately ── */
+      if (groundTruth?.hasFreshHuman && groundTruth.prob < 0.40) {
+        const recentBck = reports.some(x => x.area===area && x.type==='bck' && (nowMs-x.time)<15*60000);
+        if (!recentBck) {
           if (firedCount > 0) await new Promise(res => setTimeout(res, 800));
           await this._fire(area, 'bck', 1-prob);
           firedCount++;
         }
         continue;
       }
-      if (prob >= AI_RESTORE_THRESH) continue;
+
+      /* ── PATH 2: Probability dropped below restoration threshold ── */
       const outageReport = [...reports]
         .filter(r => r.area===area && r.type==='out')
         .sort((a,b) => b.time - a.time)[0];
-      // Must wait at least 90min since the outage was filed before auto-restoring
-      // (prevents the out→bck→out→bck loop on each scan cycle)
-      const minWait = (groundTruth?.confidence === 'high') ? 90*60000 : 3*60*60000;
-      if (outageReport && (now - outageReport.time) < minWait) continue;
-      // Also respect _lastFired rate-limit for the area
-      const lastFiredAt = this._lastFired[area] || 0;
-      if (Date.now() - lastFiredAt < AI_MIN_REFIRE_MS) continue;
-      const alreadyRestored = reports.some(x =>
-        x.area===area && x.type==='bck' &&
-        (outageReport ? x.time > outageReport.time : true));
-      if (alreadyRestored) continue;
+      const outageAge = outageReport ? (nowMs - outageReport.time) : 0;
+
+      /* ── PATH 3: STALE OUTAGE — no human confirmation, been out too long
+         Typical Nigerian DISCO rotation: Band A ~2h, Band E ~12h.
+         If AI said 'out' and zero humans have confirmed it in that window,
+         the prediction was probably wrong — auto-restore to clean up the feed. */
+      const band = AREA_BANDS[area] || 'C';
+      const maxOutMs = AI_BAND_MAX_OUT_MS[band];
+      const humanConfirmsForOutage = reports.filter(r =>
+        r.area===area && r.type==='out' && !r.isAI && r.userId!==AI_USER_ID &&
+        (nowMs - r.time) < maxOutMs
+      ).length;
+
+      const isStale = outageAge > maxOutMs && humanConfirmsForOutage === 0;
+      if (isStale) {
+        console.log(`[NEPAWatch AI] Stale outage in ${area} (${Math.round(outageAge/3600000)}h, 0 human confirms) — auto-restoring`);
+        if (firedCount > 0) await new Promise(res => setTimeout(res, 800));
+        await this._fire(area, 'bck', 0.65);
+        firedCount++;
+        continue;
+      }
+
+      /* Probability path: only if prob dropped below threshold */
+      if (prob >= AI_RESTORE_THRESH) continue;
+
+      /* Minimum wait before probability-based restoration (prevents fast oscillation) */
+      const minWait = groundTruth?.confidence === 'high' ? 90*60000 : 3*60*60000;
+      if (outageAge < minWait) continue;
+
+      /* Respect per-area rate limit */
+      if (nowMs - (this._lastFired[area]||0) < AI_MIN_REFIRE_MS) continue;
+
       if (firedCount > 0) await new Promise(res => setTimeout(res, 800));
       await this._fire(area, 'bck', 1-prob);
       firedCount++;
