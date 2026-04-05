@@ -3272,18 +3272,18 @@ function loadMoreFeed(){
 /* Replace XXXXXXXXXXXXXXXX with your AdSense publisher ID                    */
 /* Replace YYYYYYYYYY with the ad slot ID for your in-feed ad unit            */
 const _ADS_CLIENT = 'ca-pub-6609646474162645';
-const _AD_SLOT_FEED = 'YYYYYYYYYY';
-const _AD_SLOT_BANNER = 'XXXXXXXXXX';
+const _AD_SLOT_FEED = '3149290594';
+const _AD_SLOT_BANNER = '9464146454';
 
 function _buildInFeedAd() {
   return `<div class="nw-ad-infeed">
     <div class="nw-ad-label">Sponsored</div>
     <ins class="adsbygoogle nw-ad-native"
+         style="display:block"
          data-ad-client="${_ADS_CLIENT}"
          data-ad-slot="${_AD_SLOT_FEED}"
          data-ad-format="fluid"
-         data-ad-layout-key="-6t+ed+2i-1n-4w"
-         data-full-width-responsive="true"></ins>
+         data-ad-layout-key="-6t+ed+2i-1n-4w"></ins>
   </div>`;
 }
 
