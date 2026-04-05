@@ -3268,6 +3268,33 @@ function loadMoreFeed(){
   window.scrollBy({top:300,behavior:"smooth"});
 }
 
+/* ── AD HELPERS ──────────────────────────────────────────────────────────── */
+/* Replace XXXXXXXXXXXXXXXX with your AdSense publisher ID                    */
+/* Replace YYYYYYYYYY with the ad slot ID for your in-feed ad unit            */
+const _ADS_CLIENT = 'ca-pub-XXXXXXXXXXXXXXXX';
+const _AD_SLOT_FEED = 'YYYYYYYYYY';
+const _AD_SLOT_BANNER = 'XXXXXXXXXX';
+
+function _buildInFeedAd() {
+  return `<div class="nw-ad-infeed">
+    <div class="nw-ad-label">Sponsored</div>
+    <ins class="adsbygoogle nw-ad-native"
+         data-ad-client="${_ADS_CLIENT}"
+         data-ad-slot="${_AD_SLOT_FEED}"
+         data-ad-format="fluid"
+         data-ad-layout-key="-6t+ed+2i-1n-4w"
+         data-full-width-responsive="true"></ins>
+  </div>`;
+}
+
+/* Push adsbygoogle for every unactivated <ins> inside a container */
+function _activateAds(container) {
+  if (typeof window.adsbygoogle === 'undefined') return;
+  container.querySelectorAll('ins.adsbygoogle:not([data-ad-status])').forEach(ins => {
+    try { (window.adsbygoogle = window.adsbygoogle || []).push({}); } catch(e) {}
+  });
+}
+
 function renderFeed(id="liveFeed", aF=null){
   const el=document.getElementById(id);if(!el)return;
   const fa=aF!==null?aF:(id==="liveFeed"?filterArea:null);
@@ -3296,7 +3323,19 @@ function renderFeed(id="liveFeed", aF=null){
     const pageSize=FEED_PAGE_SIZE;
     const shown=Math.min(feedPage*pageSize,total);
     const pageData=data.slice(0,shown);
-    el.innerHTML=pageData.map((r,i)=>_buildReportCard(r,i)).join("");
+    /* Inject an in-feed ad unit every 8 cards (skip the first 3 to avoid blocking key content) */
+    const AD_EVERY = 8;
+    const cards = pageData.map((r,i) => {
+      const card = _buildReportCard(r,i);
+      /* Insert ad after card index 3, 11, 19, 27… (every 8 after position 3) */
+      if(i >= 3 && (i - 3) % AD_EVERY === (AD_EVERY - 1)) {
+        return card + _buildInFeedAd();
+      }
+      return card;
+    });
+    el.innerHTML = cards.join("");
+    /* Activate any newly injected AdSense units */
+    _activateAds(el);
     const lmb=document.getElementById("loadMoreBtn");
     const fc=document.getElementById("feedCount");
     if(lmb)lmb.style.display=shown<total?"block":"none";
@@ -3917,6 +3956,11 @@ window.addEventListener("load",async()=>{
   startBackgroundLocation();
   startDurationTimer();
   loadAnnouncements();
+  /* Activate the static banner ad unit */
+  setTimeout(() => {
+    const banner = document.getElementById('adBanner1');
+    if (banner) _activateAds(banner);
+  }, 1500);
   if(typeof AIReporter!=='undefined'){
     await AIReporter.loadHistory();
     AIReporter.start();
