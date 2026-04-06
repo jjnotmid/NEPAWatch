@@ -3276,15 +3276,8 @@ const _AD_SLOT_FEED = '3149290594';
 const _AD_SLOT_BANNER = '9464146454';
 
 function _buildInFeedAd() {
-  return `<div class="nw-ad-infeed">
-    <div class="nw-ad-label">Sponsored</div>
-    <ins class="adsbygoogle nw-ad-native"
-         style="display:block"
-         data-ad-client="${_ADS_CLIENT}"
-         data-ad-slot="${_AD_SLOT_FEED}"
-         data-ad-format="fluid"
-         data-ad-layout-key="-6t+ed+2i-1n-4w"></ins>
-  </div>`;
+  /* Ads disabled until AdSense account is verified — re-enable by returning the ins markup */
+  return '';
 }
 
 /* Push adsbygoogle for every unactivated <ins> inside a container */
@@ -3956,11 +3949,6 @@ window.addEventListener("load",async()=>{
   startBackgroundLocation();
   startDurationTimer();
   loadAnnouncements();
-  /* Activate the static banner ad unit */
-  setTimeout(() => {
-    const banner = document.getElementById('adBanner1');
-    if (banner) _activateAds(banner);
-  }, 1500);
   if(typeof AIReporter!=='undefined'){
     await AIReporter.loadHistory();
     AIReporter.start();
