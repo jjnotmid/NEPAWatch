@@ -3156,19 +3156,33 @@ function areaStatus(a){const r=reports.filter(x=>x.area===a);if(!r.length)return
 
 function todayReports(){const midnight=new Date();midnight.setHours(0,0,0,0);return reports.filter(r=>r.time>=midnight.getTime());}
 function renderStats(){
-  const isAll=feedFilter==="all";
-  const pool=isAll?reports:todayReports();
-  const out=new Set(),bck=new Set();
-  pool.forEach(r=>r.type==="out"?out.add(r.area):bck.add(r.area));
-  animateNum("s-out",out.size);
-  animateNum("s-bck",bck.size);
-  animateNum("s-rep",pool.length);
-  const lOut=document.getElementById("sl-out"),lBck=document.getElementById("sl-bck"),lRep=document.getElementById("sl-rep");
-  if(lOut)lOut.textContent=isAll?"Out Areas":"Today Out";
-  if(lBck)lBck.textContent=isAll?"Restored Areas":"Today Restored";
-  if(lRep)lRep.textContent=isAll?"All Reports":"Today Reports";
-  const locsEl=document.getElementById("s-locs");
-  if(locsEl)animateNum("s-locs",LOCS.length);
+  const isAll = feedFilter === "all";
+  // Apply the same time filter the feed uses
+  let pool = isAll ? reports : todayReports();
+  // Apply the same area filter the feed uses so numbers always match what's visible
+  if (filterArea) pool = pool.filter(r => areaMatches(r.area, filterArea));
+
+  // Count unique areas out/restored AND total report count
+  const outAreas = new Set(), bckAreas = new Set();
+  let outCount = 0, bckCount = 0;
+  pool.forEach(r => {
+    if (r.type === "out") { outAreas.add(r.area); outCount++; }
+    else                  { bckAreas.add(r.area); bckCount++; }
+  });
+
+  // s-out / s-bck: show report count (not unique area count — that was confusing)
+  animateNum("s-out", outCount);
+  animateNum("s-bck", bckCount);
+  animateNum("s-rep", pool.length);
+
+  const lOut = document.getElementById("sl-out");
+  const lBck = document.getElementById("sl-bck");
+  const lRep = document.getElementById("sl-rep");
+  if(lOut) lOut.textContent = isAll ? "Out Reports"      : "Today Out";
+  if(lBck) lBck.textContent = isAll ? "Restored Reports" : "Today Restored";
+  if(lRep) lRep.textContent = isAll ? "All Reports"      : "Today Reports";
+  const locsEl = document.getElementById("s-locs");
+  if(locsEl) animateNum("s-locs", LOCS.length);
 }
 function animateNum(id,target){const el=document.getElementById(id);if(!el)return;const current=parseInt(el.textContent)||0;if(current===target){el.textContent=target;return;}let start=null;const dur=400;const step=ts=>{if(!start)start=ts;const p=Math.min((ts-start)/dur,1);el.textContent=Math.round(current+(target-current)*p);if(p<1)requestAnimationFrame(step);};requestAnimationFrame(step);}
 
