@@ -3887,6 +3887,47 @@ setTimeout(()=>{ if(!document.getElementById('confirmOverlay').classList.contain
     }
   });}catch(e){clearTimeout(_rtWatchdog);_rtWatchdog=setTimeout(startRealtime,8000);}}
 
+/* ── WAKE-UP HANDLER ────────────────────────────────────────────────────────
+   PWA home-screen apps get frozen by iOS/Android when backgrounded.
+   When the user returns, the realtime channel is silently dead and polling
+   has paused — nothing works until a refresh.  Fix: detect every return
+   to foreground and reinitialise connections + data automatically.          */
+let _lastActiveMs = Date.now();
+
+function _onAppWake() {
+  if (document.visibilityState !== 'visible') return;
+  const awayMs = Date.now() - _lastActiveMs;
+  _lastActiveMs = Date.now();
+  // Only bother if we've been away for more than 20 seconds
+  if (awayMs < 20000) return;
+  console.log(`[NEPAWatch] App resumed after ${Math.round(awayMs/1000)}s — reconnecting…`);
+  // Restart realtime subscription (silently dropped while backgrounded)
+  startRealtime();
+  // Restart polling (timers pause/drift in background)
+  startPolling();
+  // Pull fresh data so the feed isn't stale
+  loadReports().catch(()=>{});
+  // Re-render anything time-sensitive (duration timers, "X ago" labels)
+  render();
+}
+
+// visibilitychange covers: tab switch, home button, lock screen, notification tray
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') {
+    _lastActiveMs = Date.now();
+  } else {
+    _onAppWake();
+  }
+});
+
+// pageshow fires when iOS restores a frozen PWA from the back/forward cache
+window.addEventListener('pageshow', e => {
+  if (e.persisted) _onAppWake(); // persisted = true means it came from bfcache freeze
+});
+
+// focus catches edge cases (desktop, split-screen, notification-return on some Android)
+window.addEventListener('focus', _onAppWake);
+
 async function shareApp(){const shareData={title:"NEPAWatch Lagos — Live Power Tracker",text:"Know when light don go or come back in your Lagos area. Real-time crowd-sourced reports + email alerts. Free!",url:APP_URL};if(navigator.share){try{await navigator.share(shareData);}catch(e){if(e.name!=="AbortError"){try{await navigator.clipboard.writeText(APP_URL);toast("Link copied!","ok");}catch(ce){toast(APP_URL,"info");}}}}else{try{await navigator.clipboard.writeText(APP_URL);toast("Link copied!","ok");}catch(e){toast(APP_URL+" — share this link","info");}}}
 
 /* ━━━ PATCH 4: window.load — start AI reporter after app boots ━━━ */
