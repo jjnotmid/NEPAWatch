@@ -2607,6 +2607,9 @@ async function loadReports(){
   }
   render();
   if(_nearbyAreas.length) renderNearbyDashboard();
+  /* Safety: re-render stats 300ms later so they always reflect final data
+     even if a concurrent animation left them at an intermediate value.   */
+  setTimeout(()=>{ if(typeof renderStats==='function') renderStats(); }, 300);
 }
 
 async function pollReports(){try{
@@ -3184,7 +3187,8 @@ function renderStats(){
   const locsEl = document.getElementById("s-locs");
   if(locsEl) animateNum("s-locs", LOCS.length);
 }
-function animateNum(id,target){const el=document.getElementById(id);if(!el)return;const current=parseInt(el.textContent)||0;if(current===target){el.textContent=target;return;}let start=null;const dur=400;const step=ts=>{if(!start)start=ts;const p=Math.min((ts-start)/dur,1);el.textContent=Math.round(current+(target-current)*p);if(p<1)requestAnimationFrame(step);};requestAnimationFrame(step);}
+const _animVers={};
+function animateNum(id,target){const el=document.getElementById(id);if(!el)return;const ver=(_animVers[id]=(_animVers[id]||0)+1);const current=parseInt(el.textContent)||0;if(current===target){el.textContent=target;return;}let start=null;const dur=400;const step=ts=>{if(_animVers[id]!==ver)return;if(!start)start=ts;const p=Math.min((ts-start)/dur,1);el.textContent=Math.round(current+(target-current)*p);if(p<1)requestAnimationFrame(step);};requestAnimationFrame(step);}
 
 /* ━━━ PATCH 1: renderFeed — AI badge on AI-generated reports + hide own confirm button ━━━ */
 function setFeedFilter(f){
@@ -3734,11 +3738,11 @@ function showConfirmPopup(rep) {
   if (!noBtn) {
     noBtn = document.createElement('button');
     noBtn.id = 'confirmNoBtn';
-    noBtn.className = 'mcancel';
     btn.insertAdjacentElement('afterend', noBtn);
   }
   noBtn.textContent = isOut ? 'No, power is fine here' : 'No, still no power';
-  noBtn.style.cssText = 'background:rgba(255,64,85,.07);color:var(--rd);border:1px solid rgba(255,64,85,.15)';
+  noBtn.className = 'mconfirm secondary';
+  noBtn.style.cssText = '';
   noBtn.onclick = submitWrong;
   document.getElementById('confirmOverlay').classList.add('open');
   setTimeout(() => dismissConfirm(), 30000);
@@ -3818,11 +3822,11 @@ function showAIFeedbackPopup(rep) {
   if (!noBtn) {
     noBtn = document.createElement('button');
     noBtn.id = 'confirmNoBtn';
-    noBtn.className = 'mcancel';
     btn.insertAdjacentElement('afterend', noBtn);
   }
-  noBtn.textContent = isOut ? 'No, power is fine' : 'No, still no power';
-  noBtn.style.cssText = 'background:rgba(255,64,85,.07);color:var(--rd);border:1px solid rgba(255,64,85,.15)';
+  noBtn.textContent = isOut ? 'No, power is fine here' : 'No, still no power';
+  noBtn.className = 'mconfirm secondary';
+  noBtn.style.cssText = '';
   noBtn.style.display = '';
   noBtn.onclick = () => _submitAIFeedback(rep.id, false);
 

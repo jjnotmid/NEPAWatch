@@ -582,70 +582,117 @@ const AIReporter = {
 
     console.log(`[NEPAWatch AI] Filing ${type} — ${locName} (${area}) @ ${(prob*100).toFixed(0)}%`);
 
-    /* Fire push + email alerts immediately — don't wait for DB persistence.
-       Notifications should go out the moment the AI makes a call, not contingent
-       on the edge function returning a report object. */
-    if (typeof sendAreaAlerts === 'function') {
-      sendAreaAlerts(locName, area, type).catch(() => {});
-    }
-
-    /* Persist via edge function — uses service role key, bypasses RLS */
-    /* NOTE: apikey + Authorization headers are required or Supabase returns 401 */
+    /* ── PERSIST: direct Supabase insert (primary path) ──────────────────
+       Saving directly via the client is reliable and doesn't depend on the
+       edge function handling the ai_report mode correctly.  Notifications
+       are only sent AFTER a confirmed DB save so users never get a push
+       for a report that isn't actually in the feed.                        */
     const _anonKey = typeof SUPA_ANON !== 'undefined' ? SUPA_ANON : '';
-    try {
-      const res = await fetch(
-        'https://djurokbkkqrmpafcxlez.supabase.co/functions/v1/send-alert',
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'apikey': _anonKey,
-            'Authorization': `Bearer ${_anonKey}`,
-          },
-          body: JSON.stringify({
-            mode: 'ai_report',
+    let saved = false;
+    let savedRepId = null;
+
+    if (typeof sb !== 'undefined') {
+      try {
+        /* Try with ai_prob column first (requires migration to have run) */
+        let insertRes = await sb.from('reports').insert({
+          user_id: AI_USER_ID,
+          location_name: locName,
+          location_area: area,
+          type,
+          confirms: 1,
+          ai_prob: parseFloat(prob.toFixed(3)),
+        }).select('id,user_id,location_name,location_area,type,confirms,created_at,ai_prob,wrong_votes').single();
+
+        if (insertRes.error && (
+          insertRes.error.code === '42703' ||
+          (insertRes.error.message||'').includes('column') ||
+          (insertRes.error.message||'').includes('ai_prob')
+        )) {
+          /* ai_prob column not yet added — insert without it */
+          console.warn('[NEPAWatch AI] ai_prob column missing, inserting without it. Run migration SQL.');
+          insertRes = await sb.from('reports').insert({
+            user_id: AI_USER_ID,
             location_name: locName,
             location_area: area,
             type,
-            ai_prob: parseFloat(prob.toFixed(3)),
-          }),
+            confirms: 1,
+          }).select('id,user_id,location_name,location_area,type,confirms,created_at').single();
         }
-      );
-      if (!res.ok) {
-        const errText = await res.text().catch(()=>'');
-        console.warn(`[NEPAWatch AI] Edge fn HTTP ${res.status}:`, errText);
-        throw new Error(`HTTP ${res.status}`);
+
+        if (!insertRes.error && insertRes.data) {
+          const dbRow = insertRes.data;
+          this._replaceLocal(tempId, dbRow, prob);
+          savedRepId = String(dbRow.id);
+          saved = true;
+          console.log('[NEPAWatch AI] Report saved to DB, id:', dbRow.id);
+        } else if (insertRes.error) {
+          console.warn('[NEPAWatch AI] Direct insert failed:', insertRes.error.message);
+        }
+      } catch(e) {
+        console.warn('[NEPAWatch AI] Direct insert error:', e?.message);
       }
-      const result = await res.json();
-      if (result?.report) {
-        this._replaceLocal(tempId, result.report, prob);
-        /* Refresh predict page AI count if visible */
-        const aiBanner = document.querySelector('.pred-ai-sub strong');
-        if (aiBanner && typeof reports!=='undefined') {
-          const cnt = reports.filter(r=>r.isAI||r.userId===AI_USER_ID).length;
-          aiBanner.textContent = `${cnt} AI report${cnt!==1?'s':''}`;
+    }
+
+    /* ── BACKUP: edge function (if direct insert failed) ──────────────── */
+    if (!saved) {
+      try {
+        const res = await fetch(
+          'https://djurokbkkqrmpafcxlez.supabase.co/functions/v1/send-alert',
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'apikey': _anonKey,
+              'Authorization': `Bearer ${_anonKey}`,
+            },
+            body: JSON.stringify({
+              mode: 'ai_report',
+              location_name: locName,
+              location_area: area,
+              type,
+              ai_prob: parseFloat(prob.toFixed(3)),
+            }),
+          }
+        );
+        if (res.ok) {
+          const result = await res.json();
+          if (result?.report) {
+            this._replaceLocal(tempId, result.report, prob);
+            savedRepId = String(result.report.id);
+            saved = true;
+            console.log('[NEPAWatch AI] Report saved via edge fn, id:', result.report.id);
+          }
+        } else {
+          console.warn(`[NEPAWatch AI] Edge fn HTTP ${res.status}`);
         }
-        console.log('[NEPAWatch AI] Report persisted via edge fn, id:', result.report.id);
-        /* Trigger in-app AI feedback popup for users in the same area */
-        if (typeof window.showAIFeedbackPopup === 'function') {
-          const savedRep = reports.find(r => String(r.id) === String(result.report.id));
-          if (savedRep) setTimeout(() => window.showAIFeedbackPopup(savedRep), 1200);
-        }
-      } else {
-        console.warn('[NEPAWatch AI] Edge fn response (no report returned):', result);
-        /* Fallback: still show feedback popup using the optimistic entry */
-        if (typeof window.showAIFeedbackPopup === 'function') {
-          const optRep = typeof reports !== 'undefined' ? reports.find(r => r.id === tempId) : null;
-          if (optRep) setTimeout(() => window.showAIFeedbackPopup(optRep), 1200);
-        }
+      } catch(e) {
+        console.warn('[NEPAWatch AI] Edge fn backup failed:', e?.message);
       }
-    } catch(e) {
-      console.warn('[NEPAWatch AI] Report persist failed:', e?.message);
-      /* Fallback: still trigger feedback popup so nearby users can validate */
+    }
+
+    /* ── NOTIFICATIONS: only fire after confirmed DB save ─────────────── */
+    if (saved) {
+      /* Push + email alerts for subscribers in the area */
+      if (typeof sendAreaAlerts === 'function') {
+        sendAreaAlerts(locName, area, type).catch(() => {});
+      }
+
+      /* Refresh AI report count on Predict page */
+      const aiBanner = document.querySelector('.pred-ai-sub strong');
+      if (aiBanner && typeof reports !== 'undefined') {
+        const cnt = reports.filter(r => r.isAI || r.userId === AI_USER_ID).length;
+        aiBanner.textContent = `${cnt} AI report${cnt !== 1 ? 's' : ''}`;
+      }
+
+      /* Trigger in-app feedback popup for users in the same area */
       if (typeof window.showAIFeedbackPopup === 'function') {
-        const optRep = typeof reports !== 'undefined' ? reports.find(r => r.id === tempId) : null;
-        if (optRep) setTimeout(() => window.showAIFeedbackPopup(optRep), 1200);
+        const savedRep = typeof reports !== 'undefined'
+          ? reports.find(r => String(r.id) === savedRepId)
+          : null;
+        if (savedRep) setTimeout(() => window.showAIFeedbackPopup(savedRep), 1200);
       }
+    } else {
+      console.warn('[NEPAWatch AI] Report not saved — notifications suppressed to avoid ghost alerts.');
     }
   },
 
