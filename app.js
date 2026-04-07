@@ -3380,7 +3380,20 @@ function renderMyArea(){
 }
 
 /* ━━━ PATCH 2: renderCommunity — includes NEPAWatch AI on leaderboard ━━━ */
+function renderCommFeed(){
+  const el=document.getElementById("commFeed");
+  if(!el)return;
+  // Show latest 20 reports — no login required, visible to everyone
+  const pool=reports.slice(0,20);
+  if(!pool.length){
+    el.innerHTML=`<div class="empty" style="padding:20px 16px"><div class="empty-ico">${IC.out}</div><p>No reports yet — be the first!</p></div>`;
+    return;
+  }
+  el.innerHTML=pool.map((r,i)=>_buildReportCard(r,i)).join("");
+}
+
 async function renderCommunity(){
+  renderCommFeed();
   document.getElementById("lbList").innerHTML=`<div class="loading-row"><div class="spin w"></div>Loading leaderboard...</div>`;
   try{
     const{data:repData,error:repErr}=await sb.from("reports").select("user_id,location_name,location_area,type,created_at").not("user_id","is",null).order("created_at",{ascending:false}).limit(1000);
