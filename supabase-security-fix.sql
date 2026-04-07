@@ -143,8 +143,32 @@ WHERE n.nspname = 'public'
 ORDER BY relname;
 -- Any table listed here has NO RLS policies. Review each one carefully.
 
--- ── 7. VERIFY ALL POLICIES ───────────────────────────────────
+-- ── 7. FIX LEADERBOARD — allow public reads of profile names ──
+-- The community leaderboard fetches profile names for top reporters.
+-- If RLS is enabled on profiles without a SELECT policy, everyone
+-- shows as "Reporter". This adds a safe public read policy for
+-- non-sensitive fields only (name is not private).
+
+ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
+
+-- Allow anyone to read profile names (used for leaderboard)
+DROP POLICY IF EXISTS "public_read_profile_names" ON profiles;
+CREATE POLICY "public_read_profile_names" ON profiles
+  FOR SELECT USING (true);
+
+-- Users can only update their OWN profile
+DROP POLICY IF EXISTS "users_update_own_profile" ON profiles;
+CREATE POLICY "users_update_own_profile" ON profiles
+  FOR UPDATE USING (auth.uid() = id);
+
+-- Users can insert their own profile on signup
+DROP POLICY IF EXISTS "users_insert_own_profile" ON profiles;
+CREATE POLICY "users_insert_own_profile" ON profiles
+  FOR INSERT WITH CHECK (auth.uid() = id);
+
+
+-- ── 8. VERIFY ALL POLICIES ───────────────────────────────────
 SELECT tablename, policyname, cmd, qual
 FROM pg_policies
-WHERE tablename IN ('announcements', 'email_alert_log')
+WHERE tablename IN ('announcements', 'email_alert_log', 'profiles')
 ORDER BY tablename, cmd;

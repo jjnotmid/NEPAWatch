@@ -3168,9 +3168,8 @@ function areaStatus(a){const r=reports.filter(x=>x.area===a);if(!r.length)return
 function todayReports(){const midnight=new Date();midnight.setHours(0,0,0,0);return reports.filter(r=>r.time>=midnight.getTime());}
 function renderStats(){
   const isAll = feedFilter === "all";
-  // Stats always show the NATIONAL total — never filtered by area.
-  // The feed is already filtered to the user's area; stats give the bigger picture.
   let pool = isAll ? reports : todayReports();
+  if (filterArea) pool = pool.filter(r => areaMatches(r.area, filterArea));
 
   let outCount = 0, bckCount = 0;
   pool.forEach(r => {
@@ -3398,13 +3397,21 @@ async function renderCommunity(){
       const counts={};
       repData.forEach(r=>{if(!r.user_id)return;if(!counts[r.user_id])counts[r.user_id]={uid:r.user_id,count:0};counts[r.user_id].count++;});
       const uids=Object.keys(counts).filter(u=>u!==AI_USER_ID).slice(0,20);
-      const{data:profData}=await sb.from("profiles").select("id,name,email").in("id",uids);
-      const profMap={};(profData||[]).forEach(p=>profMap[p.id]=p.name||p.email?.split("@")[0]||"Reporter");
+      /* Build name map — seed with known current user first (always available) */
+      const profMap={};
+      if(CU&&PR?.name) profMap[CU.id]=PR.name;
+      /* Fetch public profile names — requires profiles RLS to allow public SELECT.
+         Run supabase-security-fix.sql section 7 if names still show as "Reporter". */
+      try{
+        const{data:profData}=await sb.from("profiles").select("id,name,email").in("id",uids);
+        (profData||[]).forEach(p=>{ profMap[p.id]=p.name||p.email?.split("@")[0]||profMap[p.id]; });
+      }catch(e){}
+      const _displayName=(uid)=>profMap[uid]||(uid===CU?.id&&PR?.name?PR.name:null)||null;
       /* Add AI entry */
       const aiCount=counts[AI_USER_ID]?.count||0;
       let reporters=Object.entries(counts)
         .filter(([uid])=>uid!==AI_USER_ID)
-        .map(([uid,c])=>({name:profMap[uid]||"Reporter",count:c.count,isAI:false}))
+        .map(([uid,c])=>({name:_displayName(uid)||'Anonymous',uid,count:c.count,isAI:false}))
         .sort((a,b)=>b.count-a.count).slice(0,5);
       /* Insert AI into sorted position */
       if(aiCount>0){
@@ -3417,9 +3424,12 @@ async function renderCommunity(){
         const rankClass=["gold","silver","bronze","","",""];
         document.getElementById("lbList").innerHTML=reporters.map((r,i)=>{
           const isAI=r.isAI;
-          const nameHtml=isAI?`<span style="color:var(--p)">${IC.ai}&nbsp;${r.name}</span>`:r.name;
-          const subHtml=isAI?`<span style="color:var(--p);font-size:.6rem">AI auto-reporter</span>`:`${IC.user}&nbsp;Community reporter`;
-          return`<div class="lbi"><div class="lbr ${rankClass[i]||""}">${i+1}</div><div style="flex:1"><div class="lbi-n">${nameHtml}</div><div class="lbi-a">${subHtml}</div></div><div class="lbi-c">${r.count}<small>report${r.count!==1?"s":""}</small></div></div>`;
+          const initials=isAI?'AI':(r.name!=='Anonymous'?r.name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2):'?');
+          const avatarColor=isAI?'var(--p)':`hsl(${(r.uid||'').split('').reduce((a,c)=>a+c.charCodeAt(0),0)%360},55%,55%)`;
+          const avatarHtml=`<div style="width:32px;height:32px;border-radius:50%;background:${isAI?'var(--pp)':'rgba(255,255,255,.08)'};color:${avatarColor};display:flex;align-items:center;justify-content:center;font-size:.65rem;font-weight:800;flex-shrink:0;border:1.5px solid ${avatarColor}33">${initials}</div>`;
+          const nameHtml=isAI?`<span style="color:var(--p);font-weight:700">${IC.ai}&nbsp;${r.name}</span>`:`<span style="font-weight:600">${r.name}</span>`;
+          const subHtml=isAI?`<span style="color:var(--p);font-size:.6rem">AI auto-reporter</span>`:`<span style="font-size:.68rem;color:var(--ink3)">Community reporter</span>`;
+          return`<div class="lbi"><div class="lbr ${rankClass[i]||""}">${i+1}</div>${avatarHtml}<div style="flex:1;min-width:0"><div class="lbi-n">${nameHtml}</div><div class="lbi-a">${subHtml}</div></div><div class="lbi-c">${r.count}<small>report${r.count!==1?"s":""}</small></div></div>`;
         }).join("");
       }else{renderFallbackLeaderboard();}
     }else{renderFallbackLeaderboard();}
