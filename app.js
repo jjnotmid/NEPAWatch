@@ -2262,6 +2262,17 @@ const _SEED_REPORTS = [
   {id:'seed-18',name:'Ndidem Usang Iso Road',area:'Calabar GRA',type:'out',time:_SEED_NOW-155*60000,confirms:3,userId:'seed',isAI:false,isSeed:true},
   {id:'seed-19',name:'Wellington Bassey Way',area:'Uyo GRA',type:'bck',time:_SEED_NOW-163*60000,confirms:6,userId:'seed',isAI:false,isSeed:true},
   {id:'seed-20',name:'Agodi Gate Road',area:'Mokola',type:'bck',time:_SEED_NOW-170*60000,confirms:2,userId:'seed',isAI:false,isSeed:true},
+  // Abuja seed reports — Aso Rock, Maitama, Wuse, VP/Presidential area
+  {id:'seed-21',name:'Aso Drive',area:'Aso Rock',type:'out',time:_SEED_NOW-8*60000,confirms:5,userId:'seed',isAI:false,isSeed:true},
+  {id:'seed-22',name:'Aguda House Road',area:'Asokoro',type:'bck',time:_SEED_NOW-18*60000,confirms:7,userId:'seed',isAI:false,isSeed:true},
+  {id:'seed-23',name:'Aguiyi Ironsi Street',area:'Maitama',type:'out',time:_SEED_NOW-27*60000,confirms:4,userId:'seed',isAI:false,isSeed:true},
+  {id:'seed-24',name:'Adetokunbo Ademola Crescent',area:'Wuse 2',type:'bck',time:_SEED_NOW-35*60000,confirms:9,userId:'seed',isAI:false,isSeed:true},
+  {id:'seed-25',name:'Three Arms Zone',area:'Central Area',type:'out',time:_SEED_NOW-44*60000,confirms:3,userId:'seed',isAI:false,isSeed:true},
+  {id:'seed-26',name:'Shehu Shagari Way',area:'Central Area',type:'bck',time:_SEED_NOW-55*60000,confirms:6,userId:'seed',isAI:false,isSeed:true},
+  {id:'seed-27',name:'Aminu Kano Crescent',area:'Wuse 2',type:'out',time:_SEED_NOW-63*60000,confirms:4,userId:'seed',isAI:false,isSeed:true},
+  {id:'seed-28',name:'Katampe Extension',area:'Katampe',type:'bck',time:_SEED_NOW-74*60000,confirms:5,userId:'seed',isAI:false,isSeed:true},
+  {id:'seed-29',name:'Gwarinpa 1st Avenue',area:'Gwarinpa',type:'out',time:_SEED_NOW-85*60000,confirms:8,userId:'seed',isAI:false,isSeed:true},
+  {id:'seed-30',name:'Jabi Lake Road',area:'Jabi',type:'bck',time:_SEED_NOW-96*60000,confirms:3,userId:'seed',isAI:false,isSeed:true},
 ];
 
 let reports=[],filterArea="",feedFilter="today",statusFilter="all",feedPage=1,FEED_PAGE_SIZE=100,mType=null,mSel=null,CU=null,PR=null,emailLog=[],_inResetFlow=false;
@@ -2571,7 +2582,7 @@ async function loadReports(){
       sb.from("reports")
         .select("id,user_id,location_name,location_area,type,confirms,created_at,ai_prob,wrong_votes")
         .order("created_at",{ascending:false})
-        .limit(300),
+        .limit(1000),
       8000
     );
     if(extResult.error && (extResult.error.code==='42703'||extResult.error.message?.includes('column')||(extResult.error.details||'').includes('ai_prob')||(extResult.error.details||'').includes('wrong_votes'))) {
@@ -2614,8 +2625,8 @@ async function loadReports(){
 
 async function pollReports(){try{
   const _mapRow=r=>({id:r.id,name:r.location_name,area:r.location_area,type:r.type,time:new Date(r.created_at).getTime(),confirms:r.confirms||1,userId:r.user_id,isAI:r.user_id===AI_USER_ID||(r.ai_prob!=null),aiProb:r.ai_prob||null,wrongVotes:r.wrong_votes||0,flagged:(r.wrong_votes||0)>=3});
-  let _pollRes=await sb.from("reports").select("id,user_id,location_name,location_area,type,confirms,created_at,ai_prob,wrong_votes").order("created_at",{ascending:false}).limit(300);
-  if(_pollRes.error&&(_pollRes.error.code==='42703'||_pollRes.error.message?.includes('column'))){_pollRes=await sb.from("reports").select("id,user_id,location_name,location_area,type,confirms,created_at").order("created_at",{ascending:false}).limit(300);}
+  let _pollRes=await sb.from("reports").select("id,user_id,location_name,location_area,type,confirms,created_at,ai_prob,wrong_votes").order("created_at",{ascending:false}).limit(1000);
+  if(_pollRes.error&&(_pollRes.error.code==='42703'||_pollRes.error.message?.includes('column'))){_pollRes=await sb.from("reports").select("id,user_id,location_name,location_area,type,confirms,created_at").order("created_at",{ascending:false}).limit(1000);}
   const{data,error}=_pollRes;if(error||!data)return;const dbReports=data.map(_mapRow);const dbIds=new Set(dbReports.map(r=>String(r.id)));const pending=reports.filter(r=>{const sid=String(r.id);if(sid.startsWith("local-")||sid.startsWith("ai-"))return true;if((r.isAI||r.userId===AI_USER_ID)&&!dbIds.has(sid))return true;return false;});const newList=[...pending,...dbReports];const oldIds=reports.filter(r=>!String(r.id).startsWith("local-")&&!String(r.id).startsWith("ai-")).map(r=>r.id+r.confirms).join(",");const newIds=dbReports.map(r=>r.id+r.confirms).join(",");if(oldIds!==newIds){reports=newList;render();if(_nearbyAreas.length)renderNearbyDashboard();renderSavedPlacesHome();renderMyPlacesList();}}catch(e){}}
 
 function startPolling(){
@@ -2627,10 +2638,7 @@ function startPolling(){
 
 async function pushReport(loc,type){
   if(!CU){toast("Sign in to submit a report","info");go("account");return;}
-  // ── FAKE REPORT DETECTION: max 4 reports per user in 10 minutes ──
-  const tenMin=10*60*1000;const now=Date.now();
-  const recentOwn=reports.filter(r=>r.userId===CU.id&&(now-r.time)<tenMin);
-  if(recentOwn.length>=4){toast("You're reporting too fast — please wait a few minutes","info");return;}
+  // ── Rate limiting disabled for launch — no cap on reports ──
   const tid="local-"+Date.now();reports.unshift({id:tid,name:loc.name,area:loc.area,type,time:Date.now(),confirms:1,userId:CU.id});if(reports.length>500){const di=reports.slice(400).findIndex(r=>!r.isAI&&r.userId!==AI_USER_ID&&!String(r.id).startsWith('local-')&&!String(r.id).startsWith('ai-'));if(di!==-1)reports.splice(400+di,1);else reports.pop();}render();try{const{data,error}=await sb.from("reports").insert({user_id:CU.id,location_name:loc.name,location_area:loc.area,type,confirms:1}).select().single();if(error){const idx=reports.findIndex(r=>r.id===tid);if(idx!==-1)reports.splice(idx,1);render();toast(`Could not save report: ${error.message}`,"err");return;}const idx=reports.findIndex(r=>r.id===tid);if(idx!==-1)reports[idx]={id:data.id,name:data.location_name,area:data.location_area,type:data.type,time:new Date(data.created_at).getTime(),confirms:data.confirms||1,userId:data.user_id};render();toast(type==="out"?`Outage reported — ${loc.name}`:`Power restored — ${loc.name}`,type==="out"?"err":"ok");if(PR&&!PR.location_id)await saveLocation(loc);await sendAreaAlerts(loc.name,loc.area,type);setTimeout(loadReports,2000);}catch(e){const idx=reports.findIndex(r=>r.id===tid);if(idx!==-1)reports.splice(idx,1);render();toast("Could not save report — check your connection","err");}}
 
 async function addConfirm(repId) {
@@ -3375,7 +3383,7 @@ function renderMyArea(){
 async function renderCommunity(){
   document.getElementById("lbList").innerHTML=`<div class="loading-row"><div class="spin w"></div>Loading leaderboard...</div>`;
   try{
-    const{data:repData,error:repErr}=await sb.from("reports").select("user_id,location_name,location_area,type,created_at").not("user_id","is",null).order("created_at",{ascending:false}).limit(300);
+    const{data:repData,error:repErr}=await sb.from("reports").select("user_id,location_name,location_area,type,created_at").not("user_id","is",null).order("created_at",{ascending:false}).limit(1000);
     if(repErr)throw repErr;
     if(repData&&repData.length>0){
       const counts={};
@@ -3895,7 +3903,7 @@ let _rtChannel=null,_recentAlerts=new Set(),_rtWatchdog=null;
 // No pull-to-refresh needed — data arrives the moment it changes.
 
 function startRealtime(){try{if(_rtChannel){try{sb.removeChannel(_rtChannel);}catch(e){}} _rtChannel=sb.channel("realtime-reports-"+Date.now()).on("postgres_changes",{event:"INSERT",schema:"public",table:"reports"},payload=>{try{const r=payload.new;if(!r||reports.find(x=>String(x.id)===String(r.id)))return;const newRep={id:String(r.id),name:String(r.location_name||""),area:String(r.location_area||""),type:String(r.type||""),time:new Date(r.created_at).getTime(),confirms:Number(r.confirms)||1,userId:r.user_id,isAI:r.user_id===AI_USER_ID||r.ai_prob!=null,aiProb:r.ai_prob||null,wrongVotes:r.wrong_votes||0,flagged:(r.wrong_votes||0)>=3};// Replace optimistic local/ai entry if it matches area+type within last 60s
-const matchIdx=reports.findIndex(x=>(String(x.id).startsWith('local-')||String(x.id).startsWith('ai-'))&&x.area===newRep.area&&x.type===newRep.type&&Math.abs(x.time-newRep.time)<60000);if(matchIdx!==-1){reports[matchIdx]=newRep;}else{reports.unshift(newRep);if(reports.length>500){const di=reports.slice(400).findIndex(x=>!x.isAI&&x.userId!==AI_USER_ID&&!String(x.id).startsWith('local-')&&!String(x.id).startsWith('ai-'));if(di!==-1)reports.splice(400+di,1);else reports.splice(500,1);}}// Live-train AI history with every incoming report
+const matchIdx=reports.findIndex(x=>(String(x.id).startsWith('local-')||String(x.id).startsWith('ai-'))&&x.area===newRep.area&&x.type===newRep.type&&Math.abs(x.time-newRep.time)<60000);if(matchIdx!==-1){reports[matchIdx]=newRep;}else{reports.unshift(newRep);/* launch: keep up to 2000 reports in memory — don't trim today */if(reports.length>2000){reports.splice(2000,1);}}// Live-train AI history with every incoming report
 if(typeof PredictHistory!=='undefined')PredictHistory.addReport(r);renderStats();prependReportCard(newRep,"liveFeed");renderDiscos();if(_nearbyAreas.length)renderNearbyDashboard();renderSavedPlacesHome();renderMyPlacesList();if(r.user_id&&r.user_id!==CU?.id){const alertKey=r.id+r.type;if(!_recentAlerts.has(alertKey)){_recentAlerts.add(alertKey);setTimeout(()=>_recentAlerts.delete(alertKey),30000);sendAreaAlerts(r.location_name,r.location_area,r.type);}}// Show in-app confirm/feedback popup for reports in user's area
 setTimeout(()=>{ if(!document.getElementById('confirmOverlay').classList.contains('open')){if(newRep.isAI)showAIFeedbackPopup(newRep);else showConfirmPopup(newRep);}},800);}catch(e){}}).on("postgres_changes",{event:"UPDATE",schema:"public",table:"reports"},payload=>{try{const r=payload.new;const existing=reports.find(x=>String(x.id)===String(r.id));if(existing){existing.confirms=Number(r.confirms)||1;const confirmsEl=document.querySelector(`[data-confirms="${existing.id}"]`);if(confirmsEl)confirmsEl.textContent=`${existing.confirms} confirmation${existing.confirms!==1?"s":""}`;else{renderFeed("liveFeed");renderFeed("myFeed",PR?.location_area||null);}}}catch(e){}}).subscribe(status=>{
     // If realtime drops, restart it after 5s

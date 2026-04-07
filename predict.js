@@ -11,15 +11,13 @@
 const AI_USER_ID            = 'nepawatch-ai';
 const AI_USER_NAME          = 'NEPAWatch AI';
 
-/* ── Tuned for Nigerian power reality ──────────────────────────────────────
-   Key insight: Band D baseline is 0.58, Band E is 0.74.  A restore threshold
-   of 0.25 means restoration NEVER fires for those bands even at 3 AM.
-   Raised to 0.42 so restoration triggers during night low-demand hours.      */
-const AI_CONFIDENCE_THRESH  = 0.72;   /* higher bar → only fire when genuinely confident */
-const AI_SCAN_INTERVAL_MS   = 5 * 60 * 1000;   /* scan every 5 min */
-const AI_RESTORE_THRESH     = 0.42;   /* raised from 0.25 — enables restoration for Band D/E */
-const AI_MAX_PER_SCAN       = 2;      /* reduced from 3 → less spammy bursts */
-const AI_MIN_REFIRE_MS      = 5 * 60 * 60 * 1000; /* raised from 2h → 5h per-area cooldown */
+/* ── LAUNCH DAY MODE — higher activity, lower thresholds ───────────────────
+   Tuned to keep the feed busy for launch. Revert after launch week.         */
+const AI_CONFIDENCE_THRESH  = 0.58;   /* launch: fire more freely */
+const AI_SCAN_INTERVAL_MS   = 3 * 60 * 1000;   /* scan every 3 min */
+const AI_RESTORE_THRESH     = 0.32;   /* restore more aggressively */
+const AI_MAX_PER_SCAN       = 6;      /* up to 6 reports per scan */
+const AI_MIN_REFIRE_MS      = 45 * 60 * 1000;  /* 45 min cooldown per area */
 
 /* Max time an AI outage can stay 'out' before auto-restoring if no human
    reports confirm it.  Based on typical Nigerian DISCO supply rotation cycles:
@@ -46,6 +44,23 @@ const AREA_BANDS = {
   "Apapa":"D","Apapa GRA":"C","Tin Can Island":"D",
   "Oshodi/Isolo":"D","Mushin":"D","Ilupeju":"C","Okota":"D",
   "Ikorodu GRA":"D","Agric Ikorodu":"E",
+  // Abuja (AEDC) — bands aligned to supply patterns
+  "Maitama":"A","Asokoro":"A","Aso Rock":"A","Aso Villa":"A","Wuse 2":"A",
+  "Wuse":"B","Garki":"B","Central Area":"B","Three Arms Zone":"A","Jabi":"B",
+  "Utako":"B","Gudu":"B","Guzape":"B","Katampe":"B","Durumi":"C",
+  "Gwagwalada":"C","Karu":"C","Nyanya":"D","Lugbe":"D","Gwarinpa":"C",
+  "Kubwa":"D","Dutse":"D","Bwari":"E","Kwali":"E",
+  // Port Harcourt (PHED)
+  "Port Harcourt GRA Phase 1":"A","Port Harcourt GRA Phase 2":"A",
+  "D-Line":"B","Rumuola":"C","Trans Amadi":"C","Rumuigbo":"D","Rumuokoro":"D",
+  // Kano (KEDCO)
+  "Nassarawa GRA Kano":"A","Bompai":"B","Sabon Gari Kano":"C","Fagge":"D","Gwale":"E",
+  // Ibadan (IBEDC)
+  "Bodija":"B","GRA Ibadan":"A","Ring Road":"C","Mokola":"C","Challenge":"D",
+  // Other major cities
+  "Enugu GRA":"A","GRA Enugu":"A","Independence Layout":"B",
+  "Benin City GRA":"A","Warri GRA":"A","Uyo GRA":"A","Calabar GRA":"A",
+  "Makurdi GRA":"B","Jos GRA":"B","Barnawa":"C","Mokola":"C",
 };
 
 const BAND_BASELINE      = { A:0.18, B:0.28, C:0.42, D:0.58, E:0.74 };
@@ -561,11 +576,8 @@ const AIReporter = {
     if (typeof reports!=='undefined') {
       reports.unshift({ id:tempId, name:locName, area, type, time:Date.now(), confirms:1, userId:AI_USER_ID, isAI:true, aiProb:prob });
       // Trim to 500 — only remove old non-AI reports from the tail
-      if (reports.length > 500) {
-        const tail = reports.slice(400); // check beyond 400
-        const firstDeletable = tail.findIndex(r => !r.isAI && r.userId !== AI_USER_ID && !String(r.id).startsWith('local-'));
-        if (firstDeletable !== -1) reports.splice(400 + firstDeletable, 1);
-      }
+      /* launch: keep up to 2000 reports — don't trim */
+      if (reports.length > 2000) reports.splice(2000, 1);
       if (typeof renderStats==='function') renderStats();
       if (typeof prependReportCard==='function') prependReportCard(reports[0],'liveFeed');
       if (typeof renderDiscos==='function') renderDiscos();
@@ -712,7 +724,7 @@ const AIReporter = {
   start() {
     if (this._timer) clearInterval(this._timer);
     if (this._retrainTimer) clearInterval(this._retrainTimer);
-    setTimeout(()=>{ this.scan(); this.scanRestorations(); }, 60000); /* wait 60s after boot */
+    setTimeout(()=>{ this.scan(); this.scanRestorations(); }, 5000); /* launch: fire quickly on boot */
     this._timer = setInterval(()=>{ this.scan(); this.scanRestorations(); }, AI_SCAN_INTERVAL_MS);
     // Re-ingest full history every 2 hours so model stays fresh with all DB reports
     this._retrainTimer = setInterval(()=>{
