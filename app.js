@@ -3168,20 +3168,16 @@ function areaStatus(a){const r=reports.filter(x=>x.area===a);if(!r.length)return
 function todayReports(){const midnight=new Date();midnight.setHours(0,0,0,0);return reports.filter(r=>r.time>=midnight.getTime());}
 function renderStats(){
   const isAll = feedFilter === "all";
-  // Apply the same time filter the feed uses
+  // Stats always show the NATIONAL total — never filtered by area.
+  // The feed is already filtered to the user's area; stats give the bigger picture.
   let pool = isAll ? reports : todayReports();
-  // Apply the same area filter the feed uses so numbers always match what's visible
-  if (filterArea) pool = pool.filter(r => areaMatches(r.area, filterArea));
 
-  // Count unique areas out/restored AND total report count
-  const outAreas = new Set(), bckAreas = new Set();
   let outCount = 0, bckCount = 0;
   pool.forEach(r => {
-    if (r.type === "out") { outAreas.add(r.area); outCount++; }
-    else                  { bckAreas.add(r.area); bckCount++; }
+    if (r.type === "out") outCount++;
+    else                  bckCount++;
   });
 
-  // s-out / s-bck: show report count (not unique area count — that was confusing)
   animateNum("s-out", outCount);
   animateNum("s-bck", bckCount);
   animateNum("s-rep", pool.length);
