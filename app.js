@@ -1,4 +1,4 @@
-/* ===== NEPAWatch Lagos — app.js ===== */
+/* ===== NEPAWatch Nigeria — app.js ===== */
 /* =========================================================
    INTEGRATION PATCHES for predict.js / AI auto-reporter
    Changes from original:
@@ -2341,7 +2341,7 @@ function _resetFormHTML(){return`<div class="auth-wrap"><div class="auth-logo"><
 
 async function loadProfile(){if(!CU)return;try{const{data,error}=await sb.from("profiles").select("*").eq("id",CU.id).single();if(!error&&data){PR=data;if(PR.location_id){document.getElementById("locTag").classList.add("on");document.getElementById("locLabel").textContent=PR.location_label||PR.location_name;}}else if(error&&error.code==="PGRST116"){const name=CU.user_metadata?.name||CU.email.split("@")[0];await sb.from("profiles").upsert({id:CU.id,email:CU.email,name,notif_on:true},{onConflict:"id"});PR={id:CU.id,email:CU.email,name,notif_on:true,location_id:null};}}catch(e){}}
 
-async function doRegister(name,email,pass){const{data,error}=await sb.auth.signUp({email,password:pass,options:{data:{name},emailRedirectTo:APP_URL+"?mode=reset"}});if(error){if(error.message?.toLowerCase().includes("rate limit")||error.message?.toLowerCase().includes("over_email_send_rate_limit"))throw new Error("RATE_LIMIT");throw new Error(error.message);}if(data.user){await sb.from("profiles").upsert({id:data.user.id,email,name,notif_on:true},{onConflict:"id"});}if(data.session){CU=data.user;await loadProfile();renderAccount();updateBanner();toast(`Welcome, ${name}!`,"ok");_maybeStartTour();}sendEmail(email,"Welcome to NEPAWatch Lagos",`Hi ${name},\n\nWelcome to NEPAWatch Lagos!\n\nYou will receive real-time email alerts whenever power goes out or is restored near your street.\n\nOpen the app and set your location to activate alerts.\n\nStay powered,\nNEPAWatch Lagos`,buildEmailHtml({type:'welcome',name,appUrl:APP_URL}));return data;}
+async function doRegister(name,email,pass){const{data,error}=await sb.auth.signUp({email,password:pass,options:{data:{name},emailRedirectTo:APP_URL+"?mode=reset"}});if(error){if(error.message?.toLowerCase().includes("rate limit")||error.message?.toLowerCase().includes("over_email_send_rate_limit"))throw new Error("RATE_LIMIT");throw new Error(error.message);}if(data.user){await sb.from("profiles").upsert({id:data.user.id,email,name,notif_on:true},{onConflict:"id"});}if(data.session){CU=data.user;await loadProfile();renderAccount();updateBanner();toast(`Welcome, ${name}!`,"ok");_maybeStartTour();}sendEmail(email,"Welcome to NEPAWatch Nigeria",`Hi ${name},\n\nWelcome to NEPAWatch Nigeria!\n\nYou will receive real-time email alerts whenever power goes out or is restored near your street.\n\nOpen the app and set your location to activate alerts.\n\nStay powered,\nNEPAWatch Nigeria`,buildEmailHtml({type:'welcome',name,appUrl:APP_URL}));return data;}
 async function doLogin(email,pass){const{data,error}=await sb.auth.signInWithPassword({email,password:pass});if(error)throw new Error(error.message);return data;}
 async function doLogout(){try{await sb.auth.signOut();}catch(e){}CU=null;PR=null;savedPlaces=[];document.getElementById("locTag").classList.remove("on");updateBanner();renderAccount();toast("Signed out","info");}
 
@@ -2881,8 +2881,8 @@ function shareToWhatsApp(repId) {
   const isOut = r.type === "out";
   const timeStr = new Date(r.time).toLocaleTimeString("en-NG", { hour: "2-digit", minute: "2-digit" });
   const msg = isOut
-    ? `Power outage reported at ${r.name}, ${r.area} as of ${timeStr}.\n\nCheck & track live on NEPAWatch Lagos\n${APP_URL}`
-    : `Power restored at ${r.name}, ${r.area} as of ${timeStr}.\n\nTrack live power updates on NEPAWatch Lagos\n${APP_URL}`;
+    ? `Power outage reported at ${r.name}, ${r.area} as of ${timeStr}.\n\nCheck & track live on NEPAWatch Nigeria\n${APP_URL}`
+    : `Power restored at ${r.name}, ${r.area} as of ${timeStr}.\n\nTrack live power updates on NEPAWatch Nigeria\n${APP_URL}`;
   window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, "_blank");
 }
 
@@ -4509,7 +4509,7 @@ function _showWelcome() {
   overlay.innerHTML = `
     <div style="background:var(--sf,#111815);border:1.5px solid var(--p,#AAFF00);border-radius:18px;padding:28px 24px;max-width:340px;width:100%;box-shadow:0 16px 48px rgba(0,0,0,.6);animation:onb-pop .25s cubic-bezier(.4,0,.2,1)">
       <div style="font-size:1.35rem;font-weight:900;color:var(--ink1);margin-bottom:6px;letter-spacing:-.01em">Welcome to NEPAWatch</div>
-      <div style="font-size:.78rem;color:var(--p);font-weight:700;letter-spacing:.06em;text-transform:uppercase;margin-bottom:20px">Lagos Power Tracker</div>
+      <div style="font-size:.78rem;color:var(--p);font-weight:700;letter-spacing:.06em;text-transform:uppercase;margin-bottom:20px">Nigeria Power Tracker</div>
 
       <div style="display:flex;flex-direction:column;gap:14px;margin-bottom:24px">
 

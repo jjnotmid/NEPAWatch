@@ -278,6 +278,29 @@
 
 body.lp-active header, body.lp-active main, body.lp-active > nav { display: none !important; }
 body.lp-active #nepaBotBubble, body.lp-active #botWin, body.lp-active #botNotif { display: none !important; }
+
+/* Google OAuth button */
+.lp-google-btn {
+  width: 100%; font-size: .85rem; font-weight: 600;
+  color: #EEF4EE; background: rgba(255,255,255,.06);
+  border: 1px solid rgba(255,255,255,.14);
+  border-radius: 50px; padding: 12px 16px;
+  cursor: pointer; transition: all .18s;
+  display: flex; align-items: center; justify-content: center; gap: 9px;
+  font-family: 'DM Sans', sans-serif; box-sizing: border-box;
+  margin-bottom: 12px;
+}
+.lp-google-btn:hover { background: rgba(255,255,255,.11); border-color: rgba(255,255,255,.26); }
+.lp-google-btn:disabled { opacity: .5; cursor: not-allowed; }
+.lp-or-divider {
+  display: flex; align-items: center; gap: 10px;
+  font-size: .58rem; color: rgba(238,244,238,.2);
+  text-transform: uppercase; letter-spacing: .1em;
+  margin-bottom: 14px; font-weight: 700;
+}
+.lp-or-divider::before, .lp-or-divider::after {
+  content: ''; flex: 1; height: 1px; background: rgba(255,255,255,.08);
+}
 </style>
 
 <style>/* Prevent iOS zoom on input focus */
@@ -407,6 +430,11 @@ input,select,textarea{font-size:max(16px,1em)!important}
 
       <!-- Register -->
       <div id="lpFormRegister">
+        <button class="lp-google-btn" id="lpGoogleRegBtn" onclick="lpDoGoogleAuth()">
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844a4.14 4.14 0 0 1-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z" fill="#4285F4"/><path d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z" fill="#34A853"/><path d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z" fill="#FBBC05"/><path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 6.29C4.672 4.163 6.656 3.58 9 3.58z" fill="#EA4335"/></svg>
+          Continue with Google
+        </button>
+        <div class="lp-or-divider">or sign up with email</div>
         <div class="lp-sh-field">
           <label class="lp-sh-label">Your Name</label>
           <input class="lp-sh-input" id="lpRegName" type="text" placeholder="e.g. Chidi Okafor" autocomplete="name">
@@ -430,6 +458,11 @@ input,select,textarea{font-size:max(16px,1em)!important}
 
       <!-- Login -->
       <div id="lpFormLogin" style="display:none">
+        <button class="lp-google-btn" id="lpGoogleLoginBtn" onclick="lpDoGoogleAuth()">
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844a4.14 4.14 0 0 1-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z" fill="#4285F4"/><path d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z" fill="#34A853"/><path d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z" fill="#FBBC05"/><path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 6.29C4.672 4.163 6.656 3.58 9 3.58z" fill="#EA4335"/></svg>
+          Continue with Google
+        </button>
+        <div class="lp-or-divider">or sign in with email</div>
         <div class="lp-sh-field">
           <label class="lp-sh-label">Email Address</label>
           <input class="lp-sh-input" id="lpLoginEmail" type="email" placeholder="you@example.com" autocomplete="email">
@@ -866,8 +899,34 @@ function hideLanding() {
   document.body.classList.remove('lp-active');
 }
 
+/* ── LIVE DATA CACHE ── */
+let _lpLiveReports = [];
+
+async function lpFetchLiveReports() {
+  try {
+    const { data, error } = await sb.from('reports')
+      .select('id, location_name, location_area, type, created_at')
+      .order('created_at', { ascending: false })
+      .limit(120);
+    if (!error && data && data.length) {
+      _lpLiveReports = data.map(r => ({
+        id: r.id,
+        name: r.location_name,
+        area: r.location_area,
+        type: r.type,
+        time: new Date(r.created_at).getTime()
+      }));
+    }
+  } catch(e) {}
+}
+
 /* ── POPULATE ── */
 async function lpPopulate() {
+  lpBuildTicker();
+  lpBuildAreaGrid();
+  lpLoadStats();
+  // fetch real data and re-render with live reports
+  await lpFetchLiveReports();
   lpBuildTicker();
   lpBuildAreaGrid();
   lpLoadStats();
@@ -928,7 +987,8 @@ function lpTimeAgo(ts) {
 function lpBuildTicker() {
   const track = document.getElementById('lpTickerTrack');
   if (!track) return;
-  const liveReps = (typeof reports !== 'undefined' && reports.length) ? reports.slice(0, 14) : [];
+  const liveReps = _lpLiveReports.length ? _lpLiveReports.slice(0, 14) :
+    (typeof reports !== 'undefined' && reports.length) ? reports.slice(0, 14) : [];
   const items = liveReps.length
     ? liveReps.map(r => ({ area: r.area, type: r.type, ago: lpTimeAgo(r.time) }))
     : LP_TICKER_SEED.map(s => ({ ...s, ago: Math.floor(Math.random()*40+2)+'m ago' }));
@@ -941,7 +1001,8 @@ function lpBuildTicker() {
 function lpBuildAreaGrid() {
   const grid = document.getElementById('lpAreaGrid');
   if (!grid) return;
-  const liveReps = (typeof reports !== 'undefined') ? reports : [];
+  const liveReps = _lpLiveReports.length ? _lpLiveReports :
+    (typeof reports !== 'undefined' ? reports : []);
   // Seed status map with realistic defaults (so grid never looks fully empty)
   const LP_SEED_STATUS = {
     "Alimosho/Ipaja":"out","Mushin":"out","Surulere":"out","Ikorodu":"out","Ajah":"out",
@@ -976,10 +1037,19 @@ function lpBuildAreaGrid() {
 async function lpLoadStats() {
   try {
     const today = new Date(); today.setHours(0,0,0,0);
-    const liveReps = (typeof reports !== 'undefined') ? reports : [];
-    const todayN = liveReps.filter(r => r.time >= today.getTime()).length;
+    const allReps = _lpLiveReports.length ? _lpLiveReports :
+      (typeof reports !== 'undefined' ? reports : []);
+    const todayN = allReps.filter(r => r.time >= today.getTime()).length;
     const el = document.getElementById('lpStatReports');
     if (el && todayN > 0) el.textContent = todayN;
+    else if (el && _lpLiveReports.length === 0) {
+      // fetch from DB directly if we haven't loaded live reports yet
+      const todayIso = today.toISOString();
+      const { count: rCount } = await sb.from('reports')
+        .select('id', { count: 'exact', head: true })
+        .gte('created_at', todayIso);
+      if (el && rCount > 0) el.textContent = rCount;
+    }
     const { count } = await sb.from('profiles').select('id', { count: 'exact', head: true });
     const uel = document.getElementById('lpStatUsers');
     if (uel && count > 0) uel.textContent = count.toLocaleString();
@@ -1140,6 +1210,28 @@ async function lpDoForgot() {
     lpShowErr(e.message || 'Could not send reset link.');
   }
   lpSetBtnLoading('lpForgotBtn', false, 'Send Reset Link');
+}
+
+async function lpDoGoogleAuth() {
+  lpClearMsgs();
+  // disable both google buttons while redirecting
+  ['lpGoogleRegBtn','lpGoogleLoginBtn'].forEach(id => {
+    const b = document.getElementById(id);
+    if (b) { b.disabled = true; b.innerHTML = b.innerHTML.replace('Continue with Google', 'Redirecting…'); }
+  });
+  try {
+    const { error } = await sb.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: 'https://nepawatch.app' }
+    });
+    if (error) throw new Error(error.message);
+  } catch(e) {
+    lpShowErr(e.message || 'Google sign-in failed. Please try again.');
+    ['lpGoogleRegBtn','lpGoogleLoginBtn'].forEach(id => {
+      const b = document.getElementById(id);
+      if (b) { b.disabled = false; b.innerHTML = b.innerHTML.replace('Redirecting…', 'Continue with Google'); }
+    });
+  }
 }
 
 function lpTogglePw(inputId, btn) {
