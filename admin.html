@@ -301,6 +301,12 @@ tr:hover td{background:rgba(128,128,128,.04)}
         <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1.5L1.5 12H12.5L7 1.5Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M7 5.5V8.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><circle cx="7" cy="10.5" r=".6" fill="currentColor"/></svg>
         Announcements
       </button>
+      <div class="sb-sec">Support</div>
+      <button class="sb-item" data-page="contacts" onclick="nav(this);loadContactMessages()">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="1" y="2.5" width="12" height="9" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M1 5l6 4 6-4" stroke="currentColor" stroke-width="1.3"/></svg>
+        Contact Messages
+        <span id="contactBadge" style="display:none;margin-left:auto;background:rgba(255,61,87,.8);color:#fff;font-size:.52rem;font-weight:700;padding:1px 6px;border-radius:10px"></span>
+      </button>
       <div class="sb-sec">Locations</div>
       <button class="sb-item" data-page="locations" onclick="nav(this)">
         <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1A3 3 0 0 0 4 4C4 7.5 7 12 7 12S10 7.5 10 4A3 3 0 0 0 7 1z" stroke="currentColor" stroke-width="1.3"/><circle cx="7" cy="4.2" r="1.2" stroke="currentColor" stroke-width="1"/><path d="M2 13h10" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
@@ -329,7 +335,7 @@ tr:hover td{background:rgba(128,128,128,.04)}
     <!-- DASHBOARD -->
     <div class="page active" id="page-dashboard">
       <div class="ph-row">
-        <div class="ph"><h2>Dashboard</h2><p><span class="live-dot"></span>Live — NEPAWatch Lagos</p></div>
+        <div class="ph"><h2>Dashboard</h2><p><span class="live-dot"></span>Live — NEPAWatch Nigeria</p></div>
         <button class="btn btn-ghost" onclick="refreshAll()">↻ Refresh</button>
       </div>
       <div class="stat-row">
@@ -541,6 +547,41 @@ tr:hover td{background:rgba(128,128,128,.04)}
       </div>
     </div>
 
+    <!-- CONTACT MESSAGES -->
+    <div class="page" id="page-contacts">
+      <div class="ph-row">
+        <div class="ph"><h2>Contact Messages</h2><p>Messages sent via the Contact page by users and visitors</p></div>
+        <button class="btn btn-ghost" onclick="loadContactMessages()">↻ Refresh</button>
+      </div>
+      <div class="filter-bar">
+        <input type="text" id="ct-search" placeholder="Search name, email or message…" oninput="filterContactMessages()">
+        <select id="ct-subject" onchange="filterContactMessages()">
+          <option value="">All subjects</option>
+          <option value="Bug Report">Bug Report</option>
+          <option value="Feature Request">Feature Request</option>
+          <option value="Wrong Report / Abuse">Wrong Report / Abuse</option>
+          <option value="My Location is Missing">My Location is Missing</option>
+          <option value="Account Issue">Account Issue</option>
+          <option value="Partnership / Media">Partnership / Media</option>
+          <option value="General Feedback">General Feedback</option>
+          <option value="Other">Other</option>
+        </select>
+        <select id="ct-read" onchange="filterContactMessages()">
+          <option value="">All messages</option>
+          <option value="unread">Unread only</option>
+          <option value="read">Read only</option>
+        </select>
+      </div>
+      <div class="card">
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th></th><th>Name</th><th>Email</th><th>Subject</th><th>Message</th><th>Date</th><th></th></tr></thead>
+            <tbody id="contactsTable"><tr><td colspan="7" class="loading-row"><span class="spin"></span>Loading…</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
     <div class="page" id="page-locations">
       <div class="ph-row">
         <div class="ph"><h2>Custom Locations</h2><p>User-added streets and locations</p></div>
@@ -727,6 +768,7 @@ function nav(el) {
   document.getElementById(`page-${page}`).classList.add('active');
   if (window.innerWidth<=768) toggleSidebar(false);
   if (page === 'health') loadAreaHealth();
+  if (page === 'contacts') loadContactMessages();
   if (page === 'kyc') loadKyc();
   if (page === 'announcements') loadAnnouncementsList();
 }
@@ -1488,6 +1530,104 @@ async function deleteAnnouncement(id) {
   await sb.from('announcements').delete().eq('id', id);
   toast('Deleted', 'ok');
   loadAnnouncementsList();
+}
+
+// ── CONTACT MESSAGES ─────────────────────────────────────────
+let allContactMessages = [];
+
+async function loadContactMessages() {
+  const tbody = document.getElementById('contactsTable');
+  if (!tbody) return;
+  tbody.innerHTML = '<tr><td colspan="7" class="loading-row"><span class="spin"></span>Loading…</td></tr>';
+  try {
+    const { data, error } = await sb
+      .from('contact_messages')
+      .select('id, name, email, subject, message, read, created_at')
+      .order('created_at', { ascending: false })
+      .limit(200);
+    if (error) throw error;
+    allContactMessages = data || [];
+    const unread = allContactMessages.filter(m => !m.read).length;
+    const badge = document.getElementById('contactBadge');
+    if (badge) { badge.textContent = unread; badge.style.display = unread > 0 ? 'inline-block' : 'none'; }
+    renderContactMessages(allContactMessages);
+  } catch(e) {
+    tbody.innerHTML = `<tr><td colspan="7" class="empty-state">Failed to load: ${_escHtml(e.message)}</td></tr>`;
+  }
+}
+
+function filterContactMessages() {
+  const q       = (document.getElementById('ct-search')?.value || '').toLowerCase();
+  const subject = document.getElementById('ct-subject')?.value || '';
+  const readVal = document.getElementById('ct-read')?.value || '';
+  const filtered = allContactMessages.filter(m => {
+    const matchQ = !q || [m.name, m.email, m.message, m.subject].some(f => (f||'').toLowerCase().includes(q));
+    const matchS = !subject || m.subject === subject;
+    const matchR = !readVal || (readVal === 'unread' ? !m.read : m.read);
+    return matchQ && matchS && matchR;
+  });
+  renderContactMessages(filtered);
+}
+
+function renderContactMessages(msgs) {
+  const tbody = document.getElementById('contactsTable');
+  if (!msgs.length) { tbody.innerHTML = '<tr><td colspan="7" class="empty-state">No messages found.</td></tr>'; return; }
+  tbody.innerHTML = msgs.map(m => {
+    const date = new Date(m.created_at).toLocaleDateString('en-NG', { day:'numeric', month:'short', year:'numeric' });
+    const preview = _escHtml((m.message || '').slice(0, 80)) + (m.message?.length > 80 ? '…' : '');
+    const unreadStyle = m.read ? '' : 'font-weight:700;color:var(--ink)';
+    const dot = m.read ? '' : '<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--bl);margin-right:2px;vertical-align:middle"></span>';
+    return `<tr style="${m.read ? '' : 'background:rgba(59,130,246,.04)'}">
+      <td>${dot}</td>
+      <td style="${unreadStyle}">${_escHtml(m.name)}</td>
+      <td><a href="mailto:${_escHtml(m.email)}" style="color:var(--p);text-decoration:none">${_escHtml(m.email)}</a></td>
+      <td><span class="badge" style="background:rgba(59,130,246,.1);color:#93BBFF;border:1px solid rgba(59,130,246,.2)">${_escHtml(m.subject || '—')}</span></td>
+      <td style="max-width:240px;font-size:.74rem;color:var(--ink2);line-height:1.5">${preview}</td>
+      <td style="white-space:nowrap;font-size:.72rem;color:var(--ink3)">${date}</td>
+      <td style="white-space:nowrap">
+        <button class="btn btn-ghost" style="font-size:.65rem;padding:3px 8px;margin-right:4px" onclick="viewContactMessage('${m.id}')">View</button>
+        ${m.read ? '' : `<button class="email-btn" style="font-size:.65px;padding:3px 8px" onclick="markContactRead('${m.id}')">Mark Read</button>`}
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function viewContactMessage(id) {
+  const m = allContactMessages.find(x => x.id === id);
+  if (!m) return;
+  const date = new Date(m.created_at).toLocaleString('en-NG');
+  const win = window.open('', '_blank', 'width=540,height=480');
+  win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Contact Message</title>
+    <style>body{font-family:system-ui,sans-serif;background:#0d1210;color:#eef4ee;padding:24px;line-height:1.6}
+    h2{font-size:1rem;margin-bottom:16px;color:#AAFF00}
+    .row{margin-bottom:10px}
+    .lbl{font-size:.65rem;text-transform:uppercase;letter-spacing:.08em;color:rgba(238,244,238,.35);font-weight:700;margin-bottom:2px}
+    .val{font-size:.85rem}
+    .msg{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:8px;padding:14px;margin-top:10px;font-size:.85rem;white-space:pre-wrap}
+    a.reply{display:inline-block;margin-top:18px;background:#AAFF00;color:#07090A;font-weight:700;border-radius:8px;padding:10px 20px;text-decoration:none;font-size:.82rem}
+    </style></head><body>
+    <h2>Contact Message</h2>
+    <div class="row"><div class="lbl">From</div><div class="val">${_escHtml(m.name)} &lt;<a href="mailto:${_escHtml(m.email)}" style="color:#AAFF00">${_escHtml(m.email)}</a>&gt;</div></div>
+    <div class="row"><div class="lbl">Subject</div><div class="val">${_escHtml(m.subject || '—')}</div></div>
+    <div class="row"><div class="lbl">Date</div><div class="val">${date}</div></div>
+    <div class="row"><div class="lbl">Message</div><div class="msg">${_escHtml(m.message)}</div></div>
+    <a class="reply" href="mailto:${_escHtml(m.email)}?subject=Re: ${encodeURIComponent(m.subject || 'Your NEPAWatch message')}">Reply via Email</a>
+    </body></html>`);
+  win.document.close();
+  if (!m.read) markContactRead(id);
+}
+
+async function markContactRead(id) {
+  try {
+    await sb.from('contact_messages').update({ read: true }).eq('id', id);
+    const m = allContactMessages.find(x => x.id === id);
+    if (m) m.read = true;
+    const unread = allContactMessages.filter(x => !x.read).length;
+    const badge = document.getElementById('contactBadge');
+    if (badge) { badge.textContent = unread; badge.style.display = unread > 0 ? 'inline-block' : 'none'; }
+    filterContactMessages();
+    toast('Marked as read', 'ok');
+  } catch(e) { toast('Failed: ' + e.message, 'err'); }
 }
 
 // ── AUTO-LOGIN ────────────────────────────────────────────────
