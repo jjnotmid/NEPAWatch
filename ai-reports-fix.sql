@@ -38,13 +38,13 @@ CREATE POLICY "reports_select" ON reports
 CREATE POLICY "reports_insert_user" ON reports
   FOR INSERT WITH CHECK (
     auth.uid() IS NOT NULL
-    AND auth.uid()::text = user_id
+    AND auth.uid() = user_id
   );
 
 -- AI system inserts using its fixed UUID — no auth session required
 CREATE POLICY "reports_insert_ai" ON reports
   FOR INSERT WITH CHECK (
-    user_id = '00000000-0000-0000-0000-000000000001'
+    user_id = '00000000-0000-0000-0000-000000000001'::uuid
   );
 
 -- Authenticated users can update reports (confirms, wrong_votes)
@@ -54,6 +54,6 @@ CREATE POLICY "reports_update" ON reports
 -- Users can delete their own reports; admin can delete any
 CREATE POLICY "reports_delete" ON reports
   FOR DELETE USING (
-    auth.uid()::text = user_id
+    auth.uid() = user_id
     OR auth.email() = 'usifohjosh47@gmail.com'
   );
