@@ -996,10 +996,10 @@ function lpBuildTicker() {
   const liveReps = _lpLiveReports.length ? _lpLiveReports.slice(0, 14) :
     (typeof reports !== 'undefined' && reports.length) ? reports.slice(0, 14) : [];
   const items = liveReps.length
-    ? liveReps.map(r => ({ area: r.area, type: r.type, ago: lpTimeAgo(r.time) }))
-    : LP_TICKER_SEED.map(s => ({ ...s, ago: Math.floor(Math.random()*40+2)+'m ago' }));
+    ? liveReps.map(r => ({ area: r.area, type: r.type }))
+    : LP_TICKER_SEED.map(s => ({ ...s }));
   const html = items.map(i =>
-    `<div class="lp-ticker-item"><div class="lp-tdot ${i.type}"></div>${i.type === 'out' ? 'Power out' : 'Restored'} &middot; <strong style="color:rgba(238,244,238,.6)">${i.area}</strong> &middot; ${i.ago}</div>`
+    `<div class="lp-ticker-item"><div class="lp-tdot ${i.type}"></div>${i.type === 'out' ? 'Power out' : 'Restored'} &middot; <strong style="color:rgba(238,244,238,.6)">${i.area}</strong></div>`
   ).join('');
   track.innerHTML = html + html;
 }
@@ -1030,10 +1030,9 @@ function lpBuildAreaGrid() {
     const rep = statusMap[area];
     const st = rep ? rep.type : 'unk';
     const label = st === 'out' ? 'Power out' : st === 'bck' ? 'Power on' : 'No reports';
-    const ago = rep ? ' &middot; ' + lpTimeAgo(rep.time) : '';
     return `<div class="lp-area-card ${st === 'out' ? 'out' : st === 'bck' ? 'bck' : ''}">
       <div class="lp-ac-row"><div class="lp-ac-dot ${st}"></div><div class="lp-ac-name">${area}</div></div>
-      <div class="lp-ac-status ${st}">${label}${ago}</div>
+      <div class="lp-ac-status ${st}">${label}</div>
       <div style="font-size:.6rem;color:rgba(238,244,238,.28);margin-top:3px;letter-spacing:.05em">${state}</div>
     </div>`;
   }).join('');

@@ -51,7 +51,7 @@ CREATE POLICY "announcements_insert"
   ON announcements FOR INSERT
   WITH CHECK (
     auth.email() IN (
-      'usifohjosh47@gmail.com'   -- ← REPLACE THIS
+      'nepawatchtechnologies@gmail.com'   -- ← REPLACE THIS
     )
   );
 
@@ -59,7 +59,7 @@ CREATE POLICY "announcements_update"
   ON announcements FOR UPDATE
   USING (
     auth.email() IN (
-      'usifohjosh47@gmail.com'   -- ← REPLACE THIS
+      'nepawatchtechnologies@gmail.com'   -- ← REPLACE THIS
     )
   );
 
@@ -67,7 +67,7 @@ CREATE POLICY "announcements_delete"
   ON announcements FOR DELETE
   USING (
     auth.email() IN (
-      'usifohjosh47@gmail.com'   -- ← REPLACE THIS
+      'nepawatchtechnologies@gmail.com'   -- ← REPLACE THIS
     )
   );
 
@@ -122,7 +122,7 @@ CREATE POLICY "email_log_select"
   ON email_alert_log FOR SELECT
   USING (
     auth.email() IN (
-      'usifohjosh47@gmail.com'   -- ← REPLACE THIS (same as above)
+      'nepawatchtechnologies@gmail.com'   -- ← REPLACE THIS (same as above)
     )
   );
 
