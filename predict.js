@@ -8,7 +8,7 @@
 /*  - Sensors/MDPI (2024): XGBoost 98.4% accuracy on outage duration           */
 
 /* ─── IDENTITY ──────────────────────────────────────────────────────────── */
-const AI_USER_ID            = 'nepawatch-ai';
+const AI_USER_ID            = '00000000-0000-0000-0000-000000000001';
 const AI_USER_NAME          = 'NEPAWatch AI';
 
 /* ── LAUNCH DAY MODE — higher activity, lower thresholds ───────────────────
@@ -343,6 +343,28 @@ const AIReporter = {
     try { localStorage.setItem(_AI_FIRED_KEY, JSON.stringify(this._lastFired)); } catch(e) {}
   },
 
+  async _seedFiredFromDB() {
+    if (typeof sb === 'undefined') return;
+    try {
+      const cutoff = new Date(Date.now() - AI_MIN_REFIRE_MS).toISOString();
+      const { data } = await sb.from('reports')
+        .select('location_area, created_at')
+        .eq('user_id', AI_USER_ID)
+        .gte('created_at', cutoff)
+        .order('created_at', { ascending: false });
+      if (data && data.length) {
+        for (const row of data) {
+          const ts = new Date(row.created_at).getTime();
+          if (!this._lastFired[row.location_area] || ts > this._lastFired[row.location_area]) {
+            this._lastFired[row.location_area] = ts;
+          }
+        }
+        this._saveFiredState();
+        console.log(`[NEPAWatch AI] Seeded _lastFired from DB: ${data.length} recent AI report(s).`);
+      }
+    } catch(e) { /* localStorage state still in effect */ }
+  },
+
   // Rebuild state from AI-only reports — human reports must NOT reset this
   // state machine or scan() will re-fire an AI "out" every time humans say bck
   _rebuildState() {
@@ -372,7 +394,8 @@ const AIReporter = {
   },
 
   async loadHistory() {
-    this._loadFiredState(); // restore _lastFired from localStorage before first scan
+    this._loadFiredState(); // restore _lastFired from localStorage
+    await this._seedFiredFromDB(); // merge DB state — prevents re-spam after cache clear
     try {
       /* Load 5000 reports — includes confirms + wrong_votes so the decay model
          can weight crowd-validated reports correctly.
@@ -638,7 +661,14 @@ const AIReporter = {
           saved = true;
           console.log('[NEPAWatch AI] Report saved to DB, id:', dbRow.id);
         } else if (insertRes.error) {
-          console.warn('[NEPAWatch AI] Direct insert failed:', insertRes.error.message);
+          const ec = insertRes.error.code;
+          if (ec === '22P02') {
+            console.error('[NEPAWatch AI] UUID type error — AI_USER_ID is not a valid UUID. Run ai-reports-fix.sql.');
+          } else if (ec === '42501' || ec === 'PGRST301') {
+            console.error('[NEPAWatch AI] RLS denied insert — add reports_insert_ai policy. Run ai-reports-fix.sql.');
+          } else {
+            console.warn('[NEPAWatch AI] Direct insert failed:', insertRes.error.code, insertRes.error.message);
+          }
         }
       } catch(e) {
         console.warn('[NEPAWatch AI] Direct insert error:', e?.message);
