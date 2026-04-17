@@ -716,7 +716,7 @@ const AIReporter = {
     if (saved) {
       /* Push + email alerts for subscribers in the area */
       if (typeof sendAreaAlerts === 'function') {
-        sendAreaAlerts(locName, area, type).catch(() => {});
+        sendAreaAlerts(locName, area, type, true).catch(() => {});
       }
 
       /* Refresh AI report count on Predict page */

@@ -2225,6 +2225,15 @@ function areaMatches(reportArea, filterArea){
   if(AREA_PARENT[reportArea]&&AREA_PARENT[reportArea]===AREA_PARENT[filterArea])return true;
   return false;
 }
+// Strict version — no sibling matches. Used for popups and notifications so
+// a user in Lekki Phase 1 is never asked to confirm a Sangotedo report.
+function strictAreaMatch(a, b){
+  if(!a||!b)return false;
+  if(a===b)return true;
+  if(AREA_PARENT[a]===b)return true; // a is child of b
+  if(AREA_PARENT[b]===a)return true; // b is child of a
+  return false;
+}
 
 
 function sl(s){return s.toLowerCase().replace(/[^a-z0-9]/g,"-").replace(/-+/g,"-");}
@@ -3110,12 +3119,15 @@ async function sendEmail(to, subject, body, htmlBody) {
     });
   } catch(e) {}
 }
-async function sendAreaAlerts(repName,repArea,repType){if(!repArea)return;
+async function sendAreaAlerts(repName,repArea,repType,isAI=false){if(!repArea)return;
   // Fire local push notification for foreground-invisible users
-  const pushTitle=repType==='out'?`Power Outage — ${repArea}`:`Power Restored — ${repArea}`;
-  const pushBody=repType==='out'?`Outage near ${repName}. Tap to confirm.`:`Power back near ${repName}. Tap to confirm.`;
+  const _aiTag=isAI?' · NEPAWatch AI':'';
+  const pushTitle=repType==='out'?`Power Outage — ${repArea}${_aiTag}`:`Power Restored — ${repArea}${_aiTag}`;
+  const pushBody=isAI
+    ?(repType==='out'?`NEPAWatch AI predicts outage near ${repName}.`:`NEPAWatch AI: power restored near ${repName}.`)
+    :(repType==='out'?`Outage near ${repName}. Tap to confirm.`:`Power back near ${repName}. Tap to confirm.`);
   _localNotify(pushTitle, pushBody, repType);
-const _aKey=repArea+'|'+repType;const _now=Date.now();if(_alertCooldowns[_aKey]&&(_now-_alertCooldowns[_aKey])<ALERT_COOLDOWN_MS)return;_alertCooldowns[_aKey]=_now;try{const subject=repType==="out"?`Power Outage — ${repArea}, Nigeria`:`Power Restored — ${repArea}, Nigeria`;const time=new Date().toLocaleTimeString("en-NG",{hour:"2-digit",minute:"2-digit"});const body=`${repType==="out"?"Power outage":"Power restored"} near ${repName}, ${repArea}.\n\nTime: ${time}\n\nSee live updates: ${APP_URL}\n\n— NEPAWatch`;const alertHtml=buildEmailHtml({type:repType,area:repArea,street:repName,time,appUrl:APP_URL});let edgeSent=false;try{const res=await fetch(EMAIL_FN,{method:"POST",headers:{"Content-Type":"application/json","apikey":SUPA_ANON,"Authorization":`Bearer ${SUPA_ANON}`},body:JSON.stringify({mode:"area_alert",area:repArea,repName,repType,subject,body,html:alertHtml,time,confirmRequest:true})});if(res.ok){const json=await res.json().catch(()=>({}));const count=json.sent||0;edgeSent=true;if(count>0){emailLog.unshift({subject,to:`${count} watcher${count!==1?"s":""} in ${repArea}`,time});if(emailLog.length>8)emailLog.pop();}}}catch(fe){}if(CU&&savedPlaces.length){const matchingPlaces=savedPlaces.filter(p=>(areaMatches(repArea,p.location_area)||areaMatches(p.location_area,repArea))&&p.notif_on!==false);if(matchingPlaces.length&&CU.email&&!edgeSent){const placeNames=matchingPlaces.map(p=>getPlaceDisplayName(p)).join(", ");const placeHtml=buildEmailHtml({type:repType,area:repArea,street:repName,time,places:placeNames,appUrl:APP_URL});await sendEmail(CU.email,subject,body,placeHtml);emailLog.unshift({subject,to:CU.email+"  (saved place)",time});if(emailLog.length>8)emailLog.pop();toast("Alert sent for your saved place","ok");if(document.getElementById("page-account").classList.contains("active"))renderAccount();}}else if(!edgeSent&&CU&&PR&&(areaMatches(repArea,PR.location_area)||areaMatches(PR.location_area,repArea))&&PR.notif_on&&CU.email){const userHtml=buildEmailHtml({type:repType,area:repArea,street:repName,time,appUrl:APP_URL});await sendEmail(CU.email,subject,body,userHtml);emailLog.unshift({subject,to:CU.email,time});if(emailLog.length>8)emailLog.pop();toast("Alert sent to your email","ok");if(document.getElementById("page-account").classList.contains("active"))renderAccount();}}catch(e){}}
+const _aKey=repArea+'|'+repType;const _now=Date.now();if(_alertCooldowns[_aKey]&&(_now-_alertCooldowns[_aKey])<ALERT_COOLDOWN_MS)return;_alertCooldowns[_aKey]=_now;try{const _src=isAI?' · NEPAWatch AI':'';const subject=repType==="out"?`Power Outage — ${repArea}, Nigeria${_src}`:`Power Restored — ${repArea}, Nigeria${_src}`;const time=new Date().toLocaleTimeString("en-NG",{hour:"2-digit",minute:"2-digit"});const body=`${repType==="out"?"Power outage":"Power restored"} near ${repName}, ${repArea}.\n\nTime: ${time}\n\nSee live updates: ${APP_URL}\n\n— ${isAI?'NEPAWatch AI':'NEPAWatch'}`;const alertHtml=buildEmailHtml({type:repType,area:repArea,street:repName,time,appUrl:APP_URL});let edgeSent=false;try{const res=await fetch(EMAIL_FN,{method:"POST",headers:{"Content-Type":"application/json","apikey":SUPA_ANON,"Authorization":`Bearer ${SUPA_ANON}`},body:JSON.stringify({mode:"area_alert",area:repArea,repName,repType,subject,body,html:alertHtml,time,confirmRequest:true,isAI})});if(res.ok){const json=await res.json().catch(()=>({}));const count=json.sent||0;edgeSent=true;if(count>0){emailLog.unshift({subject,to:`${count} watcher${count!==1?"s":""} in ${repArea}`,time});if(emailLog.length>8)emailLog.pop();}}}catch(fe){}if(CU&&savedPlaces.length){const matchingPlaces=savedPlaces.filter(p=>strictAreaMatch(repArea,p.location_area)&&p.notif_on!==false);if(matchingPlaces.length&&CU.email&&!edgeSent){const placeNames=matchingPlaces.map(p=>getPlaceDisplayName(p)).join(", ");const placeHtml=buildEmailHtml({type:repType,area:repArea,street:repName,time,places:placeNames,appUrl:APP_URL});await sendEmail(CU.email,subject,body,placeHtml);emailLog.unshift({subject,to:CU.email+"  (saved place)",time});if(emailLog.length>8)emailLog.pop();toast("Alert sent for your saved place","ok");if(document.getElementById("page-account").classList.contains("active"))renderAccount();}}else if(!edgeSent&&CU&&PR&&strictAreaMatch(repArea,PR.location_area)&&PR.notif_on&&CU.email){const userHtml=buildEmailHtml({type:repType,area:repArea,street:repName,time,appUrl:APP_URL});await sendEmail(CU.email,subject,body,userHtml);emailLog.unshift({subject,to:CU.email,time});if(emailLog.length>8)emailLog.pop();toast("Alert sent to your email","ok");if(document.getElementById("page-account").classList.contains("active"))renderAccount();}}catch(e){}}
 
 function openModal(type){mType=type;mSel=null;document.getElementById("shTitle").textContent=type==="out"?"Report Power Outage":"Report Power Restored";document.getElementById("shDesc").textContent=type==="out"?"Search your street or area in Lagos.":"Great news! Tell your community.";const btn=document.getElementById("mBtn");btn.textContent=type==="out"?"Confirm Outage":"Confirm Restored";btn.className="mconfirm "+(type==="out"?"out":"bck");btn.disabled=true;document.getElementById("mSearch").value="";if(PR?.location_id){mSel=LOCS.find(l=>l.id===PR.location_id)||null;if(mSel){btn.disabled=false;btn.textContent=type==="out"?`Report — ${mSel.name}`:`Restored — ${mSel.name}`;}}renderMList(LOCS.slice(0,60));document.getElementById("repOverlay").classList.add("open");}
 function closeModal(){document.getElementById("repOverlay").classList.remove("open");mType=null;mSel=null;}
@@ -3733,11 +3745,11 @@ function showConfirmPopup(rep) {
   if (!CU) return;
   if (rep.userId === CU.id) return;
   if (_confirmedReports.has(rep.id)) return;
-  // Show if user has this area saved OR is in the same area
+  // Show only if user is in the exact area (or direct parent/child) — never siblings
   const userArea = PR?.location_area || (_nearbyAreas[0]?.area);
-  const hasSaved = savedPlaces.some(p => p.location_area === rep.area);
+  const hasSaved = savedPlaces.some(p => strictAreaMatch(p.location_area, rep.area));
   if (!userArea && !hasSaved) return;
-  if (!hasSaved && userArea && !areaMatches(rep.area, userArea) && !areaMatches(userArea, rep.area)) return;
+  if (!hasSaved && userArea && !strictAreaMatch(rep.area, userArea)) return;
 
   _confirmRepId = rep.id;
   const isOut = rep.type === 'out';
@@ -3809,11 +3821,11 @@ function showAIFeedbackPopup(rep) {
   if (!CU) return;
   if (_confirmedReports.has(rep.id)) return;
 
-  // Only show for users whose saved area or GPS area matches the report area
+  // Only show if user is in the exact same area (or direct parent/child) — never siblings
   const userArea = PR?.location_area || (_nearbyAreas[0]?.area);
-  const hasSaved = savedPlaces.some(p => areaMatches(p.location_area, rep.area));
+  const hasSaved = savedPlaces.some(p => strictAreaMatch(p.location_area, rep.area));
   if (!userArea && !hasSaved) return;
-  if (!hasSaved && userArea && !areaMatches(rep.area, userArea) && !areaMatches(userArea, rep.area)) return;
+  if (!hasSaved && userArea && !strictAreaMatch(rep.area, userArea)) return;
 
   const isOut = rep.type === 'out';
   const icon = isOut ? IC.out : IC.bck;
