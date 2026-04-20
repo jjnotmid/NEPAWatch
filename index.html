@@ -37,6 +37,8 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap" rel="stylesheet">
 <style>
+/* Prevent flash of app content before auth check resolves */
+html { visibility: hidden; }
 /* ═══════════════════════════════════════════════════
    LANDING PAGE + AUTH GATE
    ═══════════════════════════════════════════════════ */
@@ -1267,6 +1269,8 @@ function lpTogglePw(inputId, btn) {
           showLanding();
           setTimeout(() => { lpBuildTicker(); lpBuildAreaGrid(); }, 900);
         }
+        // Reveal page now that we know the correct view — kills the auth flash
+        document.documentElement.style.visibility = '';
         initialFired = true;
       });
     }
@@ -1326,8 +1330,28 @@ function lpTogglePw(inputId, btn) {
 })();
 
 function _silentRefresh() {
-  // Completely silent — no toast, no spinner, no banner
-  // The feed items just update in place like a real app
+  // Ensure session is alive before touching the DB — critical after long background periods
+  // (browser suspends JS timers, Supabase can't auto-refresh, token expires silently)
+  if (typeof sb !== 'undefined') {
+    sb.auth.getSession().then(({ data: { session } }) => {
+      if (!session && typeof CU !== 'undefined' && CU) {
+        // Had a user but session is gone — force refresh
+        sb.auth.refreshSession().catch(() => {});
+      } else if (session?.expires_at) {
+        const expiresIn = session.expires_at * 1000 - Date.now();
+        if (expiresIn < 5 * 60 * 1000) {
+          // Token expires in <5 min — refresh proactively
+          sb.auth.refreshSession().catch(() => {});
+        }
+      }
+    }).catch(() => {});
+    // Restart realtime if the channel dropped while backgrounded
+    if (typeof startRealtime === 'function' && typeof _rtChannel !== 'undefined' && !_rtChannel) {
+      startRealtime();
+    }
+  }
+
+  // Completely silent data refresh — no toast, no spinner, no banner
   Promise.all([
     typeof loadReports === 'function' ? loadReports() : Promise.resolve(),
     typeof loadCustomLocations === 'function' ? loadCustomLocations() : Promise.resolve()
@@ -1338,7 +1362,7 @@ function _silentRefresh() {
     if (window._nearbyAreas?.length && typeof renderNearbyDashboard === 'function') renderNearbyDashboard();
     const activePage = document.querySelector('.page.active')?.id;
     if (activePage === 'page-myarea' && typeof renderMyArea === 'function') renderMyArea();
-  }).catch(() => {}); // fail silently
+  }).catch(() => {});
 }
 </script>
 

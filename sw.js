@@ -2,7 +2,7 @@
    NEPAWatch Lagos — Service Worker v1.3.0
    !! BUMP VERSION STRING ON EVERY DEPLOY !!
    ===================================================== */
-const VERSION = 'v1.6.0';
+const VERSION = 'v1.7.0';
 const CACHE   = `nepawatch-${VERSION}`;
 const OFFLINE_KEY = 'nw-offline-state';
 
@@ -88,7 +88,7 @@ self.addEventListener('push', event => {
   try { data = event.data?.json() || {}; }
   catch(e) { data = { title: 'NEPAWatch', body: event.data?.text() || 'New power update' }; }
 
-  const title = data.title || 'NEPAWatch Lagos';
+  const title = data.title || 'NEPAWatch Nigeria';
   const body  = data.body  || 'New power report in your area.';
   const type  = data.type  || 'info';
   const area  = data.area  || '';

@@ -2336,15 +2336,22 @@ async function initAuth(){
     }
     updateBanner();renderAccount();if(CU)loadSavedPlaces();
   });
-  // Periodic session health check — fixes untappable state after long idle
+  // Periodic session health check — every 2 min; proactively refreshes token
+  // before it expires so the app never silently stops working mid-session
   setInterval(async()=>{
     try{
-      const{data:{session}}=await sb.auth.getSession();
+      const{data:{session},error}=await sb.auth.getSession();
+      if(error){await sb.auth.refreshSession().catch(()=>{});return;}
       const u=session?.user||null;
-      if(!u&&CU){CU=null;PR=null;savedPlaces=[];updateBanner();renderAccount();}
+      if(!u&&CU){CU=null;PR=null;savedPlaces=[];updateBanner();renderAccount();toast('Session expired — please sign in again.','info');}
       else if(u&&!CU){CU=u;await loadProfile();updateBanner();renderAccount();loadSavedPlaces();}
+      // Refresh proactively when token expires in <5 min
+      if(session?.expires_at){
+        const expiresIn=session.expires_at*1000-Date.now();
+        if(expiresIn<5*60*1000&&expiresIn>0)await sb.auth.refreshSession().catch(()=>{});
+      }
     }catch(e){}
-  },5*60*1000);
+  },2*60*1000);
 }
 function _resetFormHTML(){return`<div class="auth-wrap"><div class="auth-logo"><div class="auth-logo-icon" style="background:var(--p)">${LOGO_IMG_TAG}</div><span class="auth-logo-name">NEPA<em>Watch</em></span></div><h2>Set new password</h2><p class="auth-sub">Choose a strong new password for your account.</p><div class="msg err" id="authErr"></div><div class="msg ok" id="authOk"></div><div class="fld"><label>New Password</label><input id="inp-newpass" type="password" placeholder="Min 6 characters" autocomplete="new-password"><button type="button" class="pw-eye-btn" onclick="appTogglePw(this)" tabindex="-1"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M1 8C2.5 5 5 3.5 8 3.5C11 3.5 13.5 5 15 8C13.5 11 11 12.5 8 12.5C5 12.5 2.5 11 1 8Z" stroke="currentColor" stroke-width="1.3"/><circle cx="8" cy="8" r="2.2" stroke="currentColor" stroke-width="1.3"/></svg></button></div><div class="fld"><label>Confirm Password</label><input id="inp-confpass" type="password" placeholder="Repeat password" autocomplete="new-password"><button type="button" class="pw-eye-btn" onclick="appTogglePw(this)" tabindex="-1"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M1 8C2.5 5 5 3.5 8 3.5C11 3.5 13.5 5 15 8C13.5 11 11 12.5 8 12.5C5 12.5 2.5 11 1 8Z" stroke="currentColor" stroke-width="1.3"/><circle cx="8" cy="8" r="2.2" stroke="currentColor" stroke-width="1.3"/></svg></button></div><button class="auth-btn" id="authBtn" onclick="doPasswordReset()">Update Password</button></div>`;}
 
