@@ -37,8 +37,6 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap" rel="stylesheet">
 <style>
-/* Prevent flash of app content before auth check resolves */
-html { visibility: hidden; }
 /* ═══════════════════════════════════════════════════
    LANDING PAGE + AUTH GATE
    ═══════════════════════════════════════════════════ */
@@ -1269,8 +1267,6 @@ function lpTogglePw(inputId, btn) {
           showLanding();
           setTimeout(() => { lpBuildTicker(); lpBuildAreaGrid(); }, 900);
         }
-        // Reveal page now that we know the correct view — kills the auth flash
-        document.documentElement.style.visibility = '';
         initialFired = true;
       });
     }
