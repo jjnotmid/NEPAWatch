@@ -781,14 +781,15 @@ function toggleSidebar(force) {
 // ── STATS ─────────────────────────────────────────────────────
 async function loadStats() {
   try {
-    const [uRes, rRes, tRes] = await Promise.all([
+    const [uRes, rRes, rCountRes, tRes] = await Promise.all([
       sb.from('profiles').select('id',{count:'exact',head:true}),
       sb.from('reports').select('id,type,location_area,confirms,created_at').order('created_at',{ascending:false}).limit(2000),
+      sb.from('reports').select('id',{count:'exact',head:true}),
       sb.from('electricity_purchases').select('amount,status').limit(2000),
     ]);
     document.getElementById('st-users').textContent   = uRes.count??'—';
     const reps=rRes.data||[];
-    document.getElementById('st-reports').textContent = reps.length;
+    document.getElementById('st-reports').textContent = (rCountRes.count??reps.length).toLocaleString();
     const outAreas=new Set(reps.filter(r=>r.type==='out').map(r=>r.location_area));
     document.getElementById('st-outages').textContent = outAreas.size;
     document.getElementById('st-areas').textContent   = new Set(reps.map(r=>r.location_area)).size;

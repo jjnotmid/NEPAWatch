@@ -2289,7 +2289,7 @@ const _alertCooldowns={};
 const ALERT_COOLDOWN_MS=5*60*1000;
 let savedPlaces=[];
 let _placeSel=null,_placeType="home",_editPlaceId=null;
-let _userCount=0,_nearbyAreas=[],_userLat=null,_userLng=null,_pollTimer=null;
+let _userCount=0,_totalReportsCount=0,_nearbyAreas=[],_userLat=null,_userLng=null,_pollTimer=null;
 let _leafletMap=null,_leafletUserMarker=null,_leafletPowerMarkers=[];
 let userExactLat=null,userExactLng=null;
 
@@ -2593,6 +2593,11 @@ async function loadReports(){
     /* Try extended schema (ai_prob, wrong_votes). If those columns don't exist yet
        the DB returns 400 — we catch that and fall back to the base columns so the
        app never breaks while the migration is pending. */
+    // Fetch true total count in parallel — not limited by the 1000-row page
+    sb.from("reports").select("id",{count:"exact",head:true}).then(({count})=>{
+      if(count!=null&&count>_totalReportsCount){_totalReportsCount=count;renderStats();}
+    }).catch(()=>{});
+
     let data, error;
     const extResult = await fetchWithTimeout(
       sb.from("reports")
@@ -3198,7 +3203,9 @@ function renderStats(){
 
   animateNum("s-out", outCount);
   animateNum("s-bck", bckCount);
-  animateNum("s-rep", pool.length);
+  // Use DB total count when showing all-time — in-memory array is limited to 1000
+  const repCount = (feedFilter==="all"&&!filterArea&&_totalReportsCount>pool.length) ? _totalReportsCount : pool.length;
+  animateNum("s-rep", repCount);
 
   const lOut = document.getElementById("sl-out");
   const lBck = document.getElementById("sl-bck");
