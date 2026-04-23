@@ -6,9 +6,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 
 <!-- ── SEO ──────────────────────────────────────────────────── -->
-<title>Buy Electricity Token Nigeria — All DISCOs | NEPAWatch</title>
-<meta name="description" content="Buy electricity token online for any Nigerian DISCO instantly — IKEDC, EKEDC, AEDC, IBEDC, PHED, EEDC, KEDCO, BEDC, KAEDCO, JED, YEDC. Pay with card, bank transfer or USSD. Token in seconds.">
-<meta name="keywords" content="buy electricity token online Nigeria, IKEDC recharge, EKEDC token, AEDC token, IBEDC token, PHED token, buy prepaid meter token Nigeria, electricity bill payment Nigeria, NEPAWatch">
+<title>Buy Electricity Token Online — NEPAWatch Lagos</title>
+<meta name="description" content="Buy electricity token online for IKEDC, EKEDC, AEDC, PHED and all Nigerian DISCOs instantly. Pay with card, bank transfer or USSD. Token delivered in seconds.">
+<meta name="keywords" content="buy electricity token online, IKEDC recharge, EKEDC token, buy prepaid meter token Lagos, electricity bill payment Nigeria, NEPAWatch">
 <meta name="theme-color" content="#AAFF00">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -20,16 +20,16 @@
 
 <!-- ── Open Graph ────────────────────────────────────────────── -->
 <meta property="og:type" content="website">
-<meta property="og:title" content="Buy Electricity Token Nigeria — All DISCOs | NEPAWatch">
-<meta property="og:description" content="Buy electricity tokens for any Nigerian DISCO instantly — all 11 DISCOs, all 36 states + FCT. Token in seconds.">
+<meta property="og:title" content="Buy Electricity Token Online — NEPAWatch Lagos">
+<meta property="og:description" content="Buy electricity tokens for any Nigerian DISCO instantly. IKEDC, EKEDC, AEDC, PHED and more. Token in seconds.">
 <meta property="og:url" content="https://nepawatch.app/topup.html">
 <meta property="og:image" content="https://nepawatch.app/logo2.jpg">
 <meta property="og:site_name" content="NEPAWatch">
 
 <!-- ── Twitter Card ──────────────────────────────────────────── -->
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Buy Electricity Token Nigeria — All DISCOs | NEPAWatch">
-<meta name="twitter:description" content="Instant electricity token for all 11 Nigerian DISCOs. Pay with card or bank transfer. Token in seconds.">
+<meta name="twitter:title" content="Buy Electricity Token Online — NEPAWatch Lagos">
+<meta name="twitter:description" content="Instant electricity token for IKEDC, EKEDC, AEDC and all DISCOs. Pay with card or bank transfer.">
 <meta name="twitter:image" content="https://nepawatch.app/logo2.jpg">
 
 <!-- ── Structured Data ───────────────────────────────────────── -->
@@ -54,6 +54,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@700;900&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 
 <style>
 :root{
@@ -110,15 +111,16 @@ main{padding-top:calc(58px + env(safe-area-inset-top,0px));padding-bottom:calc(8
 .section-label{font-size:.67rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--ink3);margin-bottom:10px}
 
 /* ── Disco grid ─────────────────────────────────────────────── */
-.disco-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:22px}
-.disco-card{background:var(--sf);border:1.5px solid var(--bd);border-radius:var(--r);padding:12px;cursor:pointer;transition:all .18s;display:flex;align-items:center;gap:9px}
+.disco-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:22px}
+.disco-card{background:var(--sf);border:1.5px solid var(--bd);border-radius:12px;padding:10px 12px;cursor:pointer;transition:all .18s;position:relative}
 .disco-card:hover{border-color:var(--bd2)}
 .disco-card.active{border-color:var(--p);background:var(--pp)}
-.disco-icon{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:1rem;flex-shrink:0}
-.disco-name{font-size:.74rem;font-weight:700;line-height:1.2;color:var(--ink)}
-.disco-area{font-size:.61rem;color:var(--ink3);margin-top:2px}
-.disco-check{margin-left:auto;width:16px;height:16px;border-radius:50%;border:2px solid var(--bd2);flex-shrink:0;transition:all .18s}
-.disco-card.active .disco-check{background:var(--p);border-color:var(--p)}
+.disco-abbr{font-family:var(--font-display);font-size:.88rem;font-weight:900;color:var(--ink);letter-spacing:-.02em;padding-right:14px}
+.disco-card.active .disco-abbr{color:var(--p)}
+.disco-full{font-size:.64rem;color:var(--ink2);margin-top:2px;font-weight:500}
+.disco-states{font-size:.58rem;color:var(--ink3);margin-top:3px;line-height:1.3}
+.disco-dot{position:absolute;top:9px;right:9px;width:8px;height:8px;border-radius:50%;background:var(--bd2);transition:background .18s}
+.disco-card.active .disco-dot{background:var(--p)}
 
 /* ── Type toggle ─────────────────────────────────────────────── */
 .type-row{display:flex;gap:8px;margin-bottom:22px}
@@ -157,6 +159,16 @@ main{padding-top:calc(58px + env(safe-area-inset-top,0px));padding-bottom:calc(8
 /* ── KYC ─────────────────────────────────────────────────────── */
 .kyc-card{background:var(--sf);border:1.5px solid rgba(255,180,0,.25);border-radius:var(--r);padding:18px;margin-bottom:14px;background:rgba(255,180,0,.03)}
 [data-theme="light"] .kyc-card{background:rgba(184,120,0,.04)}
+.kyc-saved-banner{background:rgba(170,255,0,.05);border:1.5px solid rgba(170,255,0,.2);border-radius:12px;padding:12px 14px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;gap:10px}
+[data-theme="light"] .kyc-saved-banner{background:rgba(68,187,0,.05)}
+.ksb-body{flex:1}
+.ksb-txt{font-size:.78rem;color:var(--p);font-weight:700}
+.ksb-sub{font-size:.63rem;color:var(--ink3);margin-top:2px}
+.ksb-edit{font-size:.67rem;color:var(--ink3);cursor:pointer;text-decoration:underline;white-space:nowrap;flex-shrink:0}
+.ksb-edit:hover{color:var(--ink2)}
+/* ── Email readonly ──────────────────────────────────────────── */
+.fld input[readonly]{background:var(--sf2);color:var(--ink2);cursor:default;border-color:var(--bd)}
+.email-note{font-size:.62rem;color:var(--ink3);margin-top:4px}
 
 /* ── Pay button ──────────────────────────────────────────────── */
 .pay-btn{width:100%;background:var(--p);color:#0A0D0B;border:none;border-radius:12px;padding:15px;font-family:var(--font-display);font-size:1rem;font-weight:900;cursor:pointer;transition:all .15s;letter-spacing:-.02em;display:flex;align-items:center;justify-content:center;gap:8px;margin-top:4px}
@@ -245,7 +257,7 @@ main{padding-top:calc(58px + env(safe-area-inset-top,0px));padding-bottom:calc(8
   <div id="mainForm">
     <div class="page-header">
       <h1>Buy <em>Electricity</em></h1>
-      <p>All 11 DISCOs &nbsp;·&nbsp; All 36 States + FCT</p>
+      <p>Instant electricity token for IKEDC &amp; EKEDC</p>
     </div>
 
     <div class="how">
@@ -259,59 +271,70 @@ main{padding-top:calc(58px + env(safe-area-inset-top,0px));padding-bottom:calc(8
     <div class="section-label">Your electricity company</div>
     <div class="disco-grid" id="discoGrid">
       <div class="disco-card active" onclick="selectDisco('IKEDC','ikeja-electric',this)">
-        <div class="disco-icon" style="background:rgba(255,184,0,.12)">⚡</div>
-        <div><div class="disco-name">Ikeja Electric</div><div class="disco-area">IKEDC · Lagos North — Ikeja, Ikorodu, Shomolu</div></div>
-        <div class="disco-check"></div>
+        <div class="disco-dot"></div>
+        <div class="disco-abbr">IKEDC</div>
+        <div class="disco-full">Ikeja Electric</div>
+        <div class="disco-states">Lagos North — Ikeja, Ikorodu, Shomolu</div>
       </div>
       <div class="disco-card" onclick="selectDisco('EKEDC','eko-electric',this)">
-        <div class="disco-icon" style="background:rgba(170,255,0,.1)">🔌</div>
-        <div><div class="disco-name">Eko Electric</div><div class="disco-area">EKEDC · Lagos South — Lekki, VI, Apapa, Island</div></div>
-        <div class="disco-check"></div>
+        <div class="disco-dot"></div>
+        <div class="disco-abbr">EKEDC</div>
+        <div class="disco-full">Eko Electric</div>
+        <div class="disco-states">Lagos South — Lekki, VI, Apapa, Island</div>
       </div>
       <div class="disco-card" onclick="selectDisco('AEDC','abuja-electric',this)">
-        <div class="disco-icon" style="background:rgba(100,180,255,.1)">⚡</div>
-        <div><div class="disco-name">Abuja Electric</div><div class="disco-area">AEDC · FCT, Niger, Nasarawa, Kogi</div></div>
-        <div class="disco-check"></div>
+        <div class="disco-dot"></div>
+        <div class="disco-abbr">AEDC</div>
+        <div class="disco-full">Abuja Electric</div>
+        <div class="disco-states">FCT, Niger, Nasarawa, Kogi</div>
       </div>
       <div class="disco-card" onclick="selectDisco('IBEDC','ibadan-electric',this)">
-        <div class="disco-icon" style="background:rgba(255,120,60,.1)">🔌</div>
-        <div><div class="disco-name">Ibadan Electric</div><div class="disco-area">IBEDC · Oyo, Osun, Ogun, Kwara</div></div>
-        <div class="disco-check"></div>
+        <div class="disco-dot"></div>
+        <div class="disco-abbr">IBEDC</div>
+        <div class="disco-full">Ibadan Electric</div>
+        <div class="disco-states">Oyo, Osun, Ogun, Kwara</div>
       </div>
       <div class="disco-card" onclick="selectDisco('EEDC','enugu-electric',this)">
-        <div class="disco-icon" style="background:rgba(170,255,0,.08)">⚡</div>
-        <div><div class="disco-name">Enugu Electric</div><div class="disco-area">EEDC · Enugu, Anambra, Imo, Abia, Ebonyi</div></div>
-        <div class="disco-check"></div>
+        <div class="disco-dot"></div>
+        <div class="disco-abbr">EEDC</div>
+        <div class="disco-full">Enugu Electric</div>
+        <div class="disco-states">Enugu, Anambra, Imo, Abia, Ebonyi</div>
       </div>
       <div class="disco-card" onclick="selectDisco('PHED','phed',this)">
-        <div class="disco-icon" style="background:rgba(0,200,150,.1)">🔌</div>
-        <div><div class="disco-name">Port Harcourt Electric</div><div class="disco-area">PHED · Rivers, Bayelsa, Cross River, Akwa Ibom</div></div>
-        <div class="disco-check"></div>
+        <div class="disco-dot"></div>
+        <div class="disco-abbr">PHED</div>
+        <div class="disco-full">Port Harcourt Electric</div>
+        <div class="disco-states">Rivers, Bayelsa, Cross River, Akwa Ibom</div>
       </div>
       <div class="disco-card" onclick="selectDisco('KAEDCO','kaduna-electric',this)">
-        <div class="disco-icon" style="background:rgba(255,200,0,.1)">⚡</div>
-        <div><div class="disco-name">Kaduna Electric</div><div class="disco-area">KAEDCO · Kaduna, Kebbi, Sokoto, Zamfara</div></div>
-        <div class="disco-check"></div>
+        <div class="disco-dot"></div>
+        <div class="disco-abbr">KAEDCO</div>
+        <div class="disco-full">Kaduna Electric</div>
+        <div class="disco-states">Kaduna, Kebbi, Sokoto, Zamfara</div>
       </div>
       <div class="disco-card" onclick="selectDisco('KEDCO','kano-electric',this)">
-        <div class="disco-icon" style="background:rgba(180,100,255,.1)">🔌</div>
-        <div><div class="disco-name">Kano Electric</div><div class="disco-area">KEDCO · Kano, Jigawa, Katsina</div></div>
-        <div class="disco-check"></div>
+        <div class="disco-dot"></div>
+        <div class="disco-abbr">KEDCO</div>
+        <div class="disco-full">Kano Electric</div>
+        <div class="disco-states">Kano, Jigawa, Katsina</div>
       </div>
       <div class="disco-card" onclick="selectDisco('BEDC','benin-electric',this)">
-        <div class="disco-icon" style="background:rgba(255,80,120,.1)">⚡</div>
-        <div><div class="disco-name">Benin Electric</div><div class="disco-area">BEDC · Edo, Delta, Ondo, Ekiti</div></div>
-        <div class="disco-check"></div>
+        <div class="disco-dot"></div>
+        <div class="disco-abbr">BEDC</div>
+        <div class="disco-full">Benin Electric</div>
+        <div class="disco-states">Edo, Delta, Ondo, Ekiti</div>
       </div>
       <div class="disco-card" onclick="selectDisco('JED','jos-electric',this)">
-        <div class="disco-icon" style="background:rgba(80,200,255,.1)">🔌</div>
-        <div><div class="disco-name">Jos Electric</div><div class="disco-area">JED · Plateau, Benue, Nasarawa</div></div>
-        <div class="disco-check"></div>
+        <div class="disco-dot"></div>
+        <div class="disco-abbr">JED</div>
+        <div class="disco-full">Jos Electric</div>
+        <div class="disco-states">Plateau, Benue, Nasarawa</div>
       </div>
       <div class="disco-card" onclick="selectDisco('YEDC','yola-electric',this)">
-        <div class="disco-icon" style="background:rgba(255,160,0,.1)">⚡</div>
-        <div><div class="disco-name">Yola Electric</div><div class="disco-area">YEDC · Adamawa, Taraba, Gombe, Bauchi</div></div>
-        <div class="disco-check"></div>
+        <div class="disco-dot"></div>
+        <div class="disco-abbr">YEDC</div>
+        <div class="disco-full">Yola Electric</div>
+        <div class="disco-states">Adamawa, Taraba, Gombe, Bauchi</div>
       </div>
     </div>
 
@@ -359,13 +382,19 @@ main{padding-top:calc(58px + env(safe-area-inset-top,0px));padding-bottom:calc(8
     <!-- CONTACT -->
     <div class="card">
       <div class="fld">
-        <label>Email</label>
+        <label>Email <span id="emailSourceNote" style="font-weight:400;font-size:.62rem;color:var(--ink3)"></span></label>
         <input type="email" id="emailInput" placeholder="you@example.com" oninput="checkReady()">
+        <div class="email-note" id="emailNote" style="display:none">Token will be sent here after purchase</div>
       </div>
-      <div class="fld">
-        <label>Phone</label>
-        <input type="tel" id="phoneInput" placeholder="08012345678" maxlength="11" oninput="checkReady()">
+    </div>
+
+    <!-- KYC saved banner -->
+    <div class="kyc-saved-banner" id="kycSavedBanner" style="display:none">
+      <div class="ksb-body">
+        <div class="ksb-txt">Identity Saved</div>
+        <div class="ksb-sub" id="kycSavedSub">KYC on file — no need to re-enter</div>
       </div>
+      <span class="ksb-edit" onclick="clearSavedKyc()">Update</span>
     </div>
 
     <!-- KYC -->
@@ -477,9 +506,11 @@ main{padding-top:calc(58px + env(safe-area-inset-top,0px));padding-bottom:calc(8
 <div class="toast" id="toast"></div>
 
 <script>
-const BACKEND   = 'https://djurokbkkqrmpafcxlez.supabase.co/functions/v1/buy-electricity';
-const EMAIL_FN  = 'https://djurokbkkqrmpafcxlez.supabase.co/functions/v1/send-alert';
+const SUPA_URL  = 'https://djurokbkkqrmpafcxlez.supabase.co';
+const BACKEND   = `${SUPA_URL}/functions/v1/buy-electricity`;
+const EMAIL_FN  = `${SUPA_URL}/functions/v1/send-alert`;
 const SUPA_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRqdXJva2Jra3FybXBhZmN4bGV6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI1NzE5OTUsImV4cCI6MjA4ODE0Nzk5NX0.ZLOtWFB7qy_J0mitjb_pcZ88wxmRjMe-3OdbQCRL8xE';
+const sb = supabase.createClient(SUPA_URL, SUPA_ANON);
 
 // ── Theme ─────────────────────────────────────────────────────
 const MOON = `<path d="M13 8.5A5.5 5.5 0 0 1 7.5 3a5.5 5.5 0 1 0 5.5 5.5z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/>`;
@@ -490,6 +521,27 @@ function initTheme(){let s;try{s=localStorage.getItem('nw-theme');}catch(e){}con
 // ── State ─────────────────────────────────────────────────────
 let disco='IKEDC', discoCode='ikeja-electric', meterType='prepaid';
 let amount=2000, verified=null, verifyTmr=null;
+let _savedKyc=null; // {idType, idNumber, name, dob} from localStorage
+
+// ── Init ──────────────────────────────────────────────────────
+async function initTopup(){
+  initTheme();
+  // Load saved KYC
+  try{const raw=localStorage.getItem('nw-kyc');if(raw)_savedKyc=JSON.parse(raw);}catch(e){}
+  // Auto-fill email from session
+  try{
+    const {data:{session}}=await sb.auth.getSession();
+    const emailEl=document.getElementById('emailInput');
+    if(session?.user?.email){
+      emailEl.value=session.user.email;
+      emailEl.setAttribute('readonly','');
+      document.getElementById('emailSourceNote').textContent='— from your account';
+      document.getElementById('emailNote').style.display='block';
+    }
+  }catch(e){}
+  checkReady();
+  checkCallbackReturn();
+}
 
 // ── Disco / Type ──────────────────────────────────────────────
 function selectDisco(d,code,el){
@@ -584,37 +636,65 @@ function onKycInput(inp){
 
 function checkReady(){
   const email=document.getElementById('emailInput').value.trim();
-  const phone=document.getElementById('phoneInput').value.trim();
   const needsKyc=amount>=5000;
-  document.getElementById('kycCard').style.display=needsKyc?'block':'none';
+  const hasSavedKyc=_savedKyc&&_savedKyc.idType&&_savedKyc.idNumber&&_savedKyc.name&&_savedKyc.dob;
+
+  // Show saved banner OR form
+  if(needsKyc&&hasSavedKyc){
+    document.getElementById('kycSavedBanner').style.display='flex';
+    document.getElementById('kycCard').style.display='none';
+    const last4=(_savedKyc.idNumber||'').slice(-4);
+    document.getElementById('kycSavedSub').textContent=`${_savedKyc.idType} ···${last4} saved — no need to re-enter`;
+  }else{
+    document.getElementById('kycSavedBanner').style.display='none';
+    document.getElementById('kycCard').style.display=needsKyc?'block':'none';
+  }
+
   let kycOk=true;
-  if(needsKyc){
+  if(needsKyc&&!hasSavedKyc){
     const idType=document.getElementById('kycIdType').value;
     const idNum=document.getElementById('kycNumber').value.trim();
     const name=document.getElementById('kycName').value.trim();
     const dob=document.getElementById('kycDob').value;
     kycOk=idType&&idNum.length===11&&name.length>=3&&dob;
   }
-  document.getElementById('payBtn').disabled=!(verified&&amount>=500&&email.includes('@')&&phone.length>=10&&kycOk);
+  document.getElementById('payBtn').disabled=!(verified&&amount>=500&&email.includes('@')&&kycOk);
+}
+
+function clearSavedKyc(){
+  _savedKyc=null;
+  try{localStorage.removeItem('nw-kyc');}catch(e){}
+  checkReady();
 }
 
 // ── Payment ───────────────────────────────────────────────────
 async function pay(){
   const email=document.getElementById('emailInput').value.trim();
-  const phone=document.getElementById('phoneInput').value.trim();
   const btn=document.getElementById('payBtn');
   btn.disabled=true;
   btn.innerHTML='<div class="spin"></div> Initialising…';
   try{
     const needsKyc=amount>=5000;
-    const kycData=needsKyc?{
-      kyc_id_type:document.getElementById('kycIdType').value,
-      kyc_id_number:document.getElementById('kycNumber').value.trim(),
-      kyc_name:document.getElementById('kycName').value.trim(),
-      kyc_dob:document.getElementById('kycDob').value,
-    }:{};
+    const hasSavedKyc=_savedKyc&&_savedKyc.idType&&_savedKyc.idNumber&&_savedKyc.name&&_savedKyc.dob;
+    let kycData={};
+    if(needsKyc){
+      if(hasSavedKyc){
+        kycData={kyc_id_type:_savedKyc.idType,kyc_id_number:_savedKyc.idNumber,kyc_name:_savedKyc.name,kyc_dob:_savedKyc.dob};
+      }else{
+        const newKyc={
+          idType:document.getElementById('kycIdType').value,
+          idNumber:document.getElementById('kycNumber').value.trim(),
+          name:document.getElementById('kycName').value.trim(),
+          dob:document.getElementById('kycDob').value,
+        };
+        kycData={kyc_id_type:newKyc.idType,kyc_id_number:newKyc.idNumber,kyc_name:newKyc.name,kyc_dob:newKyc.dob};
+        // Persist KYC for future purchases
+        _savedKyc=newKyc;
+        try{localStorage.setItem('nw-kyc',JSON.stringify(newKyc));}catch(e){}
+      }
+    }
     const res=await fetch(BACKEND,{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({action:'initiate',provider:discoCode,number:verified.num,type:meterType,amount,email,phone,customerName:verified.name,...kycData})});
+      body:JSON.stringify({action:'initiate',provider:discoCode,number:verified.num,type:meterType,amount,email,customerName:verified.name,...kycData})});
     const d=await res.json();
     if(d.success&&d.checkoutUrl){window.location.href=d.checkoutUrl;}
     else{toast(d.error||'Could not start payment — try again','err');resetPayBtn();}
@@ -720,43 +800,18 @@ function showSuccess(d){
   document.getElementById('infoDisco').textContent=disco;
   document.getElementById('infoMeter').textContent=d.meter||verified?.num||'—';
   window.scrollTo({top:0,behavior:'smooth'});
-
-  // Email the token to the customer for prepaid purchases
-  if (!d.isPostpaid) {
-    const emailEl = document.getElementById('emailInput');
-    if (emailEl?.value) sendTokenEmail(d, emailEl.value.trim());
-  }
 }
 
 function fmt(t){return(t||'').replace(/\s/g,'').replace(/(.{4})/g,'$1 ').trim();}
 function copyToken(){navigator.clipboard.writeText(document.getElementById('tokenCode').textContent.replace(/\s/g,'')).then(()=>toast('Token copied!','ok'));}
 
-async function sendTokenEmail(d, email) {
-  if (!d.token || !email) return;
-  try {
-    const tokenFmt = fmt(d.token);
-    const subject = `Your Electricity Token — ₦${(d.amount||amount).toLocaleString()} · ${disco}`;
-    const body =
-      `Your prepaid electricity token is ready!\n\n` +
-      `TOKEN: ${tokenFmt}\n\n` +
-      `Units:  ${d.units||'—'} kWh\n` +
-      `Meter:  ${d.meter||verified?.num||'—'}\n` +
-      `DISCO:  ${disco}\n` +
-      `Amount: ₦${(d.amount||amount).toLocaleString()}\n\n` +
-      `Enter the 20-digit token into your meter keypad to load your units.\n\n` +
-      `Keep this email as your receipt.\n\n— NEPAWatch`;
-    await fetch(EMAIL_FN, {
-      method: 'POST',
-      headers: {'Content-Type':'application/json','apikey':SUPA_ANON,'Authorization':`Bearer ${SUPA_ANON}`},
-      body: JSON.stringify({mode:'direct_email', to:email, subject, body})
-    });
-  } catch(e) { /* silent — token is already shown on screen */ }
-}
-
 function resetForm(){
   document.getElementById('mainForm').style.display='block';
   document.getElementById('successScreen').classList.remove('show');
-  ['meterInput','emailInput','phoneInput'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('meterInput').value='';
+  // Only clear email if it's not readonly (not autofilled from account)
+  const emailEl=document.getElementById('emailInput');
+  if(!emailEl.hasAttribute('readonly'))emailEl.value='';
   verified=null;
   document.getElementById('verifyStrip').classList.remove('show');
   document.getElementById('meterHint').textContent='Enter your 11–13 digit meter number';
@@ -771,8 +826,7 @@ function toast(msg,type='ok'){
   setTimeout(()=>t.classList.remove('show'),4000);
 }
 
-initTheme();
-window.addEventListener('load',checkCallbackReturn);
+window.addEventListener('load', initTopup);
 </script>
 </body>
 </html>
