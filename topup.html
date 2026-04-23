@@ -268,7 +268,8 @@ main{padding-top:calc(58px + env(safe-area-inset-top,0px));padding-bottom:calc(8
     <div class="disco-wrap">
       <div class="disco-select-inner">
         <select id="discoSelect" onchange="onDiscoChange(this)">
-          <option value="IKEDC|ikeja-electric" selected>IKEDC — Ikeja Electric</option>
+          <option value="" disabled selected>Select your DISCO…</option>
+          <option value="IKEDC|ikeja-electric">IKEDC — Ikeja Electric</option>
           <option value="EKEDC|eko-electric">EKEDC — Eko Electric</option>
           <option value="AEDC|abuja-electric">AEDC — Abuja Electric</option>
           <option value="IBEDC|ibadan-electric">IBEDC — Ibadan Electric</option>
@@ -383,9 +384,9 @@ main{padding-top:calc(58px + env(safe-area-inset-top,0px));padding-bottom:calc(8
         <path d="M1.5 7.5h15" stroke="currentColor" stroke-width="1.5"/>
         <circle cx="4.5" cy="10.5" r="1" fill="currentColor"/>
       </svg>
-      Pay Securely with Paystack
+      Pay with Flutterwave
     </button>
-    <p style="text-align:center;font-size:.67rem;color:var(--ink3);margin-top:10px">🔒 Card · Bank Transfer · USSD · Powered by Paystack</p>
+    <p style="text-align:center;font-size:.67rem;color:var(--ink3);margin-top:10px">🔒 Card · Bank Transfer · USSD · Powered by Flutterwave</p>
   </div>
 
   <!-- SUCCESS -->
@@ -469,7 +470,7 @@ function toggleTheme(){const h=document.documentElement;const next=h.getAttribut
 function initTheme(){let s;try{s=localStorage.getItem('nw-theme');}catch(e){}const p=window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light';const t=s||p;document.documentElement.setAttribute('data-theme',t);document.getElementById('themeIcon').innerHTML=t==='dark'?MOON:SUN;}
 
 // ── State ─────────────────────────────────────────────────────
-let disco='IKEDC', discoCode='ikeja-electric', meterType='prepaid';
+let disco='', discoCode='', meterType='prepaid';
 let amount=2000, verified=null, verifyTmr=null;
 let _savedKyc=null; // {idType, idNumber, name, dob} from localStorage
 
@@ -510,6 +511,7 @@ const DISCO_COVERAGE={
 
 // ── Disco / Type ──────────────────────────────────────────────
 function onDiscoChange(sel){
+  if(!sel.value){disco='';discoCode='';document.getElementById('discoCoverage').textContent='';checkReady();return;}
   const [d,code]=sel.value.split('|');
   disco=d; discoCode=code;
   document.getElementById('discoCoverage').textContent=DISCO_COVERAGE[sel.value]||'';
@@ -624,7 +626,7 @@ function checkReady(){
     const dob=document.getElementById('kycDob').value;
     kycOk=idType&&idNum.length===11&&name.length>=3&&dob;
   }
-  document.getElementById('payBtn').disabled=!(verified&&amount>=500&&email.includes('@')&&kycOk);
+  document.getElementById('payBtn').disabled=!(discoCode&&verified&&amount>=500&&email.includes('@')&&kycOk);
 }
 
 function clearSavedKyc(){
@@ -673,19 +675,27 @@ async function pay(){
 function resetPayBtn(){
   const btn=document.getElementById('payBtn');
   btn.disabled=false;
-  btn.innerHTML=`<svg width="18" height="18" viewBox="0 0 18 18" fill="none"><rect x="1.5" y="4.5" width="15" height="10.5" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M1.5 7.5h15" stroke="currentColor" stroke-width="1.5"/><circle cx="4.5" cy="10.5" r="1" fill="currentColor"/></svg> Pay Securely with Paystack`;
+  btn.innerHTML=`<svg width="18" height="18" viewBox="0 0 18 18" fill="none"><rect x="1.5" y="4.5" width="15" height="10.5" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M1.5 7.5h15" stroke="currentColor" stroke-width="1.5"/><circle cx="4.5" cy="10.5" r="1" fill="currentColor"/></svg> Pay with Flutterwave`;
 }
 
 // ── Callback polling ──────────────────────────────────────────
 async function checkCallbackReturn(){
   const params=new URLSearchParams(window.location.search);
-  const ref=params.get('reference')||params.get('ref');
-  if(!ref)return;
+  const status=params.get('status');
+  const transactionId=params.get('transaction_id');
+  const txRef=params.get('tx_ref');
+  if(!transactionId&&!txRef)return;
+  // Flutterwave cancelled / failed
+  if(status==='cancelled'||status==='failed'){
+    window.history.replaceState({},'',window.location.pathname);
+    toast('Payment cancelled — please try again','err');
+    return;
+  }
   window.history.replaceState({},'',window.location.pathname);
   document.getElementById('mainForm').style.display='none';
   document.getElementById('waitingScreen').style.display='block';
   startWaitingDots();
-  pollForToken(ref,0);
+  pollForToken(transactionId,txRef,0);
 }
 
 let dotsInterval=null;
@@ -704,18 +714,18 @@ function startWaitingDots(){
 }
 function stopWaitingDots(){if(dotsInterval){clearInterval(dotsInterval);dotsInterval=null;}}
 
-async function pollForToken(ref,attempt){
+async function pollForToken(transactionId,txRef,attempt){
   const MAX=20; // 20 × 1.5s = 30 seconds
   if(attempt>=MAX){
     stopWaitingDots();
     document.getElementById('waitingScreen').style.display='none';
     document.getElementById('mainForm').style.display='block';
-    toast('Taking longer than usual — please contact support with ref: '+ref,'err');
+    toast('Taking longer than usual — contact support with ref: '+(txRef||transactionId),'err');
     return;
   }
   try{
     const res=await fetch(BACKEND,{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({action:'verify',reference:ref})});
+      body:JSON.stringify({action:'verify',transaction_id:transactionId,tx_ref:txRef})});
     const d=await res.json();
 
     if(d.success){
@@ -726,7 +736,6 @@ async function pollForToken(ref,attempt){
     }
 
     if(d.fatal){
-      // Hard error — stop immediately
       stopWaitingDots();
       document.getElementById('waitingScreen').style.display='none';
       document.getElementById('mainForm').style.display='block';
@@ -734,10 +743,9 @@ async function pollForToken(ref,attempt){
       return;
     }
 
-    // Payment not confirmed yet — retry faster (1.5s)
-    setTimeout(()=>pollForToken(ref,attempt+1),1500);
+    setTimeout(()=>pollForToken(transactionId,txRef,attempt+1),1500);
   }catch(e){
-    setTimeout(()=>pollForToken(ref,attempt+1),1500);
+    setTimeout(()=>pollForToken(transactionId,txRef,attempt+1),1500);
   }
 }
 

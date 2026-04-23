@@ -2,20 +2,22 @@ import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 /* ────────────────────────────────────────────────────────────────
-   NEPAWatch — buy-electricity edge function
-   Handles:
-     action:"verify"   (with provider/number/type) → VTPass meter lookup
-     action:"initiate" → Paystack checkout init
-     action:"verify"   (with reference)            → Poll Paystack + deliver token
+   NEPAWatch — buy-electricity edge function (Flutterwave + VTPass)
+
+   Actions:
+     verify   (provider + number + type)  → VTPass meter lookup
+     initiate (provider + number + ...)   → Flutterwave payment link
+     verify   (transaction_id + tx_ref)   → Verify FLW payment + deliver token
    ──────────────────────────────────────────────────────────────── */
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
 };
 
-// ── VTPass service IDs (exact strings VTPass expects) ──────────
-const VTPASS_SERVICE_IDS: Record<string, string> = {
+// ── VTPass service IDs ─────────────────────────────────────────
+const VTPASS_IDS: Record<string, string> = {
   "ikeja-electric":  "ikeja-electric",
   "eko-electric":    "eko-electric",
   "abuja-electric":  "abuja-electric",
@@ -29,29 +31,43 @@ const VTPASS_SERVICE_IDS: Record<string, string> = {
   "yola-electric":   "yola-electric",
 };
 
-function vtpassBase(): string {
-  const sandbox = Deno.env.get("VTPASS_SANDBOX") === "true";
-  return sandbox
+// ── VTPass helpers ─────────────────────────────────────────────
+function vtBase(): string {
+  return Deno.env.get("VTPASS_SANDBOX") === "true"
     ? "https://sandbox.vtpass.com/api"
     : "https://vtpass.com/api";
 }
 
-function vtpassHeaders(): HeadersInit {
-  const apiKey    = Deno.env.get("VTPASS_API_KEY")    ?? "";
-  const secretKey = Deno.env.get("VTPASS_SECRET_KEY") ?? "";
+function vtHeaders(): HeadersInit {
   return {
-    "Content-Type":  "application/json",
-    "api-key":       apiKey,
-    "secret-key":    secretKey,
+    "Content-Type": "application/json",
+    "api-key":      Deno.env.get("VTPASS_API_KEY")    ?? "",
+    "secret-key":   Deno.env.get("VTPASS_SECRET_KEY") ?? "",
   };
 }
 
-// ── Paystack ───────────────────────────────────────────────────
-function paystackSecret(): string {
-  return Deno.env.get("PAYSTACK_SECRET_KEY") ?? "";
+function vtVerifyHeaders(): HeadersInit {
+  // Merchant-verify uses public-key, not secret-key
+  return {
+    "Content-Type": "application/json",
+    "api-key":      Deno.env.get("VTPASS_API_KEY")     ?? "",
+    "public-key":   Deno.env.get("VTPASS_PUBLIC_KEY")  ?? "",
+  };
 }
 
-// ── Supabase admin client for persisting transactions ──────────
+// ── Flutterwave helpers ────────────────────────────────────────
+function flwSecret(): string {
+  return Deno.env.get("FLW_SECRET_KEY") ?? "";
+}
+
+function flwHeaders(): HeadersInit {
+  return {
+    Authorization:  `Bearer ${flwSecret()}`,
+    "Content-Type": "application/json",
+  };
+}
+
+// ── Supabase admin client ──────────────────────────────────────
 function adminClient() {
   return createClient(
     Deno.env.get("SUPABASE_URL")!,
@@ -59,10 +75,16 @@ function adminClient() {
   );
 }
 
-// ── Unique request ID for VTPass (16-char alphanum) ───────────
+// ── Unique tx_ref ──────────────────────────────────────────────
+function makeTxRef(): string {
+  const date = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+  const rand = Math.random().toString(36).slice(2, 10).toUpperCase();
+  return `NW-${date}-${rand}`;
+}
+
+// ── Unique VTPass request_id ───────────────────────────────────
 function makeRequestId(): string {
-  const now  = new Date();
-  const date = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,"0")}${String(now.getDate()).padStart(2,"0")}`;
+  const date = new Date().toISOString().slice(0, 10).replace(/-/g, "");
   const rand = Math.random().toString(36).slice(2, 10).toUpperCase();
   return `${date}${rand}`;
 }
@@ -75,12 +97,10 @@ serve(async (req) => {
     const body = await req.json();
     const { action } = body;
 
-    // ── 1. Meter verification ─────────────────────────────────
-    if (action === "verify" && body.provider && !body.reference) {
-      const serviceId = VTPASS_SERVICE_IDS[body.provider];
-      if (!serviceId) {
-        return json({ success: false, error: "Unknown DISCO provider" });
-      }
+    /* ── 1. Meter verification ────────────────────────────────── */
+    if (action === "verify" && body.provider && !body.transaction_id) {
+      const serviceId = VTPASS_IDS[body.provider];
+      if (!serviceId) return json({ success: false, error: "Unknown DISCO" });
 
       const params = new URLSearchParams({
         billersCode: body.number,
@@ -88,8 +108,8 @@ serve(async (req) => {
         type:        body.type === "postpaid" ? "postpaid" : "prepaid",
       });
 
-      const r = await fetch(`${vtpassBase()}/merchant-verify?${params}`, {
-        headers: vtpassHeaders(),
+      const r = await fetch(`${vtBase()}/merchant-verify?${params}`, {
+        headers: vtVerifyHeaders(),
       });
       const d = await r.json();
 
@@ -107,30 +127,37 @@ serve(async (req) => {
       });
     }
 
-    // ── 2. Initiate Paystack payment ──────────────────────────
+    /* ── 2. Initiate Flutterwave payment ──────────────────────── */
     if (action === "initiate") {
       const { provider, number, type, amount, email, customerName, ...kycFields } = body;
 
-      if (!VTPASS_SERVICE_IDS[provider]) {
-        return json({ success: false, error: "Unknown DISCO provider" });
-      }
+      if (!VTPASS_IDS[provider]) return json({ success: false, error: "Unknown DISCO" });
       if (!email || !number || !amount || amount < 500) {
         return json({ success: false, error: "Missing required fields" });
       }
 
-      const callbackUrl = `${req.headers.get("origin") ?? "https://nepawatch.app"}/topup.html`;
+      const txRef = makeTxRef();
+      const origin = req.headers.get("origin") ?? "https://nepawatch.app";
+      const redirectUrl = `${origin}/topup.html`;
 
-      const psRes = await fetch("https://api.paystack.co/transaction/initialize", {
+      const flwRes = await fetch("https://api.flutterwave.com/v3/payments", {
         method:  "POST",
-        headers: {
-          Authorization:  `Bearer ${paystackSecret()}`,
-          "Content-Type": "application/json",
-        },
+        headers: flwHeaders(),
         body: JSON.stringify({
-          email,
-          amount:        amount * 100, // kobo
-          callback_url:  callbackUrl,
-          metadata: {
+          tx_ref:       txRef,
+          amount,
+          currency:     "NGN",
+          redirect_url: redirectUrl,
+          customer: {
+            email,
+            name: customerName ?? email,
+          },
+          customizations: {
+            title:       "NEPAWatch Electricity",
+            description: `${provider.toUpperCase()} meter top-up`,
+            logo:        `${origin}/logo2.jpg`,
+          },
+          meta: {
             provider,
             number,
             type,
@@ -141,42 +168,47 @@ serve(async (req) => {
         }),
       });
 
-      const ps = await psRes.json();
-      if (!ps.status) {
-        return json({ success: false, error: ps.message ?? "Paystack error" });
+      const flw = await flwRes.json();
+      if (flw.status !== "success") {
+        return json({ success: false, error: flw.message ?? "Flutterwave error" });
       }
 
       // Persist pending transaction
       try {
-        await adminClient()
-          .from("electricity_transactions")
-          .insert({
-            reference:     ps.data.reference,
-            provider,
-            meter_number:  number,
-            meter_type:    type,
-            amount,
-            email,
-            status:        "pending",
-          });
-      } catch (_) { /* non-fatal — table may not exist */ }
+        await adminClient().from("electricity_transactions").insert({
+          reference:    txRef,
+          provider,
+          meter_number: number,
+          meter_type:   type,
+          amount,
+          email,
+          status:       "pending",
+        });
+      } catch (_) { /* non-fatal */ }
 
-      return json({ success: true, checkoutUrl: ps.data.authorization_url, reference: ps.data.reference });
+      return json({
+        success:     true,
+        checkoutUrl: flw.data.link,
+        tx_ref:      txRef,
+      });
     }
 
-    // ── 3. Poll / deliver token (action:"verify" with reference) ─
-    if (action === "verify" && body.reference) {
-      const ref = body.reference as string;
+    /* ── 3. Verify payment + deliver token ─────────────────────── */
+    if (action === "verify" && (body.transaction_id || body.tx_ref)) {
+      const transactionId = body.transaction_id as string | undefined;
+      const txRef         = body.tx_ref         as string | undefined;
 
-      // Check if already processed (idempotency)
+      // Check idempotency cache first
       let cached: Record<string, unknown> | null = null;
       try {
-        const { data } = await adminClient()
-          .from("electricity_transactions")
-          .select("*")
-          .eq("reference", ref)
-          .single();
-        cached = data;
+        if (txRef) {
+          const { data } = await adminClient()
+            .from("electricity_transactions")
+            .select("*")
+            .eq("reference", txRef)
+            .single();
+          cached = data;
+        }
       } catch (_) {}
 
       if (cached?.status === "success") {
@@ -190,87 +222,99 @@ serve(async (req) => {
         });
       }
       if (cached?.status === "failed") {
-        return json({ success: false, fatal: true, error: "Transaction failed — please contact support" });
+        return json({ success: false, fatal: true, error: "Transaction failed — contact support" });
       }
 
-      // Verify Paystack payment
-      const psRes = await fetch(`https://api.paystack.co/transaction/verify/${ref}`, {
-        headers: { Authorization: `Bearer ${paystackSecret()}` },
-      });
-      const ps = await psRes.json();
+      // Verify with Flutterwave
+      let flwData: Record<string, unknown> | null = null;
 
-      if (!ps.status || ps.data?.status !== "success") {
-        return json({ success: false }); // not yet paid, frontend retries
+      if (transactionId) {
+        const r = await fetch(
+          `https://api.flutterwave.com/v3/transactions/${transactionId}/verify`,
+          { headers: flwHeaders() },
+        );
+        const d = await r.json();
+        if (d.status === "success") flwData = d.data;
       }
 
-      // Payment confirmed — extract metadata
-      const meta     = ps.data.metadata ?? {};
-      const provider = meta.provider as string;
-      const number   = meta.number   as string;
-      const type     = (meta.type    as string) ?? "prepaid";
-      const amount   = (meta.amount  as number) ?? Math.round(ps.data.amount / 100);
-      const email    = ps.data.customer?.email as string;
-
-      const serviceId = VTPASS_SERVICE_IDS[provider];
-      if (!serviceId) {
-        return json({ success: false, fatal: true, error: "Invalid DISCO in transaction" });
+      // Fallback: verify by tx_ref query
+      if (!flwData && txRef) {
+        const r = await fetch(
+          `https://api.flutterwave.com/v3/transactions?tx_ref=${encodeURIComponent(txRef)}`,
+          { headers: flwHeaders() },
+        );
+        const d = await r.json();
+        if (d.status === "success" && d.data?.length > 0) {
+          flwData = d.data[0];
+        }
       }
 
-      // Call VTPass to purchase token
+      if (!flwData || flwData.status !== "successful") {
+        return json({ success: false }); // not yet confirmed — frontend retries
+      }
+
+      // Extract metadata from Flutterwave response
+      const meta      = (flwData.meta as Record<string, unknown>) ?? {};
+      const provider  = (meta.provider  ?? cached?.provider)  as string;
+      const number    = (meta.number    ?? cached?.meter_number) as string;
+      const type      = (meta.type      ?? cached?.meter_type ?? "prepaid") as string;
+      const amount    = Number(meta.amount ?? flwData.amount ?? cached?.amount ?? 0);
+      const email     = ((flwData.customer as Record<string, unknown>)?.email ?? cached?.email ?? "") as string;
+
+      const serviceId = VTPASS_IDS[provider];
+      if (!serviceId) return json({ success: false, fatal: true, error: "Invalid DISCO" });
+
+      // Purchase token via VTPass
       const requestId = makeRequestId();
-      const vtRes = await fetch(`${vtpassBase()}/pay`, {
+      const vtRes = await fetch(`${vtBase()}/pay`, {
         method:  "POST",
-        headers: vtpassHeaders(),
+        headers: vtHeaders(),
         body: JSON.stringify({
-          request_id:  requestId,
-          serviceID:   serviceId,
-          billersCode: number,
+          request_id:     requestId,
+          serviceID:      serviceId,
+          billersCode:    number,
           variation_code: type === "postpaid" ? "postpaid" : "prepaid",
           amount,
-          phone:       "08000000000", // VTPass requires a phone field; use dummy for non-SMS delivery
-          quantity:    1,
+          phone:          "08000000000",
+          quantity:       1,
         }),
       });
       const vt = await vtRes.json();
 
-      // VTPass success codes: "000" (prepaid token) or "099" (postpaid)
-      const vtCode = vt.code ?? vt.content?.transactions?.status;
-      const isSuccess = vtCode === "000" || vtCode === "099" || vt.content?.transactions?.status === "delivered";
+      const vtCode      = vt.code ?? vt.content?.transactions?.status;
+      const isSuccess   = vtCode === "000" || vtCode === "099" ||
+                          vt.content?.transactions?.status === "delivered";
 
       if (isSuccess) {
-        const token = vt.content?.transactions?.token
-          ?? vt.token
-          ?? vt.content?.token
-          ?? "";
-        const units = vt.content?.transactions?.units
-          ?? vt.units
-          ?? "";
+        const token = vt.content?.transactions?.token ?? vt.token ?? "";
+        const units = String(vt.content?.transactions?.units ?? vt.units ?? "");
 
-        // Persist success
         try {
-          await adminClient()
-            .from("electricity_transactions")
-            .upsert({ reference: ref, status: "success", token, units, meter_number: number, provider, meter_type: type, amount, email }, { onConflict: "reference" });
+          await adminClient().from("electricity_transactions").upsert(
+            { reference: txRef ?? requestId, status: "success", token, units,
+              meter_number: number, provider, meter_type: type, amount, email },
+            { onConflict: "reference" },
+          );
         } catch (_) {}
 
         return json({
           success:    true,
           token,
-          units:      String(units),
+          units,
           amount,
           meter:      number,
           isPostpaid: type === "postpaid",
         });
       }
 
-      // VTPass returned an error
-      const vtError = vt.response_description ?? vt.content?.errors?.join(", ") ?? "VTPass transaction failed";
+      const vtError = vt.response_description ?? vt.content?.errors?.join(", ") ?? "VTPass error";
 
-      // Persist failure
       try {
-        await adminClient()
-          .from("electricity_transactions")
-          .upsert({ reference: ref, status: "failed", error: vtError, provider, meter_number: number, meter_type: type, amount, email }, { onConflict: "reference" });
+        await adminClient().from("electricity_transactions").upsert(
+          { reference: txRef ?? requestId, status: "failed", error: vtError,
+            provider, meter_number: number, meter_type: type, amount, email },
+          { onConflict: "reference" },
+        );
       } catch (_) {}
 
       return json({ success: false, fatal: true, error: vtError });
