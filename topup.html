@@ -283,7 +283,7 @@ main{padding-top:calc(58px + env(safe-area-inset-top,0px));padding-bottom:calc(8
         </select>
         <svg class="disco-select-arrow" width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2.5 5L7 9.5L11.5 5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </div>
-      <div class="disco-coverage" id="discoCoverage">Lagos North — Ikeja, Ikorodu, Shomolu</div>
+      <div class="disco-coverage" id="discoCoverage"></div>
     </div>
 
         <!-- METER TYPE -->
@@ -302,10 +302,11 @@ main{padding-top:calc(58px + env(safe-area-inset-top,0px));padding-bottom:calc(8
         <div class="hint" id="meterHint">Enter your 11–13 digit meter number</div>
         <div class="verify-strip" id="verifyStrip">
           <div class="vs-icon" id="vsIcon">⏳</div>
-          <div>
+          <div style="flex:1">
             <div class="vs-name" id="vsName">Verifying…</div>
             <div class="vs-addr" id="vsAddr"></div>
           </div>
+          <div id="vsFee" style="font-size:.62rem;color:var(--ink3);white-space:nowrap"></div>
         </div>
       </div>
     </div>
@@ -313,7 +314,7 @@ main{padding-top:calc(58px + env(safe-area-inset-top,0px));padding-bottom:calc(8
     <!-- AMOUNT -->
     <div class="card">
       <div class="fld">
-        <label>Amount (₦ — minimum ₦500)</label>
+        <label>Amount (₦)</label>
         <div class="amt-chips">
           <button type="button" class="amt-chip" data-amt="500" onclick="setAmt(500)">₦500</button>
           <button type="button" class="amt-chip" data-amt="1000" onclick="setAmt(1000)">₦1,000</button>
@@ -324,7 +325,7 @@ main{padding-top:calc(58px + env(safe-area-inset-top,0px));padding-bottom:calc(8
         </div>
         <div class="amt-wrap">
           <span class="amt-prefix">₦</span>
-          <input type="number" id="amtInput" placeholder="Enter amount" min="500" value="2000" oninput="onAmtInput(this)">
+          <input type="number" id="amtInput" placeholder="Enter amount" min="100" value="2000" oninput="onAmtInput(this)">
         </div>
         <div class="hint" id="amtHint"> </div>
       </div>
@@ -560,6 +561,7 @@ async function doVerifyMeter(num){
       vsIcon.innerHTML='✓'; vsIcon.style.color='var(--p)';
       vsName.textContent=d.customerName; vsAddr.textContent=d.address||'';
       hint.textContent='Meter verified ✓'; hint.className='hint ok';
+      document.getElementById('vsFee').textContent=`+₦${d.fee??100} fee`;
     }else{
       strip.classList.remove('show');
       hint.textContent=d.error||'Meter not found — check number and DISCO';
@@ -586,8 +588,8 @@ function onAmtInput(inp){
   amount=parseInt(inp.value)||0;
   document.querySelectorAll('.amt-chip').forEach(b=>b.classList.toggle('active',parseInt(b.dataset.amt)===amount));
   const h=document.getElementById('amtHint');
-  h.textContent=amount>0&&amount<500?'Minimum is ₦500':' ';
-  h.className=amount>0&&amount<500?'hint err':'hint';
+  h.textContent=amount>0&&amount<100?'Minimum is ₦100':' ';
+  h.className=amount>0&&amount<100?'hint err':'hint';
   checkReady();
 }
 
@@ -626,7 +628,7 @@ function checkReady(){
     const dob=document.getElementById('kycDob').value;
     kycOk=idType&&idNum.length===11&&name.length>=3&&dob;
   }
-  document.getElementById('payBtn').disabled=!(discoCode&&verified&&amount>=500&&email.includes('@')&&kycOk);
+  document.getElementById('payBtn').disabled=!(discoCode&&verified&&amount>=100&&email.includes('@')&&kycOk);
 }
 
 function clearSavedKyc(){
@@ -640,7 +642,7 @@ async function pay(){
   const email=document.getElementById('emailInput').value.trim();
   // Always re-read amount from input at pay time to prevent stale state
   amount=parseInt(document.getElementById('amtInput').value)||0;
-  if(amount<500){toast('Minimum amount is ₦500','err');return;}
+  if(amount<100){toast('Minimum amount is ₦100','err');return;}
   const btn=document.getElementById('payBtn');
   btn.disabled=true;
   btn.innerHTML='<div class="spin"></div> Initialising…';
