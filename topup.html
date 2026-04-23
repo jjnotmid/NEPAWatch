@@ -110,17 +110,13 @@ main{padding-top:calc(58px + env(safe-area-inset-top,0px));padding-bottom:calc(8
 .page-header p{color:var(--ink2);font-size:.85rem;margin-top:6px}
 .section-label{font-size:.67rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--ink3);margin-bottom:10px}
 
-/* ── Disco grid ─────────────────────────────────────────────── */
-.disco-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:22px}
-.disco-card{background:var(--sf);border:1.5px solid var(--bd);border-radius:12px;padding:10px 12px;cursor:pointer;transition:all .18s;position:relative}
-.disco-card:hover{border-color:var(--bd2)}
-.disco-card.active{border-color:var(--p);background:var(--pp)}
-.disco-abbr{font-family:var(--font-display);font-size:.88rem;font-weight:900;color:var(--ink);letter-spacing:-.02em;padding-right:14px}
-.disco-card.active .disco-abbr{color:var(--p)}
-.disco-full{font-size:.64rem;color:var(--ink2);margin-top:2px;font-weight:500}
-.disco-states{font-size:.58rem;color:var(--ink3);margin-top:3px;line-height:1.3}
-.disco-dot{position:absolute;top:9px;right:9px;width:8px;height:8px;border-radius:50%;background:var(--bd2);transition:background .18s}
-.disco-card.active .disco-dot{background:var(--p)}
+/* ── Disco select ────────────────────────────────────────────── */
+.disco-wrap{margin-bottom:22px}
+.disco-select-inner{position:relative}
+.disco-select-inner select{width:100%;background:var(--bg);border:1.5px solid var(--bd);border-radius:12px;padding:13px 40px 13px 14px;color:var(--ink);font-family:var(--font-body);font-size:15px;font-weight:600;outline:none;transition:border-color .15s;cursor:pointer;-webkit-appearance:none;appearance:none}
+.disco-select-inner select:focus{border-color:var(--p)}
+.disco-select-arrow{position:absolute;right:14px;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--ink3)}
+.disco-coverage{font-size:.63rem;color:var(--ink3);margin-top:6px;padding-left:2px;min-height:14px}
 
 /* ── Type toggle ─────────────────────────────────────────────── */
 .type-row{display:flex;gap:8px;margin-bottom:22px}
@@ -146,15 +142,15 @@ main{padding-top:calc(58px + env(safe-area-inset-top,0px));padding-bottom:calc(8
 .vs-name{font-size:.84rem;font-weight:600;color:var(--ink)}
 .vs-addr{font-size:.67rem;color:var(--ink3);margin-top:2px}
 
-/* ── Amount pills ─────────────────────────────────────────────── */
-.pills{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:4px}
-.pill{background:var(--bg);border:1.5px solid var(--bd);border-radius:9px;padding:10px 4px;text-align:center;cursor:pointer;transition:all .15s}
-.pill:hover{border-color:var(--bd2)}
-.pill.active{border-color:var(--p);background:var(--pp)}
-.pill-amt{font-size:.88rem;font-weight:700;color:var(--ink)}
-.pill-sub{font-size:.6rem;color:var(--ink3);margin-top:2px}
-.custom-amt{width:100%;background:var(--bg);border:1.5px solid var(--bd);border-radius:10px;padding:11px 14px;color:var(--ink);font-family:var(--font-body);font-size:16px;outline:none;transition:border-color .15s;margin-top:8px;display:none}
-.custom-amt:focus{border-color:var(--p)}
+/* ── Amount input ─────────────────────────────────────────────── */
+.amt-wrap{position:relative;display:flex;align-items:center;margin-bottom:8px}
+.amt-prefix{position:absolute;left:14px;font-size:1rem;font-weight:700;color:var(--ink2);pointer-events:none;z-index:1}
+.amt-wrap input{width:100%;background:var(--bg);border:1.5px solid var(--bd);border-radius:10px;padding:12px 14px 12px 28px;color:var(--ink);font-family:var(--font-body);font-size:16px;font-weight:700;outline:none;transition:border-color .15s}
+.amt-wrap input:focus{border-color:var(--p)}
+.amt-chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:4px}
+.amt-chip{background:var(--bg);border:1.5px solid var(--bd);border-radius:8px;padding:5px 10px;font-size:.72rem;font-weight:700;color:var(--ink2);cursor:pointer;transition:all .15s;font-family:var(--font-body)}
+.amt-chip:hover{border-color:var(--bd2);color:var(--ink)}
+.amt-chip.active{border-color:var(--p);color:var(--p);background:var(--pp)}
 
 /* ── KYC ─────────────────────────────────────────────────────── */
 .kyc-card{background:var(--sf);border:1.5px solid rgba(255,180,0,.25);border-radius:var(--r);padding:18px;margin-bottom:14px;background:rgba(255,180,0,.03)}
@@ -257,7 +253,7 @@ main{padding-top:calc(58px + env(safe-area-inset-top,0px));padding-bottom:calc(8
   <div id="mainForm">
     <div class="page-header">
       <h1>Buy <em>Electricity</em></h1>
-      <p>Instant electricity token for IKEDC &amp; EKEDC</p>
+      <p>All 11 DISCOs &nbsp;·&nbsp; All 36 States + FCT</p>
     </div>
 
     <div class="how">
@@ -269,73 +265,24 @@ main{padding-top:calc(58px + env(safe-area-inset-top,0px));padding-bottom:calc(8
 
     <!-- DISCO -->
     <div class="section-label">Your electricity company</div>
-    <div class="disco-grid" id="discoGrid">
-      <div class="disco-card active" onclick="selectDisco('IKEDC','ikeja-electric',this)">
-        <div class="disco-dot"></div>
-        <div class="disco-abbr">IKEDC</div>
-        <div class="disco-full">Ikeja Electric</div>
-        <div class="disco-states">Lagos North — Ikeja, Ikorodu, Shomolu</div>
+    <div class="disco-wrap">
+      <div class="disco-select-inner">
+        <select id="discoSelect" onchange="onDiscoChange(this)">
+          <option value="IKEDC|ikeja-electric" selected>IKEDC — Ikeja Electric</option>
+          <option value="EKEDC|eko-electric">EKEDC — Eko Electric</option>
+          <option value="AEDC|abuja-electric">AEDC — Abuja Electric</option>
+          <option value="IBEDC|ibadan-electric">IBEDC — Ibadan Electric</option>
+          <option value="EEDC|enugu-electric">EEDC — Enugu Electric</option>
+          <option value="PHED|phed">PHED — Port Harcourt Electric</option>
+          <option value="KAEDCO|kaduna-electric">KAEDCO — Kaduna Electric</option>
+          <option value="KEDCO|kano-electric">KEDCO — Kano Electric</option>
+          <option value="BEDC|benin-electric">BEDC — Benin Electric</option>
+          <option value="JED|jos-electric">JED — Jos Electric</option>
+          <option value="YEDC|yola-electric">YEDC — Yola Electric</option>
+        </select>
+        <svg class="disco-select-arrow" width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2.5 5L7 9.5L11.5 5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </div>
-      <div class="disco-card" onclick="selectDisco('EKEDC','eko-electric',this)">
-        <div class="disco-dot"></div>
-        <div class="disco-abbr">EKEDC</div>
-        <div class="disco-full">Eko Electric</div>
-        <div class="disco-states">Lagos South — Lekki, VI, Apapa, Island</div>
-      </div>
-      <div class="disco-card" onclick="selectDisco('AEDC','abuja-electric',this)">
-        <div class="disco-dot"></div>
-        <div class="disco-abbr">AEDC</div>
-        <div class="disco-full">Abuja Electric</div>
-        <div class="disco-states">FCT, Niger, Nasarawa, Kogi</div>
-      </div>
-      <div class="disco-card" onclick="selectDisco('IBEDC','ibadan-electric',this)">
-        <div class="disco-dot"></div>
-        <div class="disco-abbr">IBEDC</div>
-        <div class="disco-full">Ibadan Electric</div>
-        <div class="disco-states">Oyo, Osun, Ogun, Kwara</div>
-      </div>
-      <div class="disco-card" onclick="selectDisco('EEDC','enugu-electric',this)">
-        <div class="disco-dot"></div>
-        <div class="disco-abbr">EEDC</div>
-        <div class="disco-full">Enugu Electric</div>
-        <div class="disco-states">Enugu, Anambra, Imo, Abia, Ebonyi</div>
-      </div>
-      <div class="disco-card" onclick="selectDisco('PHED','phed',this)">
-        <div class="disco-dot"></div>
-        <div class="disco-abbr">PHED</div>
-        <div class="disco-full">Port Harcourt Electric</div>
-        <div class="disco-states">Rivers, Bayelsa, Cross River, Akwa Ibom</div>
-      </div>
-      <div class="disco-card" onclick="selectDisco('KAEDCO','kaduna-electric',this)">
-        <div class="disco-dot"></div>
-        <div class="disco-abbr">KAEDCO</div>
-        <div class="disco-full">Kaduna Electric</div>
-        <div class="disco-states">Kaduna, Kebbi, Sokoto, Zamfara</div>
-      </div>
-      <div class="disco-card" onclick="selectDisco('KEDCO','kano-electric',this)">
-        <div class="disco-dot"></div>
-        <div class="disco-abbr">KEDCO</div>
-        <div class="disco-full">Kano Electric</div>
-        <div class="disco-states">Kano, Jigawa, Katsina</div>
-      </div>
-      <div class="disco-card" onclick="selectDisco('BEDC','benin-electric',this)">
-        <div class="disco-dot"></div>
-        <div class="disco-abbr">BEDC</div>
-        <div class="disco-full">Benin Electric</div>
-        <div class="disco-states">Edo, Delta, Ondo, Ekiti</div>
-      </div>
-      <div class="disco-card" onclick="selectDisco('JED','jos-electric',this)">
-        <div class="disco-dot"></div>
-        <div class="disco-abbr">JED</div>
-        <div class="disco-full">Jos Electric</div>
-        <div class="disco-states">Plateau, Benue, Nasarawa</div>
-      </div>
-      <div class="disco-card" onclick="selectDisco('YEDC','yola-electric',this)">
-        <div class="disco-dot"></div>
-        <div class="disco-abbr">YEDC</div>
-        <div class="disco-full">Yola Electric</div>
-        <div class="disco-states">Adamawa, Taraba, Gombe, Bauchi</div>
-      </div>
+      <div class="disco-coverage" id="discoCoverage">Lagos North — Ikeja, Ikorodu, Shomolu</div>
     </div>
 
         <!-- METER TYPE -->
@@ -366,15 +313,18 @@ main{padding-top:calc(58px + env(safe-area-inset-top,0px));padding-bottom:calc(8
     <div class="card">
       <div class="fld">
         <label>Amount (₦ — minimum ₦500)</label>
-        <div class="pills">
-          <div class="pill" onclick="setPill(this,1000)"><div class="pill-amt">₦1,000</div><div class="pill-sub">~5 units</div></div>
-          <div class="pill active" onclick="setPill(this,2000)"><div class="pill-amt">₦2,000</div><div class="pill-sub">~11 units</div></div>
-          <div class="pill" onclick="setPill(this,5000)"><div class="pill-amt">₦5,000</div><div class="pill-sub">~28 units</div></div>
-          <div class="pill" onclick="setPill(this,10000)"><div class="pill-amt">₦10,000</div><div class="pill-sub">~57 units</div></div>
-          <div class="pill" onclick="setPill(this,20000)"><div class="pill-amt">₦20,000</div><div class="pill-sub">~115 units</div></div>
-          <div class="pill" id="customPill" onclick="setPill(this,0)"><div class="pill-amt">Custom</div><div class="pill-sub">any amount</div></div>
+        <div class="amt-chips">
+          <button type="button" class="amt-chip" data-amt="500" onclick="setAmt(500)">₦500</button>
+          <button type="button" class="amt-chip" data-amt="1000" onclick="setAmt(1000)">₦1,000</button>
+          <button type="button" class="amt-chip active" data-amt="2000" onclick="setAmt(2000)">₦2,000</button>
+          <button type="button" class="amt-chip" data-amt="5000" onclick="setAmt(5000)">₦5,000</button>
+          <button type="button" class="amt-chip" data-amt="10000" onclick="setAmt(10000)">₦10,000</button>
+          <button type="button" class="amt-chip" data-amt="20000" onclick="setAmt(20000)">₦20,000</button>
         </div>
-        <input type="number" id="customAmt" class="custom-amt" placeholder="Enter amount in ₦" min="500" oninput="onCustomAmt(this)">
+        <div class="amt-wrap">
+          <span class="amt-prefix">₦</span>
+          <input type="number" id="amtInput" placeholder="Enter amount" min="500" value="2000" oninput="onAmtInput(this)">
+        </div>
         <div class="hint" id="amtHint"> </div>
       </div>
     </div>
@@ -543,11 +493,26 @@ async function initTopup(){
   checkCallbackReturn();
 }
 
+// ── DISCO coverage labels ─────────────────────────────────────
+const DISCO_COVERAGE={
+  'IKEDC|ikeja-electric':'Lagos North — Ikeja, Ikorodu, Shomolu',
+  'EKEDC|eko-electric':'Lagos South — Lekki, VI, Apapa, Island',
+  'AEDC|abuja-electric':'FCT, Niger, Nasarawa, Kogi',
+  'IBEDC|ibadan-electric':'Oyo, Osun, Ogun, Kwara',
+  'EEDC|enugu-electric':'Enugu, Anambra, Imo, Abia, Ebonyi',
+  'PHED|phed':'Rivers, Bayelsa, Cross River, Akwa Ibom',
+  'KAEDCO|kaduna-electric':'Kaduna, Kebbi, Sokoto, Zamfara',
+  'KEDCO|kano-electric':'Kano, Jigawa, Katsina',
+  'BEDC|benin-electric':'Edo, Delta, Ondo, Ekiti',
+  'JED|jos-electric':'Plateau, Benue, Nasarawa',
+  'YEDC|yola-electric':'Adamawa, Taraba, Gombe, Bauchi',
+};
+
 // ── Disco / Type ──────────────────────────────────────────────
-function selectDisco(d,code,el){
-  document.querySelectorAll('.disco-card').forEach(c=>c.classList.remove('active'));
-  el.classList.add('active');
+function onDiscoChange(sel){
+  const [d,code]=sel.value.split('|');
   disco=d; discoCode=code;
+  document.getElementById('discoCoverage').textContent=DISCO_COVERAGE[sel.value]||'';
   resetVerify();
 }
 function selectType(t,el){
@@ -607,16 +572,17 @@ async function doVerifyMeter(num){
 }
 
 // ── Amount ────────────────────────────────────────────────────
-function setPill(el,val){
-  document.querySelectorAll('.pill').forEach(p=>p.classList.remove('active'));
-  el.classList.add('active');
-  const ca=document.getElementById('customAmt');
-  if(val===0){ca.style.display='block';ca.focus();amount=parseInt(ca.value)||0;}
-  else{ca.style.display='none';amount=val;}
+function setAmt(val){
+  document.getElementById('amtInput').value=val;
+  amount=val;
+  document.querySelectorAll('.amt-chip').forEach(b=>b.classList.toggle('active',parseInt(b.dataset.amt)===val));
+  const h=document.getElementById('amtHint');
+  h.textContent=' '; h.className='hint';
   checkReady();
 }
-function onCustomAmt(inp){
+function onAmtInput(inp){
   amount=parseInt(inp.value)||0;
+  document.querySelectorAll('.amt-chip').forEach(b=>b.classList.toggle('active',parseInt(b.dataset.amt)===amount));
   const h=document.getElementById('amtHint');
   h.textContent=amount>0&&amount<500?'Minimum is ₦500':' ';
   h.className=amount>0&&amount<500?'hint err':'hint';
@@ -670,6 +636,9 @@ function clearSavedKyc(){
 // ── Payment ───────────────────────────────────────────────────
 async function pay(){
   const email=document.getElementById('emailInput').value.trim();
+  // Always re-read amount from input at pay time to prevent stale state
+  amount=parseInt(document.getElementById('amtInput').value)||0;
+  if(amount<500){toast('Minimum amount is ₦500','err');return;}
   const btn=document.getElementById('payBtn');
   btn.disabled=true;
   btn.innerHTML='<div class="spin"></div> Initialising…';
@@ -809,7 +778,7 @@ function resetForm(){
   document.getElementById('mainForm').style.display='block';
   document.getElementById('successScreen').classList.remove('show');
   document.getElementById('meterInput').value='';
-  // Only clear email if it's not readonly (not autofilled from account)
+  // Only clear email if not autofilled from account
   const emailEl=document.getElementById('emailInput');
   if(!emailEl.hasAttribute('readonly'))emailEl.value='';
   verified=null;
@@ -817,7 +786,7 @@ function resetForm(){
   document.getElementById('meterHint').textContent='Enter your 11–13 digit meter number';
   document.getElementById('meterHint').className='hint';
   resetPayBtn();
-  setPill(document.querySelectorAll('.pill')[1],2000);
+  setAmt(2000);
 }
 
 function toast(msg,type='ok'){
