@@ -1,5 +1,5 @@
 -- =====================================================================
--- NEPAWatch — Fix "Reporter" showing instead of real names (v2)
+-- NEPAWatch — Fix "Reporter" showing instead of real names (v3)
 -- Run once in Supabase SQL Editor
 -- =====================================================================
 
@@ -21,15 +21,15 @@ SECURITY DEFINER
 STABLE
 AS $$
   SELECT
-    u.id,
+    au.id,
     COALESCE(
       NULLIF(TRIM(SPLIT_PART(COALESCE(p.name, ''), ' ', 1)), ''),
-      NULLIF(SPLIT_PART(COALESCE(p.email, u.email, ''), '@', 1), ''),
+      NULLIF(SPLIT_PART(COALESCE(p.email, au.email, ''), '@', 1), ''),
       'Reporter'
     ) AS first_name
-  FROM auth.users u
-  LEFT JOIN profiles p ON p.id = u.id
-  WHERE u.id = ANY(user_ids);
+  FROM auth.users au
+  LEFT JOIN profiles p ON p.id = au.id
+  WHERE au.id = ANY(user_ids);
 $$;
 
 GRANT EXECUTE ON FUNCTION public.get_reporter_names TO anon, authenticated;
