@@ -59,12 +59,6 @@ main{padding-top:calc(56px + env(safe-area-inset-top,0px))}
 .logo-txt em{font-style:normal;color:var(--p)}
 .logo-badge{font-size:.52rem;font-weight:700;letter-spacing:.08em;color:var(--ico-clr);background:var(--ico-bg);border:1px solid var(--ico-bd);border-radius:5px;padding:2px 6px;margin-left:3px;text-transform:uppercase}
 .hdr-r{display:flex;align-items:center;gap:7px}
-.ico-btn{background:var(--ico-bg);border:1px solid var(--ico-bd);border-radius:9px;width:34px;height:34px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--ico-clr);transition:all .15s;flex-shrink:0}
-.ico-btn:hover{background:var(--ico-bg-hv);color:var(--ico-clr-hv)}
-.loc-btn{padding:0 11px;gap:5px;width:auto;font-size:.69rem;font-weight:600}
-.loc-btn.active{color:var(--p);border-color:rgba(170,255,0,.3);background:rgba(170,255,0,.08)}
-.hdr-streak{display:none;align-items:center;gap:4px;font-size:.7rem;font-weight:700;color:var(--ink);background:var(--ico-bg);border:1px solid var(--ico-bd);border-radius:9px;padding:0 9px;height:34px;flex-shrink:0}
-.hdr-streak svg{flex-shrink:0}
 
 /* ===== BOTTOM NAV ===== */
 nav{
@@ -406,7 +400,7 @@ body::after{content:"";display:block;position:fixed;bottom:0;left:0;right:0;heig
 .auth-btn:disabled{opacity:.4;cursor:default;box-shadow:none}
 .auth-switch{text-align:center;margin-top:20px;font-size:.75rem;color:var(--ink3)}
 .auth-switch a{color:var(--p);cursor:pointer;font-weight:700;text-decoration:underline;text-underline-offset:2px}
-.msg{border-radius:15px;padding:12px 15px;font-size:.74rem;margin-bottom:15px;display:none;line-height:1.5;border:1px solid transparent}
+.msg{border-radius:15px;padding:12px 15px;font-size:.74rem;margin-bottom:15px;display:none;line-height:1.5;border:1px solid transparent;word-break:break-word;white-space:normal}
 .msg.show{display:block;animation:pgIn .15s ease}
 .msg.err{background:var(--rpl);border-color:rgba(255,64,85,.2);color:var(--rd)}
 .msg.ok{background:var(--pp);border-color:rgba(170,255,0,.2);color:var(--p)}
@@ -489,7 +483,7 @@ body::after{content:"";display:block;position:fixed;bottom:0;left:0;right:0;heig
 .pt-btn.selected{border-color:var(--p);color:var(--p);background:var(--pp)}
 
 /* ===== TOAST ===== */
-.toast{position:fixed;bottom:96px;left:50%;transform:translateX(-50%) translateY(10px);border-radius:50px;padding:11px 18px;font-size:.76rem;font-weight:700;z-index:700;opacity:0;pointer-events:none;transition:all .24s cubic-bezier(.34,1.56,.64,1);white-space:nowrap;max-width:90vw;box-shadow:0 6px 28px rgba(0,0,0,.55);display:flex;align-items:center;gap:8px}
+.toast{position:fixed;bottom:96px;left:50%;transform:translateX(-50%) translateY(10px);border-radius:20px;padding:11px 18px;font-size:.76rem;font-weight:700;z-index:700;opacity:0;pointer-events:none;transition:all .24s cubic-bezier(.34,1.56,.64,1);white-space:normal;word-break:break-word;max-width:84vw;text-align:center;box-shadow:0 6px 28px rgba(0,0,0,.55);display:flex;align-items:center;gap:8px;justify-content:center}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 .toast.ok{background:#0D2410;color:var(--p);border:1px solid rgba(170,255,0,.2)}
 .toast.err{background:#210A0D;color:var(--rd);border:1px solid rgba(255,64,85,.2)}
@@ -788,7 +782,7 @@ body::after{content:"";display:block;position:fixed;bottom:0;left:0;right:0;heig
    ═══════════════════════════════════════════════════ */
 
 /* ── Streak active banner ── */
-.streak-active{background:linear-gradient(135deg,rgba(255,120,0,.10),rgba(255,60,0,.06));border:1.5px solid rgba(255,120,0,.28);border-radius:14px;padding:12px 14px;display:flex;align-items:center;gap:10px;cursor:pointer;transition:border-color .15s}
+.streak-active{background:linear-gradient(135deg,rgba(255,120,0,.10),rgba(255,60,0,.06));border:1.5px solid rgba(255,120,0,.28);border-radius:14px;padding:12px 14px;display:flex;align-items:center;justify-content:center;gap:10px;cursor:pointer;transition:border-color .15s}
 .streak-active:hover{border-color:rgba(255,120,0,.5)}
 .streak-flame{font-size:1.6rem;line-height:1;flex-shrink:0;animation:flame-pulse 2s ease-in-out infinite}
 @keyframes flame-pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.12) rotate(-3deg)}}
@@ -798,7 +792,7 @@ body::after{content:"";display:block;position:fixed;bottom:0;left:0;right:0;heig
 .streak-chevron{margin-left:auto;color:var(--ink3);flex-shrink:0}
 
 /* ── Streak nudge banner ── */
-.streak-nudge{background:rgba(255,64,85,.06);border:1.5px solid rgba(255,64,85,.22);border-radius:14px;padding:12px 14px;display:flex;align-items:center;gap:10px;cursor:pointer}
+.streak-nudge{background:rgba(255,64,85,.06);border:1.5px solid rgba(255,64,85,.22);border-radius:14px;padding:12px 14px;display:flex;align-items:center;justify-content:center;gap:10px;cursor:pointer}
 .streak-nudge:hover{border-color:rgba(255,64,85,.4)}
 .sn-ico{font-size:1.4rem;flex-shrink:0;animation:nudge-shake 3s ease-in-out infinite}
 @keyframes nudge-shake{0%,85%,100%{transform:rotate(0)}90%{transform:rotate(-12deg)}95%{transform:rotate(12deg)}}
@@ -808,7 +802,7 @@ body::after{content:"";display:block;position:fixed;bottom:0;left:0;right:0;heig
 .sn-btn{flex-shrink:0;background:#FF4055;color:#fff;border:none;border-radius:8px;padding:7px 12px;font-size:.72rem;font-weight:700;cursor:pointer;white-space:nowrap}
 
 /* ── Streak zero (first time) ── */
-.streak-zero{background:var(--sf);border:1.5px dashed var(--bd);border-radius:14px;padding:12px 14px;display:flex;align-items:center;gap:10px;cursor:pointer}
+.streak-zero{background:var(--sf);border:1.5px dashed var(--bd);border-radius:14px;padding:12px 14px;display:flex;align-items:center;justify-content:center;gap:10px;cursor:pointer}
 .streak-zero-ico{font-size:1.3rem;opacity:.6;flex-shrink:0}
 .streak-zero-txt{font-size:.76rem;color:var(--ink2);line-height:1.4}
 .streak-zero-txt strong{color:var(--ink)}
