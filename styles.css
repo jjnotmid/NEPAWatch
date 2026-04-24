@@ -783,3 +783,58 @@ body::after{content:"";display:block;position:fixed;bottom:0;left:0;right:0;heig
   width: 100%;
   min-height: 100px;
 }
+
+/* ═══════════════════════════════════════════════════
+   STREAK & GAMIFICATION STYLES
+   ═══════════════════════════════════════════════════ */
+
+/* ── Streak active banner ── */
+.streak-active{background:linear-gradient(135deg,rgba(255,120,0,.10),rgba(255,60,0,.06));border:1.5px solid rgba(255,120,0,.28);border-radius:14px;padding:12px 14px;display:flex;align-items:center;gap:10px;cursor:pointer;transition:border-color .15s}
+.streak-active:hover{border-color:rgba(255,120,0,.5)}
+.streak-flame{font-size:1.6rem;line-height:1;flex-shrink:0;animation:flame-pulse 2s ease-in-out infinite}
+@keyframes flame-pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.12) rotate(-3deg)}}
+.streak-count{font-family:'Bricolage Grotesque',sans-serif;font-size:1.3rem;font-weight:900;color:#FF7800;letter-spacing:-.03em}
+.streak-label{font-size:.72rem;color:var(--ink2);margin-top:1px}
+.streak-days{font-size:.63rem;color:var(--ink3);margin-top:1px}
+.streak-chevron{margin-left:auto;color:var(--ink3);flex-shrink:0}
+
+/* ── Streak nudge banner ── */
+.streak-nudge{background:rgba(255,64,85,.06);border:1.5px solid rgba(255,64,85,.22);border-radius:14px;padding:12px 14px;display:flex;align-items:center;gap:10px;cursor:pointer}
+.streak-nudge:hover{border-color:rgba(255,64,85,.4)}
+.sn-ico{font-size:1.4rem;flex-shrink:0;animation:nudge-shake 3s ease-in-out infinite}
+@keyframes nudge-shake{0%,85%,100%{transform:rotate(0)}90%{transform:rotate(-12deg)}95%{transform:rotate(12deg)}}
+.sn-body{flex:1}
+.sn-title{font-size:.82rem;font-weight:700;color:#FF4055}
+.sn-sub{font-size:.68rem;color:var(--ink3);margin-top:2px}
+.sn-btn{flex-shrink:0;background:#FF4055;color:#fff;border:none;border-radius:8px;padding:7px 12px;font-size:.72rem;font-weight:700;cursor:pointer;white-space:nowrap}
+
+/* ── Streak zero (first time) ── */
+.streak-zero{background:var(--sf);border:1.5px dashed var(--bd);border-radius:14px;padding:12px 14px;display:flex;align-items:center;gap:10px;cursor:pointer}
+.streak-zero-ico{font-size:1.3rem;opacity:.6;flex-shrink:0}
+.streak-zero-txt{font-size:.76rem;color:var(--ink2);line-height:1.4}
+.streak-zero-txt strong{color:var(--ink)}
+
+/* ── Badge grid on profile ── */
+.badges-section{margin:16px 0 8px}
+.badges-title{font-size:.67rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--ink3);margin-bottom:10px}
+.badge-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.badge-item{background:var(--sf2);border:1.5px solid var(--bd);border-radius:12px;padding:10px 6px;text-align:center;transition:border-color .15s}
+.badge-item.earned{border-color:var(--pb);background:var(--pp)}
+.badge-item.locked{opacity:.35;filter:grayscale(1)}
+.badge-item.gold{border-color:rgba(255,184,0,.5);background:rgba(255,184,0,.07)}
+.badge-ico{font-size:1.4rem;margin-bottom:4px;line-height:1}
+.badge-name{font-size:.56rem;font-weight:700;color:var(--ink2);line-height:1.2}
+.badge-item.earned .badge-name{color:var(--ink)}
+.badge-item.gold .badge-name{color:#FFB800}
+
+/* ── Milestone toast ── */
+.milestone-toast{position:fixed;top:calc(68px + env(safe-area-inset-top));left:50%;transform:translateX(-50%) translateY(-120px);z-index:1500;background:var(--sf);border:1.5px solid var(--pb);border-radius:16px;padding:14px 18px;display:flex;align-items:center;gap:12px;box-shadow:0 8px 32px rgba(0,0,0,.5);transition:transform .4s cubic-bezier(.34,1.56,.64,1);max-width:340px;width:calc(100vw - 32px)}
+.milestone-toast.show{transform:translateX(-50%) translateY(0)}
+.mt-ico{font-size:1.8rem;flex-shrink:0}
+.mt-body{flex:1}
+.mt-title{font-family:'Bricolage Grotesque',sans-serif;font-size:.95rem;font-weight:900;color:var(--p)}
+.mt-sub{font-size:.72rem;color:var(--ink2);margin-top:2px}
+
+/* ── Confetti particle ── */
+.confetti-piece{position:absolute;width:8px;height:8px;border-radius:1px;opacity:0;animation:confetti-fall 1.8s ease-in forwards}
+@keyframes confetti-fall{0%{opacity:1;transform:translateY(-20px) rotate(0deg)}100%{opacity:0;transform:translateY(200px) rotate(720deg)}}

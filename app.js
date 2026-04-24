@@ -2355,7 +2355,7 @@ async function initAuth(){
 }
 function _resetFormHTML(){return`<div class="auth-wrap"><div class="auth-logo"><div class="auth-logo-icon" style="background:var(--p)">${LOGO_IMG_TAG}</div><span class="auth-logo-name">NEPA<em>Watch</em></span></div><h2>Set new password</h2><p class="auth-sub">Choose a strong new password for your account.</p><div class="msg err" id="authErr"></div><div class="msg ok" id="authOk"></div><div class="fld"><label>New Password</label><input id="inp-newpass" type="password" placeholder="Min 6 characters" autocomplete="new-password"><button type="button" class="pw-eye-btn" onclick="appTogglePw(this)" tabindex="-1"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M1 8C2.5 5 5 3.5 8 3.5C11 3.5 13.5 5 15 8C13.5 11 11 12.5 8 12.5C5 12.5 2.5 11 1 8Z" stroke="currentColor" stroke-width="1.3"/><circle cx="8" cy="8" r="2.2" stroke="currentColor" stroke-width="1.3"/></svg></button></div><div class="fld"><label>Confirm Password</label><input id="inp-confpass" type="password" placeholder="Repeat password" autocomplete="new-password"><button type="button" class="pw-eye-btn" onclick="appTogglePw(this)" tabindex="-1"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M1 8C2.5 5 5 3.5 8 3.5C11 3.5 13.5 5 15 8C13.5 11 11 12.5 8 12.5C5 12.5 2.5 11 1 8Z" stroke="currentColor" stroke-width="1.3"/><circle cx="8" cy="8" r="2.2" stroke="currentColor" stroke-width="1.3"/></svg></button></div><button class="auth-btn" id="authBtn" onclick="doPasswordReset()">Update Password</button></div>`;}
 
-async function loadProfile(){if(!CU)return;try{const{data,error}=await sb.from("profiles").select("*").eq("id",CU.id).single();if(!error&&data){PR=data;if(PR.location_id){document.getElementById("locTag").classList.add("on");document.getElementById("locLabel").textContent=PR.location_label||PR.location_name;}}else if(error&&error.code==="PGRST116"){const name=CU.user_metadata?.name||CU.email.split("@")[0];await sb.from("profiles").upsert({id:CU.id,email:CU.email,name,notif_on:true},{onConflict:"id"});PR={id:CU.id,email:CU.email,name,notif_on:true,location_id:null};}}catch(e){}}
+async function loadProfile(){if(!CU)return;try{const{data,error}=await sb.from("profiles").select("*").eq("id",CU.id).single();if(!error&&data){PR=data;if(PR.location_id){document.getElementById("locTag").classList.add("on");document.getElementById("locLabel").textContent=PR.location_label||PR.location_name;}}else if(error&&error.code==="PGRST116"){const name=CU.user_metadata?.name||CU.email.split("@")[0];await sb.from("profiles").upsert({id:CU.id,email:CU.email,name,notif_on:true},{onConflict:"id"});PR={id:CU.id,email:CU.email,name,notif_on:true,location_id:null};}if(PR)renderStreakBanner();}catch(e){}}
 
 async function doRegister(name,email,pass){const{data,error}=await sb.auth.signUp({email,password:pass,options:{data:{name},emailRedirectTo:APP_URL+"?mode=reset"}});if(error){if(error.message?.toLowerCase().includes("rate limit")||error.message?.toLowerCase().includes("over_email_send_rate_limit"))throw new Error("RATE_LIMIT");throw new Error(error.message);}if(data.user){await sb.from("profiles").upsert({id:data.user.id,email,name,notif_on:true},{onConflict:"id"});}if(data.session){CU=data.user;await loadProfile();renderAccount();updateBanner();toast(`Welcome, ${name}!`,"ok");_maybeStartTour();}sendEmail(email,"Welcome to NEPAWatch Nigeria",`Hi ${name},\n\nWelcome to NEPAWatch Nigeria!\n\nYou will receive real-time email alerts whenever power goes out or is restored near your street.\n\nOpen the app and set your location to activate alerts.\n\nStay powered,\nNEPAWatch Nigeria`,buildEmailHtml({type:'welcome',name,appUrl:APP_URL}));return data;}
 async function doLogin(email,pass){const{data,error}=await sb.auth.signInWithPassword({email,password:pass});if(error)throw new Error(error.message);return data;}
@@ -2660,7 +2660,7 @@ function startPolling(){
 async function pushReport(loc,type){
   if(!CU){toast("Sign in to submit a report","info");go("account");return;}
   // ── Rate limiting disabled for launch — no cap on reports ──
-  const tid="local-"+Date.now();reports.unshift({id:tid,name:loc.name,area:loc.area,type,time:Date.now(),confirms:1,userId:CU.id});if(reports.length>500){const di=reports.slice(400).findIndex(r=>!r.isAI&&r.userId!==AI_USER_ID&&!String(r.id).startsWith('local-')&&!String(r.id).startsWith('ai-'));if(di!==-1)reports.splice(400+di,1);else reports.pop();}render();try{const{data,error}=await sb.from("reports").insert({user_id:CU.id,location_name:loc.name,location_area:loc.area,type,confirms:1}).select().single();if(error){const idx=reports.findIndex(r=>r.id===tid);if(idx!==-1)reports.splice(idx,1);render();toast(`Could not save report: ${error.message}`,"err");return;}const idx=reports.findIndex(r=>r.id===tid);if(idx!==-1)reports[idx]={id:data.id,name:data.location_name,area:data.location_area,type:data.type,time:new Date(data.created_at).getTime(),confirms:data.confirms||1,userId:data.user_id};render();toast(type==="out"?`Outage reported — ${loc.name}`:`Power restored — ${loc.name}`,type==="out"?"err":"ok");if(PR&&!PR.location_id)await saveLocation(loc);await sendAreaAlerts(loc.name,loc.area,type);setTimeout(loadReports,2000);}catch(e){const idx=reports.findIndex(r=>r.id===tid);if(idx!==-1)reports.splice(idx,1);render();toast("Could not save report — check your connection","err");}}
+  const tid="local-"+Date.now();reports.unshift({id:tid,name:loc.name,area:loc.area,type,time:Date.now(),confirms:1,userId:CU.id});if(reports.length>500){const di=reports.slice(400).findIndex(r=>!r.isAI&&r.userId!==AI_USER_ID&&!String(r.id).startsWith('local-')&&!String(r.id).startsWith('ai-'));if(di!==-1)reports.splice(400+di,1);else reports.pop();}render();try{const{data,error}=await sb.from("reports").insert({user_id:CU.id,location_name:loc.name,location_area:loc.area,type,confirms:1}).select().single();if(error){const idx=reports.findIndex(r=>r.id===tid);if(idx!==-1)reports.splice(idx,1);render();toast(`Could not save report: ${error.message}`,"err");return;}const idx=reports.findIndex(r=>r.id===tid);if(idx!==-1)reports[idx]={id:data.id,name:data.location_name,area:data.location_area,type:data.type,time:new Date(data.created_at).getTime(),confirms:data.confirms||1,userId:data.user_id};render();toast(type==="out"?`Outage reported — ${loc.name}`:`Power restored — ${loc.name}`,type==="out"?"err":"ok");updateStreak();if(PR&&!PR.location_id)await saveLocation(loc);await sendAreaAlerts(loc.name,loc.area,type);setTimeout(loadReports,2000);}catch(e){const idx=reports.findIndex(r=>r.id===tid);if(idx!==-1)reports.splice(idx,1);render();toast("Could not save report — check your connection","err");}}
 
 async function addConfirm(repId) {
   const r = reports.find(x => x.id === repId);
@@ -4707,3 +4707,202 @@ async function _onPWAInstalled() {
 
 // Fires when user installs via browser menu (outside our custom modal)
 window.addEventListener('appinstalled', () => { _onPWAInstalled(); });
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   FEATURE 1 — STREAK & GAMIFICATION
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+
+// Inline SVG icon strings — no emoji anywhere
+const _SVG = {
+  signal:    `<svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><line x1="8" y1="14" x2="8" y2="9" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M5.5 11.5a3.5 3.5 0 0 1 0-5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M10.5 11.5a3.5 3.5 0 0 0 0-5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M3 14a7 7 0 0 1 0-10" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M13 14a7 7 0 0 0 0-10" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>`,
+  flame:     `<svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M8 14c-3 0-5-2-5-4.5C3 7 5 5 5 3c1 1.5 1 2.5 3 3.5C8 4.5 9 2 9 2c2 2 4 3.5 4 5.5 0 2.5-2 4.5-5 4.5z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>`,
+  lightning: `<svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M10 2L5 9h5l-1 5 6-7h-5l1-5z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>`,
+  star:      `<svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M8 2l1.8 3.6L14 6.5l-3 2.9.7 4.1L8 11.4l-3.7 2.1.7-4.1L2 6.5l4.2-.9L8 2z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>`,
+  trophy:    `<svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M5 2h6v5a3 3 0 0 1-6 0V2z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><path d="M2 3h3M11 3h3M8 10v3M5.5 13h5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>`,
+  crown:     `<svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M2 12h12M2 12L3 6l3.5 3L8 3l1.5 6L13 6l1 6" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" stroke-linecap="round"/></svg>`,
+  chart:     `<svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M2 13h12M4 13V8M8 13V5M12 13V3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>`,
+  shield:    `<svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M8 2L3 4.5v4C3 11.5 5.5 13.8 8 14c2.5-.2 5-2.5 5-5.5v-4L8 2z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>`,
+  medal:     `<svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="8" cy="10" r="4" stroke="currentColor" stroke-width="1.4"/><path d="M5.5 2.5h5L9 6H7L5.5 2.5z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>`,
+  gold:      `<svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="8" cy="10" r="4" stroke="currentColor" stroke-width="1.4"/><path d="M5.5 2.5h5L9 6H7L5.5 2.5z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><path d="M8 8.5v3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>`,
+  warning:   `<svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M8 2L2 13h12L8 2z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><path d="M8 7v2.5M8 11v.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>`,
+};
+
+// Returns the SVG string sized and coloured
+function _ico(key, size = 16, color = 'currentColor') {
+  return (_SVG[key] || _SVG.signal).replace('<svg ', `<svg width="${size}" height="${size}" style="color:${color};flex-shrink:0;vertical-align:middle" `);
+}
+
+const BADGE_DEFS = {
+  first_report:    { iconKey: 'signal',    color: '#3b82f6', name: 'First Signal',     desc: 'Your first report — the journey begins!' },
+  streak_3:        { iconKey: 'flame',     color: '#f97316', name: 'On Fire',           desc: '3-day reporting streak' },
+  streak_7:        { iconKey: 'lightning', color: '#eab308', name: 'Power Watcher',     desc: '7-day reporting streak' },
+  streak_14:       { iconKey: 'star',      color: '#a855f7', name: 'NEPA Guardian',     desc: '14-day reporting streak' },
+  streak_30:       { iconKey: 'trophy',    color: '#f59e0b', name: 'Electricity Lord',  desc: '30-day reporting streak' },
+  streak_100:      { iconKey: 'crown',     color: '#f43f5e', name: 'Legend',            desc: '100-day reporting streak' },
+  reports_10:      { iconKey: 'chart',     color: '#10b981', name: 'Data Warrior',      desc: '10 total reports submitted' },
+  reports_50:      { iconKey: 'shield',    color: '#6366f1', name: 'Outage Hero',       desc: '50 total reports submitted' },
+  reports_100:     { iconKey: 'medal',     color: '#ec4899', name: 'Power General',     desc: '100 total reports submitted' },
+  weekly_champion: { iconKey: 'gold',      color: '#f59e0b', name: 'Weekly Champion',   desc: 'Top reporter in your area this week' },
+};
+
+// WAT = UTC+1 (Africa/Lagos). Returns "YYYY-MM-DD".
+function getTodayWAT() {
+  const now = new Date(Date.now() + 60 * 60 * 1000);
+  return now.toISOString().slice(0, 10);
+}
+
+async function updateStreak() {
+  if (!CU || !PR) return;
+  const today     = getTodayWAT();
+  const lastDate  = PR.last_report_date;
+  const totalReports = (PR.total_reports || 0) + 1;
+  let newStreak   = PR.current_streak || 0;
+
+  if (lastDate === today) {
+    // Already reported today — only bump total
+    try { await sb.from('profiles').update({ total_reports: totalReports }).eq('id', CU.id); } catch(e) {}
+    PR.total_reports = totalReports;
+    _checkBadges(PR, totalReports, newStreak);
+    renderStreakBanner();
+    return;
+  }
+
+  const yesterday = new Date(Date.now() + 60 * 60 * 1000 - 86400000).toISOString().slice(0, 10);
+  newStreak = (lastDate === yesterday) ? newStreak + 1 : 1;
+
+  const longestStreak = Math.max(newStreak, PR.longest_streak || 0);
+
+  try {
+    await sb.from('profiles').update({
+      current_streak:   newStreak,
+      longest_streak:   longestStreak,
+      last_report_date: today,
+      total_reports:    totalReports,
+    }).eq('id', CU.id);
+
+    PR.current_streak   = newStreak;
+    PR.longest_streak   = longestStreak;
+    PR.last_report_date = today;
+    PR.total_reports    = totalReports;
+
+    if ([3, 7, 14, 30, 100].includes(newStreak)) showStreakMilestone(newStreak);
+    _checkBadges(PR, totalReports, newStreak);
+    renderStreakBanner();
+  } catch(e) {}
+}
+
+function _checkBadges(profile, totalReports, streak) {
+  const current = new Set(profile.badges || []);
+  const toAward = [];
+
+  if (totalReports >= 1   && !current.has('first_report'))  toAward.push('first_report');
+  if (totalReports >= 10  && !current.has('reports_10'))    toAward.push('reports_10');
+  if (totalReports >= 50  && !current.has('reports_50'))    toAward.push('reports_50');
+  if (totalReports >= 100 && !current.has('reports_100'))   toAward.push('reports_100');
+  if (streak >= 3   && !current.has('streak_3'))            toAward.push('streak_3');
+  if (streak >= 7   && !current.has('streak_7'))            toAward.push('streak_7');
+  if (streak >= 14  && !current.has('streak_14'))           toAward.push('streak_14');
+  if (streak >= 30  && !current.has('streak_30'))           toAward.push('streak_30');
+  if (streak >= 100 && !current.has('streak_100'))          toAward.push('streak_100');
+
+  if (!toAward.length) return;
+
+  const newBadges = [...current, ...toAward];
+  sb.from('profiles').update({ badges: newBadges }).eq('id', CU.id).then(() => {
+    PR.badges = newBadges;
+    showBadgeCelebration(toAward[toAward.length - 1]);
+  });
+}
+
+function renderStreakBanner() {
+  const el    = document.getElementById('streakBanner');
+  const inner = document.getElementById('streakBannerInner');
+  if (!el || !inner) return;
+  if (!CU || !PR) { el.style.display = 'none'; return; }
+
+  const streak        = PR.current_streak || 0;
+  const today         = getTodayWAT();
+  const reportedToday = PR.last_report_date === today;
+
+  if (streak === 0 && !reportedToday) {
+    inner.className = 'streak-zero';
+    inner.innerHTML = `${_ico('signal',16,'#3b82f6')} <span>Start your streak — report power now!</span>`;
+    el.style.display = 'block';
+    return;
+  }
+
+  const yesterday = new Date(Date.now() + 60 * 60 * 1000 - 86400000).toISOString().slice(0, 10);
+  const atRisk    = !reportedToday && PR.last_report_date === yesterday;
+  const hourWAT   = new Date(Date.now() + 60 * 60 * 1000).getUTCHours();
+
+  if (atRisk && hourWAT >= 18) {
+    inner.className = 'streak-nudge';
+    inner.innerHTML = `${_ico('warning',16,'#f97316')} <strong>${streak}-day streak at risk!</strong> Report before midnight to keep it alive.`;
+    el.style.display = 'block';
+    return;
+  }
+
+  inner.className = 'streak-active';
+  const label = streak === 1 ? '1-day streak' : `${streak}-day streak`;
+  const extra = reportedToday ? ' ✓' : '';
+  inner.innerHTML = `${_ico('flame',16,'#f97316')} <strong>${label}${extra}</strong>${streak >= 7 ? ' — On fire!' : ''}`;
+  el.style.display = 'block';
+}
+
+function showStreakMilestone(days) {
+  const msgs = {
+    3:   '3-day streak — you\'re building a habit!',
+    7:   '7-day streak — one week of power watching!',
+    14:  '14-day streak — two weeks strong!',
+    30:  '30-day streak — one month of power watching!',
+    100: '100-day streak — unstoppable!',
+  };
+  const t = document.createElement('div');
+  t.className = 'milestone-toast';
+  t.innerHTML = `${_ico('flame',14,'currentColor')} ${msgs[days] || `${days}-day streak!`}`;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 4200);
+}
+
+function showBadgeCelebration(badgeKey) {
+  const def     = BADGE_DEFS[badgeKey];
+  if (!def) return;
+  const overlay = document.getElementById('badgeCelebOverlay');
+  if (!overlay) return;
+  document.getElementById('badgeCelebIcon').innerHTML    = _ico(def.iconKey, 60, def.color);
+  document.getElementById('badgeCelebTitle').textContent = def.name;
+  document.getElementById('badgeCelebSub').textContent   = def.desc;
+  overlay.style.display = 'flex';
+  spawnConfetti();
+}
+
+function closeBadgeCeleb() {
+  const overlay = document.getElementById('badgeCelebOverlay');
+  if (overlay) overlay.style.display = 'none';
+}
+
+function shareBadgeWhatsApp() {
+  const name   = document.getElementById('badgeCelebTitle')?.textContent || 'badge';
+  const streak = PR?.current_streak || 0;
+  const msg = `I just earned the "${name}" badge on NEPAWatch!${streak > 0 ? ` ${streak}-day reporting streak!` : ''}\n\nJoin me — track power outages in your area: https://nepawatch.app`;
+  window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
+}
+
+function spawnConfetti() {
+  const canvas = document.getElementById('confettiCanvas');
+  if (!canvas) return;
+  const colors = ['#f43f5e', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ec4899'];
+  canvas.innerHTML = '';
+  for (let i = 0; i < 60; i++) {
+    const p = document.createElement('div');
+    p.className = 'confetti-piece';
+    p.style.cssText = [
+      `left:${Math.random() * 100}%`,
+      `background:${colors[Math.floor(Math.random() * colors.length)]}`,
+      `animation-delay:${(Math.random() * 0.8).toFixed(2)}s`,
+      `animation-duration:${(1.4 + Math.random() * 0.8).toFixed(2)}s`,
+      `transform:rotate(${Math.floor(Math.random() * 360)}deg)`,
+    ].join(';');
+    canvas.appendChild(p);
+  }
+}
