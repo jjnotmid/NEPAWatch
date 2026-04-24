@@ -3410,17 +3410,13 @@ async function renderCommunity(){
       const counts={};
       repData.forEach(r=>{if(!r.user_id)return;if(!counts[r.user_id])counts[r.user_id]={uid:r.user_id,count:0};counts[r.user_id].count++;});
       const uids=Object.keys(counts).filter(u=>u!==AI_USER_ID).slice(0,20);
-      /* Build name map — seed with known current user first (always available) */
+      /* Build name map — seed with known current user first */
       const profMap={};
-      if(CU&&PR?.name) profMap[CU.id]=PR.name;
-      /* Fetch public profile names — requires profiles RLS to allow public SELECT.
-         Run supabase-security-fix.sql section 7 if names still show as "Reporter". */
+      if(CU&&PR?.name) profMap[CU.id]=PR.name.split(" ")[0]||PR.name;
+      /* Use SECURITY DEFINER RPC — bypasses RLS, always returns names */
       try{
-        const{data:profData}=await sb.from("profiles").select("id,name,email").in("id",uids);
-        (profData||[]).forEach(p=>{
-          const fullName=p.name||p.email?.split("@")[0]||profMap[p.id]||"";
-          profMap[p.id]=fullName.split(" ")[0]||fullName; // first name only
-        });
+        const{data:profData}=await sb.rpc("get_reporter_names",{user_ids:uids});
+        (profData||[]).forEach(p=>{ if(p.first_name)profMap[p.id]=p.first_name; });
       }catch(e){}
       const _displayName=(uid)=>{
         if(profMap[uid])return profMap[uid];
