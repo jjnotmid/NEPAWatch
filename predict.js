@@ -260,7 +260,7 @@ function getGroundTruth(area) {
 }
 
 /* ─── CORE PREDICTION ────────────────────────────────────────────────────── */
-function predictOutage(area, hour, dayOfWeek) {
+function predictOutage(area, hour, dayOfWeek, statOnly = false) {
   const band   = AREA_BANDS[area] || 'C';
   const base   = BAND_BASELINE[band];
   const hProb  = Math.min(0.95, base * HOURLY_FACTOR[hour]);
@@ -283,8 +283,9 @@ function predictOutage(area, hour, dayOfWeek) {
   statProb = Math.min(0.97, statProb * wx);
   if (wx > 1.3) confidence = confidence === 'low' ? 'medium' : 'high';
 
-  // Ground truth from live reports — this DOMINATES the statistical model
-  const gt = getGroundTruth(area);
+  // Ground truth from live reports — dominates for current-day only
+  // statOnly=true means we want the historical/day-of-week forecast without live override
+  const gt = statOnly ? null : getGroundTruth(area);
   let prob;
   if (gt) {
     // Weight: ground truth 80%, statistics 20% when we have recent reports
@@ -906,7 +907,7 @@ function renderPredictPage() {
   }).join('');
 
   const weekBars = DAYS.map((day,i)=>{
-    const{prob:p}=predictOutage(area,h,i); const r=getRiskLevel(p); const isToday=i===d;
+    const isToday=i===d; const{prob:p}=predictOutage(area,h,i,!isToday); const r=getRiskLevel(p);
     return `<div class="pred-week-col${isToday?' pred-week-today':''}">
       <div class="pred-week-bar-wrap"><div class="pred-week-fill" style="height:${Math.round(p*100)}%;background:${r.color}${isToday?'':'99'}"></div></div>
       <div class="pred-week-pct" style="color:${r.color}">${Math.round(p*100)}%</div>
@@ -1043,7 +1044,7 @@ function switchPredictArea(area) {
   const[cDot,cNote]=confMap[confidence]||confMap.low;
   if(ge('predConf')) ge('predConf').innerHTML=`<span class="pred-conf-dot">${cDot}</span><div><div class="pred-conf-title">${cNote}</div></div>`;
   if(ge('pred24Bars')) ge('pred24Bars').innerHTML=Array.from({length:24},(_,i)=>{const{prob:p}=predictOutage(area,i,d);const r=getRiskLevel(p);const isNow=i===h;return`<div class="pred-bar-col${isNow?' pred-bar-now':''}" title="${fmtH(i)}: ${Math.round(p*100)}%"><div class="pred-bar-fill" style="height:${Math.round(p*100)}%;background:${r.color}${isNow?'':'55'};border-radius:2px 2px 0 0"></div>${isNow?'<div class="pred-bar-tick"></div>':''}</div>`;}).join('');
-  if(ge('predWeekBars')) ge('predWeekBars').innerHTML=DAYS.map((day,i)=>{const{prob:p}=predictOutage(area,h,i);const r=getRiskLevel(p);const isT=i===d;return`<div class="pred-week-col${isT?' pred-week-today':''}"><div class="pred-week-bar-wrap"><div class="pred-week-fill" style="height:${Math.round(p*100)}%;background:${r.color}${isT?'':'99'}"></div></div><div class="pred-week-pct" style="color:${r.color}">${Math.round(p*100)}%</div><div class="pred-week-day">${day}</div></div>`;}).join('');
+  if(ge('predWeekBars')) ge('predWeekBars').innerHTML=DAYS.map((day,i)=>{const isT=i===d;const{prob:p}=predictOutage(area,h,i,!isT);const r=getRiskLevel(p);return`<div class="pred-week-col${isT?' pred-week-today':''}"><div class="pred-week-bar-wrap"><div class="pred-week-fill" style="height:${Math.round(p*100)}%;background:${r.color}${isT?'':'99'}"></div></div><div class="pred-week-pct" style="color:${r.color}">${Math.round(p*100)}%</div><div class="pred-week-day">${day}</div></div>`;}).join('');
   if(ge('predAreaList')) ge('predAreaList').innerHTML=Object.keys(AREA_BANDS).map(a=>({a,p:predictOutage(a,h,d).prob,b:AREA_BANDS[a]})).sort((x,y)=>x.p-y.p).slice(0,8).map(({a,p,b})=>{const r=getRiskLevel(p);const sel=a===area;return`<div class="pred-area-row${sel?' pred-area-selected':''}" onclick="switchPredictArea('${a.replace(/'/g,"\\'")}')"><div class="pred-area-dot" style="background:${r.color};box-shadow:0 0 5px ${r.color}66"></div><div class="pred-area-name">${a}</div><span class="pred-band-badge" style="color:${BAND_COLOR[b]};border-color:${BAND_COLOR[b]}44;background:${BAND_COLOR[b]}11">B${b}</span><div class="pred-area-bar"><div class="pred-area-fill" style="width:${Math.round(p*100)}%;background:${r.color}88"></div></div><div class="pred-area-pct" style="color:${r.color}">${Math.round(p*100)}%</div></div>`;}).join('');
 
   /* Update next event card */

@@ -59,6 +59,10 @@ main{padding-top:calc(56px + env(safe-area-inset-top,0px))}
 .logo-txt em{font-style:normal;color:var(--p)}
 .logo-badge{font-size:.52rem;font-weight:700;letter-spacing:.08em;color:var(--ico-clr);background:var(--ico-bg);border:1px solid var(--ico-bd);border-radius:5px;padding:2px 6px;margin-left:3px;text-transform:uppercase}
 .hdr-r{display:flex;align-items:center;gap:7px}
+.ico-btn{background:var(--ico-bg);border:1px solid var(--ico-bd);border-radius:9px;width:34px;height:34px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--ico-clr);transition:all .15s;flex-shrink:0}
+.ico-btn:hover{background:var(--ico-bg-hv);color:var(--ico-clr-hv)}
+.loc-btn{padding:0 11px;gap:5px;width:auto;font-size:.69rem;font-weight:600}
+.loc-btn.active{color:var(--p);border-color:rgba(170,255,0,.3);background:rgba(170,255,0,.08)}
 
 /* ===== BOTTOM NAV ===== */
 nav{
