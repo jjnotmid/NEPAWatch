@@ -2355,7 +2355,7 @@ async function initAuth(){
 }
 function _resetFormHTML(){return`<div class="auth-wrap"><div class="auth-logo"><div class="auth-logo-icon" style="background:var(--p)">${LOGO_IMG_TAG}</div><span class="auth-logo-name">NEPA<em>Watch</em></span></div><h2>Set new password</h2><p class="auth-sub">Choose a strong new password for your account.</p><div class="msg err" id="authErr"></div><div class="msg ok" id="authOk"></div><div class="fld"><label>New Password</label><input id="inp-newpass" type="password" placeholder="Min 6 characters" autocomplete="new-password"><button type="button" class="pw-eye-btn" onclick="appTogglePw(this)" tabindex="-1"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M1 8C2.5 5 5 3.5 8 3.5C11 3.5 13.5 5 15 8C13.5 11 11 12.5 8 12.5C5 12.5 2.5 11 1 8Z" stroke="currentColor" stroke-width="1.3"/><circle cx="8" cy="8" r="2.2" stroke="currentColor" stroke-width="1.3"/></svg></button></div><div class="fld"><label>Confirm Password</label><input id="inp-confpass" type="password" placeholder="Repeat password" autocomplete="new-password"><button type="button" class="pw-eye-btn" onclick="appTogglePw(this)" tabindex="-1"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M1 8C2.5 5 5 3.5 8 3.5C11 3.5 13.5 5 15 8C13.5 11 11 12.5 8 12.5C5 12.5 2.5 11 1 8Z" stroke="currentColor" stroke-width="1.3"/><circle cx="8" cy="8" r="2.2" stroke="currentColor" stroke-width="1.3"/></svg></button></div><button class="auth-btn" id="authBtn" onclick="doPasswordReset()">Update Password</button></div>`;}
 
-async function loadProfile(){if(!CU)return;try{const{data,error}=await sb.from("profiles").select("*").eq("id",CU.id).single();if(!error&&data){PR=data;if(PR.location_id){document.getElementById("locTag").classList.add("on");document.getElementById("locLabel").textContent=PR.location_label||PR.location_name;}}else if(error&&error.code==="PGRST116"){const name=CU.user_metadata?.name||CU.email.split("@")[0];await sb.from("profiles").upsert({id:CU.id,email:CU.email,name,notif_on:true},{onConflict:"id"});PR={id:CU.id,email:CU.email,name,notif_on:true,location_id:null};}if(PR)renderStreakBanner();}catch(e){}}
+async function loadProfile(){if(!CU)return;try{const{data,error}=await sb.from("profiles").select("*").eq("id",CU.id).single();if(!error&&data){PR=data;if(PR.location_id){document.getElementById("locTag").classList.add("on");document.getElementById("locLabel").textContent=PR.location_label||PR.location_name;}}else if(error&&error.code==="PGRST116"){const name=CU.user_metadata?.name||CU.email.split("@")[0];await sb.from("profiles").upsert({id:CU.id,email:CU.email,name,notif_on:true},{onConflict:"id"});PR={id:CU.id,email:CU.email,name,notif_on:true,location_id:null};}if(PR){renderStreakBanner();renderHdrStreak();}}catch(e){}}
 
 async function doRegister(name,email,pass){const{data,error}=await sb.auth.signUp({email,password:pass,options:{data:{name},emailRedirectTo:APP_URL+"?mode=reset"}});if(error){if(error.message?.toLowerCase().includes("rate limit")||error.message?.toLowerCase().includes("over_email_send_rate_limit"))throw new Error("RATE_LIMIT");throw new Error(error.message);}if(data.user){await sb.from("profiles").upsert({id:data.user.id,email,name,notif_on:true},{onConflict:"id"});}if(data.session){CU=data.user;await loadProfile();renderAccount();updateBanner();toast(`Welcome, ${name}!`,"ok");_maybeStartTour();}sendEmail(email,"Welcome to NEPAWatch Nigeria",`Hi ${name},\n\nWelcome to NEPAWatch Nigeria!\n\nYou will receive real-time email alerts whenever power goes out or is restored near your street.\n\nOpen the app and set your location to activate alerts.\n\nStay powered,\nNEPAWatch Nigeria`,buildEmailHtml({type:'welcome',name,appUrl:APP_URL}));return data;}
 async function doLogin(email,pass){const{data,error}=await sb.auth.signInWithPassword({email,password:pass});if(error)throw new Error(error.message);return data;}
@@ -2543,7 +2543,7 @@ function findNearestAreas(lat,lng,count=8){
 }
 async function reverseGeocode(lat,lng){try{const res=await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&zoom=16&addressdetails=1`,{headers:{"Accept-Language":"en","User-Agent":"NEPAWatch/1.0"}});const data=await res.json();const a=data.address||{};const precise=a.neighbourhood||a.suburb||a.city_district||a.town||a.city||"";if(precise){const txt=document.getElementById("geoBtnTxt");txt.textContent=precise.length>12?precise.substring(0,12)+"...":precise;toast(`Near ${precise}`,"ok");}}catch(e){}}
 
-async function detectLocation(){const btn=document.getElementById("geoBtn");const txt=document.getElementById("geoBtnTxt");if(!navigator.geolocation){toast("Geolocation not supported","err");return;}txt.textContent="Locating...";btn.disabled=true;const tryGeo=(highAccuracy,timeoutMs)=>new Promise((resolve,reject)=>{navigator.geolocation.getCurrentPosition(resolve,reject,{enableHighAccuracy:highAccuracy,timeout:timeoutMs,maximumAge:highAccuracy?10000:60000});});let pos;try{pos=await tryGeo(true,12000);}catch(e1){try{pos=await tryGeo(false,8000);}catch(e2){const msg=e2.code===1?"Location access denied":e2.code===2?"Could not get location":"Location request timed out";toast(msg,"err");txt.textContent="";btn.disabled=false;return;}}const{latitude:lat,longitude:lng,accuracy}=pos.coords;_userLat=lat;_userLng=lng;userExactLat=lat;userExactLng=lng;_nearbyAreas=findNearestAreas(lat,lng,8);const nearest=_nearbyAreas[0]?.area;if(!nearest){toast("Could not match your location to a Lagos area","err");txt.textContent="";btn.disabled=false;return;}// Snap to nearest existing LOCS entry within 200m
+async function detectLocation(){const btn=document.getElementById("geoBtn");const txt=document.getElementById("geoBtnTxt");if(!navigator.geolocation){toast("Geolocation not supported","err");return;}txt.textContent="Locating...";btn.disabled=true;const tryGeo=(highAccuracy,timeoutMs)=>new Promise((resolve,reject)=>{navigator.geolocation.getCurrentPosition(resolve,reject,{enableHighAccuracy:highAccuracy,timeout:timeoutMs,maximumAge:highAccuracy?10000:60000});});let pos;try{pos=await tryGeo(true,12000);}catch(e1){try{pos=await tryGeo(false,8000);}catch(e2){const msg=e2.code===1?"Location access denied":e2.code===2?"Could not get location":"Location request timed out";toast(msg,"err");txt.textContent="Locate Me";btn.disabled=false;return;}}const{latitude:lat,longitude:lng,accuracy}=pos.coords;_userLat=lat;_userLng=lng;userExactLat=lat;userExactLng=lng;_nearbyAreas=findNearestAreas(lat,lng,8);const nearest=_nearbyAreas[0]?.area;if(!nearest){toast("Could not match your location to a Lagos area","err");txt.textContent="Locate Me";btn.disabled=false;return;}// Snap to nearest existing LOCS entry within 200m
 const snapped=_findDupLoc(lat,lng,200);
 // Use parent area for filtering so sub-area reports all show together
 const _nearestParent=AREA_PARENT?.[nearest]||nearest;
@@ -2567,7 +2567,7 @@ const dup2=LOCS.find(l=>_normName(l.name)===_normName(streetName)&&l.area.toLowe
 function showLeafletLocation(lat,lng){const mapDiv=document.getElementById('mapContainer');if(!mapDiv)return;if(!_leafletMap){_leafletMap=L.map(mapDiv,{zoomControl:true,attributionControl:false}).setView([lat,lng],15);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(_leafletMap);}else{_leafletMap.setView([lat,lng],15);}if(_leafletUserMarker)_leafletUserMarker.remove();_leafletPowerMarkers.forEach(m=>m.remove());_leafletPowerMarkers=[];const userIcon=L.divIcon({className:'',html:'<div style="width:16px;height:16px;background:#4B8EF5;border:3px solid white;border-radius:50%;box-shadow:0 2px 8px rgba(0,0,0,.4)"></div>',iconSize:[16,16],iconAnchor:[8,8]});_leafletUserMarker=L.marker([lat,lng],{icon:userIcon}).addTo(_leafletMap).bindPopup('<strong>You are here</strong>');const nearby=findNearbyPowerSpots(lat,lng,6);nearby.forEach(spot=>{const col=spot.status==='on'?'#AAFF00':spot.status==='out'?'#FF4055':'#888';const icon=L.divIcon({className:'',html:`<div style="width:13px;height:13px;background:${col};border:2px solid rgba(255,255,255,.8);border-radius:50%;box-shadow:0 1px 6px rgba(0,0,0,.5)"></div>`,iconSize:[13,13],iconAnchor:[6,6]});const marker=L.marker([spot.coords.lat,spot.coords.lng],{icon}).addTo(_leafletMap);const distTxt=spot.dist<1?`${(spot.dist*1000).toFixed(0)}m`:`${spot.dist.toFixed(1)}km`;marker.bindPopup(`<strong>${spot.area}</strong><br>Power: ${spot.status==='on'?'Power On':spot.status==='out'?'Power Out':'Unknown'}<br>${distTxt} away`);_leafletPowerMarkers.push(marker);});setTimeout(()=>_leafletMap&&_leafletMap.invalidateSize(),200);}
 function findNearbyPowerSpots(lat,lng,limit=5){return Object.entries(AREA_COORDS).map(([area,coords])=>({area,status:getPlaceStatus(area),coords,dist:haversine(lat,lng,coords.lat,coords.lng)})).filter(s=>s.dist<=10).sort((a,b)=>a.dist-b.dist).slice(0,limit);}
 
-function clearLoc(){filterArea="";const sel=document.getElementById("areaFilter");if(sel)sel.value="";document.getElementById("locTag").classList.remove("on");document.getElementById("geoBtn").classList.remove("active");document.getElementById("geoBtnTxt").textContent="";_nearbyAreas=[];_userLat=null;_userLng=null;userExactLat=userExactLng=null;_hideMap();if(_leafletUserMarker){_leafletUserMarker.remove();_leafletUserMarker=null;}_leafletPowerMarkers.forEach(m=>m.remove());_leafletPowerMarkers=[];if(_leafletMap){_leafletMap.remove();_leafletMap=null;}renderNearbyDashboard();renderFeed("liveFeed");if(CU&&PR){PR.location_id=null;PR.location_name=null;PR.location_area=null;PR.location_label=null;sb.from("profiles").update({location_id:null,location_name:null,location_area:null,location_label:null}).eq("id",CU.id).then(()=>{}).catch(()=>{});}}
+function clearLoc(){filterArea="";const sel=document.getElementById("areaFilter");if(sel)sel.value="";document.getElementById("locTag").classList.remove("on");document.getElementById("geoBtn").classList.remove("active");document.getElementById("geoBtnTxt").textContent="Locate Me";_nearbyAreas=[];_userLat=null;_userLng=null;userExactLat=userExactLng=null;_hideMap();if(_leafletUserMarker){_leafletUserMarker.remove();_leafletUserMarker=null;}_leafletPowerMarkers.forEach(m=>m.remove());_leafletPowerMarkers=[];if(_leafletMap){_leafletMap.remove();_leafletMap=null;}renderNearbyDashboard();renderFeed("liveFeed");if(CU&&PR){PR.location_id=null;PR.location_name=null;PR.location_area=null;PR.location_label=null;sb.from("profiles").update({location_id:null,location_name:null,location_area:null,location_label:null}).eq("id",CU.id).then(()=>{}).catch(()=>{});}}
 
 function renderNearbyDashboard(){const el=document.getElementById("nearbyDashboard");if(!_nearbyAreas.length){el.innerHTML="";return;}const cards=_nearbyAreas.slice(0,6).map(({area,dist})=>{const status=getPlaceStatus(area);const statusCls=status==="out"?"nb-status s-out":status==="on"?"nb-status s-on":"nb-status s-unk";const statusTxt=status==="out"?"Power Out":status==="on"?"Power On":"No reports";const statusIco=status==="out"?IC.out:status==="on"?IC.bck:IC.pin;const distStr=dist<1?`${Math.round(dist*1000)}m away`:`${dist.toFixed(1)}km away`;return`<div class="nb-card" onclick="jumpToArea('${area}')"><div class="nb-area">${area}</div><div class="nb-dist">${distStr}</div><div class="${statusCls}">${statusIco}&nbsp;${statusTxt}</div></div>`;}).join("");el.innerHTML=`<div class="slbl">Nearby Areas</div><div class="nearby-grid">${cards}</div>`;}
 
@@ -3413,10 +3413,18 @@ async function renderCommunity(){
       /* Build name map — seed with known current user first */
       const profMap={};
       if(CU&&PR?.name) profMap[CU.id]=PR.name.split(" ")[0]||PR.name;
-      /* Use SECURITY DEFINER RPC — bypasses RLS, always returns names */
+      /* Try RPC first (SECURITY DEFINER, bypasses RLS), fall back to direct query */
       try{
-        const{data:profData}=await sb.rpc("get_reporter_names",{user_ids:uids});
-        (profData||[]).forEach(p=>{ if(p.first_name)profMap[p.id]=p.first_name; });
+        const{data:rpcData,error:rpcErr}=await sb.rpc("get_reporter_names",{user_ids:uids});
+        if(!rpcErr&&rpcData?.length){
+          rpcData.forEach(p=>{ if(p.first_name)profMap[p.id]=p.first_name; });
+        } else {
+          const{data:profData}=await sb.from("profiles").select("id,name,email").in("id",uids);
+          (profData||[]).forEach(p=>{
+            const n=p.name||p.email?.split("@")[0]||"";
+            if(n)profMap[p.id]=n.split(" ")[0]||n;
+          });
+        }
       }catch(e){}
       const _displayName=(uid)=>{
         if(profMap[uid])return profMap[uid];
@@ -4778,6 +4786,7 @@ async function updateStreak() {
     if ([3, 7, 14, 30, 100].includes(newStreak)) showStreakMilestone(newStreak);
     _checkBadges(PR, totalReports, newStreak);
     renderStreakBanner();
+    renderHdrStreak();
   } catch(e) {}
 }
 
@@ -4802,6 +4811,19 @@ function _checkBadges(profile, totalReports, streak) {
     PR.badges = newBadges;
     showBadgeCelebration(toAward[toAward.length - 1]);
   });
+}
+
+function renderHdrStreak() {
+  const el  = document.getElementById('hdrStreak');
+  const num = document.getElementById('hdrStreakNum');
+  if (!el || !num) return;
+  const streak = PR?.current_streak || 0;
+  if (CU && streak > 0) {
+    num.textContent = streak;
+    el.style.display = 'flex';
+  } else {
+    el.style.display = 'none';
+  }
 }
 
 function renderStreakBanner() {
