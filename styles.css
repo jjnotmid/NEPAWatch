@@ -59,8 +59,6 @@ main{padding-top:calc(58px + env(safe-area-inset-top,0px))}
 .logo-txt em{font-style:normal;color:var(--p)}
 .logo-badge{font-size:.52rem;font-weight:700;letter-spacing:.08em;color:var(--ico-clr);background:var(--ico-bg);border:1px solid var(--ico-bd);border-radius:5px;padding:2px 6px;margin-left:3px;text-transform:uppercase}
 .hdr-r{display:flex;align-items:center;gap:8px}
-.live-dot{width:7px;height:7px;background:var(--p);border-radius:50%;animation:livepulse 2.2s ease infinite;flex-shrink:0}
-@keyframes livepulse{0%,100%{box-shadow:0 0 0 0 rgba(170,255,0,.5)}50%{box-shadow:0 0 0 7px rgba(170,255,0,0)}}
 .ico-btn{background:var(--ico-bg);border:1px solid var(--ico-bd);border-radius:10px;width:36px;height:36px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--ico-clr);transition:all .15s}
 .ico-btn:hover{background:var(--ico-bg-hv);color:var(--ico-clr-hv)}
 .loc-btn{padding:0 13px;gap:6px;width:auto;font-size:.71rem;font-weight:600}
@@ -76,15 +74,14 @@ nav{
 }
 body::after{content:"";display:block;position:fixed;bottom:0;left:0;right:0;height:env(safe-area-inset-bottom,0px);background:var(--hbg);z-index:499;transition:background .3s}
 .ni{
-  flex:1;padding:10px 0 13px;display:flex;flex-direction:column;align-items:center;gap:4px;
-  cursor:pointer;color:var(--ni-inactive);font-size:.54rem;font-weight:600;letter-spacing:.06em;
-  text-transform:uppercase;user-select:none;position:relative;transition:color .2s;
+  flex:1;padding:11px 0 14px;display:flex;flex-direction:column;align-items:center;gap:5px;
+  cursor:pointer;color:var(--ni-inactive);font-size:.65rem;font-weight:600;letter-spacing:.01em;
+  user-select:none;position:relative;transition:color .2s;
 }
-.ni-pip{position:absolute;top:0;left:50%;transform:translateX(-50%) scaleX(0);width:28px;height:3px;background:var(--p);border-radius:0 0 3px 3px;transition:transform .25s cubic-bezier(.34,1.56,.64,1)}
 .ni.active{color:var(--p)}
-.ni.active .ni-pip{transform:translateX(-50%) scaleX(1);box-shadow:0 0 8px rgba(170,255,0,.5)}
-.ni svg{transition:transform .2s}
-.ni.active svg{transform:scale(1.12)}
+.ni.active::before{content:'';position:absolute;top:7px;left:50%;transform:translateX(-50%);width:46px;height:30px;background:rgba(170,255,0,.1);border-radius:14px;pointer-events:none}
+.ni svg{transition:transform .2s;position:relative}
+.ni.active svg{transform:scale(1.1)}
 
 /* ===== PAGE ===== */
 .page{display:none;padding-bottom:88px;min-height:calc(100vh - calc(58px + env(safe-area-inset-top,0px)))}
