@@ -753,6 +753,11 @@ input,select,textarea{font-size:max(16px,1em)!important}
     <button class="lclr" onclick="clearLoc()">Clear</button>
   </div>
   <div id="savedPlacesHome"></div>
+
+  <!-- ── STREAK NUDGE BANNER ── -->
+  <div id="streakBanner" style="display:none;margin:0 16px 10px">
+    <div id="streakBannerInner"></div>
+  </div>
   <div id="announcementsBanner" style="display:none;margin:0 16px 8px"></div>
   <div id="nearbyDashboard"></div>
   <div id="mapWrap" style="display:none;position:relative;margin:16px">
@@ -1393,3 +1398,18 @@ if ('serviceWorker' in navigator) {
   });
 }
 </script>
+
+<!-- ── BADGE CELEBRATION OVERLAY ── -->
+<div id="badgeCelebOverlay" style="display:none;position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,.82);backdrop-filter:blur(8px);align-items:center;justify-content:center;flex-direction:column;padding:24px;text-align:center">
+  <div id="badgeCelebBox" style="background:var(--sf);border:1.5px solid var(--bd);border-radius:24px;padding:32px 24px;max-width:340px;width:100%;position:relative">
+    <div id="confettiCanvas" style="position:absolute;inset:0;border-radius:24px;overflow:hidden;pointer-events:none"></div>
+    <div id="badgeCelebIcon" style="font-size:3.5rem;margin-bottom:14px;line-height:1"></div>
+    <div id="badgeCelebTitle" style="font-family:'Bricolage Grotesque',sans-serif;font-size:1.5rem;font-weight:900;color:var(--ink);margin-bottom:6px"></div>
+    <div id="badgeCelebSub" style="font-size:.85rem;color:var(--ink2);line-height:1.5;margin-bottom:20px"></div>
+    <button id="badgeCelebShare" onclick="shareBadgeWhatsApp()" style="width:100%;background:#25D366;color:#fff;border:none;border-radius:12px;padding:13px;font-weight:700;font-size:.95rem;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:10px">
+      <svg width="18" height="18" viewBox="0 0 18 18" fill="currentColor"><path d="M9 .5A8.5 8.5 0 0 0 .96 12.82L.5 17.5l4.82-.46A8.5 8.5 0 1 0 9 .5zm0 15.4a6.88 6.88 0 0 1-3.5-.96l-.25-.15-2.86.27.28-2.8-.16-.26A6.9 6.9 0 1 1 9 15.9z"/><path d="M6.8 5.3c-.2-.44-.4-.45-.58-.46l-.5-.01c-.17 0-.44.06-.67.32S4.3 5.9 4.3 6.95c0 1.05.77 2.07.88 2.22s1.5 2.36 3.68 3.22c1.82.7 2.19.56 2.59.52.4-.04 1.28-.52 1.47-1.03.18-.5.18-.93.13-1.02-.05-.09-.2-.14-.42-.25-.22-.1-1.28-.63-1.48-.7-.19-.07-.33-.1-.47.1-.14.2-.54.7-.66.84-.12.15-.24.16-.45.06-.21-.1-.9-.33-1.71-1.06-.63-.56-1.06-1.26-1.18-1.47-.12-.2-.01-.32.09-.42.1-.1.21-.25.32-.38.1-.12.14-.21.21-.35.07-.14.03-.26-.02-.36-.05-.1-.44-1.1-.62-1.5z"/></svg>
+      Share on WhatsApp
+    </button>
+    <button onclick="closeBadgeCeleb()" style="width:100%;background:none;border:1.5px solid var(--bd);border-radius:12px;padding:11px;font-weight:600;font-size:.85rem;color:var(--ink2);cursor:pointer">Nice, thanks!</button>
+  </div>
+</div>

@@ -2355,7 +2355,7 @@ async function initAuth(){
 }
 function _resetFormHTML(){return`<div class="auth-wrap"><div class="auth-logo"><div class="auth-logo-icon" style="background:var(--p)">${LOGO_IMG_TAG}</div><span class="auth-logo-name">NEPA<em>Watch</em></span></div><h2>Set new password</h2><p class="auth-sub">Choose a strong new password for your account.</p><div class="msg err" id="authErr"></div><div class="msg ok" id="authOk"></div><div class="fld"><label>New Password</label><input id="inp-newpass" type="password" placeholder="Min 6 characters" autocomplete="new-password"><button type="button" class="pw-eye-btn" onclick="appTogglePw(this)" tabindex="-1"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M1 8C2.5 5 5 3.5 8 3.5C11 3.5 13.5 5 15 8C13.5 11 11 12.5 8 12.5C5 12.5 2.5 11 1 8Z" stroke="currentColor" stroke-width="1.3"/><circle cx="8" cy="8" r="2.2" stroke="currentColor" stroke-width="1.3"/></svg></button></div><div class="fld"><label>Confirm Password</label><input id="inp-confpass" type="password" placeholder="Repeat password" autocomplete="new-password"><button type="button" class="pw-eye-btn" onclick="appTogglePw(this)" tabindex="-1"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M1 8C2.5 5 5 3.5 8 3.5C11 3.5 13.5 5 15 8C13.5 11 11 12.5 8 12.5C5 12.5 2.5 11 1 8Z" stroke="currentColor" stroke-width="1.3"/><circle cx="8" cy="8" r="2.2" stroke="currentColor" stroke-width="1.3"/></svg></button></div><button class="auth-btn" id="authBtn" onclick="doPasswordReset()">Update Password</button></div>`;}
 
-async function loadProfile(){if(!CU)return;try{const{data,error}=await sb.from("profiles").select("*").eq("id",CU.id).single();if(!error&&data){PR=data;if(PR.location_id){document.getElementById("locTag").classList.add("on");document.getElementById("locLabel").textContent=PR.location_label||PR.location_name;}}else if(error&&error.code==="PGRST116"){const name=CU.user_metadata?.name||CU.email.split("@")[0];await sb.from("profiles").upsert({id:CU.id,email:CU.email,name,notif_on:true},{onConflict:"id"});PR={id:CU.id,email:CU.email,name,notif_on:true,location_id:null};}}catch(e){}}
+async function loadProfile(){if(!CU)return;try{const{data,error}=await sb.from("profiles").select("*").eq("id",CU.id).single();if(!error&&data){PR=data;if(PR.location_id){document.getElementById("locTag").classList.add("on");document.getElementById("locLabel").textContent=PR.location_label||PR.location_name;}}else if(error&&error.code==="PGRST116"){const name=CU.user_metadata?.name||CU.email.split("@")[0];await sb.from("profiles").upsert({id:CU.id,email:CU.email,name,notif_on:true},{onConflict:"id"});PR={id:CU.id,email:CU.email,name,notif_on:true,location_id:null};}if(PR)renderStreakBanner();}catch(e){}}
 
 async function doRegister(name,email,pass){const{data,error}=await sb.auth.signUp({email,password:pass,options:{data:{name},emailRedirectTo:APP_URL+"?mode=reset"}});if(error){if(error.message?.toLowerCase().includes("rate limit")||error.message?.toLowerCase().includes("over_email_send_rate_limit"))throw new Error("RATE_LIMIT");throw new Error(error.message);}if(data.user){await sb.from("profiles").upsert({id:data.user.id,email,name,notif_on:true},{onConflict:"id"});}if(data.session){CU=data.user;await loadProfile();renderAccount();updateBanner();toast(`Welcome, ${name}!`,"ok");_maybeStartTour();}sendEmail(email,"Welcome to NEPAWatch Nigeria",`Hi ${name},\n\nWelcome to NEPAWatch Nigeria!\n\nYou will receive real-time email alerts whenever power goes out or is restored near your street.\n\nOpen the app and set your location to activate alerts.\n\nStay powered,\nNEPAWatch Nigeria`,buildEmailHtml({type:'welcome',name,appUrl:APP_URL}));return data;}
 async function doLogin(email,pass){const{data,error}=await sb.auth.signInWithPassword({email,password:pass});if(error)throw new Error(error.message);return data;}
@@ -2660,7 +2660,7 @@ function startPolling(){
 async function pushReport(loc,type){
   if(!CU){toast("Sign in to submit a report","info");go("account");return;}
   // ── Rate limiting disabled for launch — no cap on reports ──
-  const tid="local-"+Date.now();reports.unshift({id:tid,name:loc.name,area:loc.area,type,time:Date.now(),confirms:1,userId:CU.id});if(reports.length>500){const di=reports.slice(400).findIndex(r=>!r.isAI&&r.userId!==AI_USER_ID&&!String(r.id).startsWith('local-')&&!String(r.id).startsWith('ai-'));if(di!==-1)reports.splice(400+di,1);else reports.pop();}render();try{const{data,error}=await sb.from("reports").insert({user_id:CU.id,location_name:loc.name,location_area:loc.area,type,confirms:1}).select().single();if(error){const idx=reports.findIndex(r=>r.id===tid);if(idx!==-1)reports.splice(idx,1);render();toast(`Could not save report: ${error.message}`,"err");return;}const idx=reports.findIndex(r=>r.id===tid);if(idx!==-1)reports[idx]={id:data.id,name:data.location_name,area:data.location_area,type:data.type,time:new Date(data.created_at).getTime(),confirms:data.confirms||1,userId:data.user_id};render();toast(type==="out"?`Outage reported — ${loc.name}`:`Power restored — ${loc.name}`,type==="out"?"err":"ok");if(PR&&!PR.location_id)await saveLocation(loc);await sendAreaAlerts(loc.name,loc.area,type);setTimeout(loadReports,2000);}catch(e){const idx=reports.findIndex(r=>r.id===tid);if(idx!==-1)reports.splice(idx,1);render();toast("Could not save report — check your connection","err");}}
+  const tid="local-"+Date.now();reports.unshift({id:tid,name:loc.name,area:loc.area,type,time:Date.now(),confirms:1,userId:CU.id});if(reports.length>500){const di=reports.slice(400).findIndex(r=>!r.isAI&&r.userId!==AI_USER_ID&&!String(r.id).startsWith('local-')&&!String(r.id).startsWith('ai-'));if(di!==-1)reports.splice(400+di,1);else reports.pop();}render();try{const{data,error}=await sb.from("reports").insert({user_id:CU.id,location_name:loc.name,location_area:loc.area,type,confirms:1}).select().single();if(error){const idx=reports.findIndex(r=>r.id===tid);if(idx!==-1)reports.splice(idx,1);render();toast(`Could not save report: ${error.message}`,"err");return;}const idx=reports.findIndex(r=>r.id===tid);if(idx!==-1)reports[idx]={id:data.id,name:data.location_name,area:data.location_area,type:data.type,time:new Date(data.created_at).getTime(),confirms:data.confirms||1,userId:data.user_id};render();toast(type==="out"?`Outage reported — ${loc.name}`:`Power restored — ${loc.name}`,type==="out"?"err":"ok");updateStreak();if(PR&&!PR.location_id)await saveLocation(loc);await sendAreaAlerts(loc.name,loc.area,type);setTimeout(loadReports,2000);}catch(e){const idx=reports.findIndex(r=>r.id===tid);if(idx!==-1)reports.splice(idx,1);render();toast("Could not save report — check your connection","err");}}
 
 async function addConfirm(repId) {
   const r = reports.find(x => x.id === repId);
@@ -4707,3 +4707,183 @@ async function _onPWAInstalled() {
 
 // Fires when user installs via browser menu (outside our custom modal)
 window.addEventListener('appinstalled', () => { _onPWAInstalled(); });
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   FEATURE 1 — STREAK & GAMIFICATION
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+
+const BADGE_DEFS = {
+  first_report:    { emoji: '📡', name: 'First Signal',      desc: 'Your first report — the journey begins!' },
+  streak_3:        { emoji: '🔥', name: 'On Fire',           desc: '3-day reporting streak' },
+  streak_7:        { emoji: '⚡', name: 'Power Watcher',     desc: '7-day reporting streak' },
+  streak_14:       { emoji: '🌟', name: 'NEPA Guardian',     desc: '14-day reporting streak' },
+  streak_30:       { emoji: '🏆', name: 'Electricity Lord',  desc: '30-day reporting streak' },
+  streak_100:      { emoji: '👑', name: 'Legend',            desc: '100-day reporting streak' },
+  reports_10:      { emoji: '📊', name: 'Data Warrior',      desc: '10 total reports submitted' },
+  reports_50:      { emoji: '🦸', name: 'Outage Hero',       desc: '50 total reports submitted' },
+  reports_100:     { emoji: '🎖️', name: 'Power General',    desc: '100 total reports submitted' },
+  weekly_champion: { emoji: '🥇', name: 'Weekly Champion',   desc: 'Top reporter in your area this week' },
+};
+
+// WAT = UTC+1 (Africa/Lagos). Returns "YYYY-MM-DD".
+function getTodayWAT() {
+  const now = new Date(Date.now() + 60 * 60 * 1000);
+  return now.toISOString().slice(0, 10);
+}
+
+async function updateStreak() {
+  if (!CU || !PR) return;
+  const today     = getTodayWAT();
+  const lastDate  = PR.last_report_date;
+  const totalReports = (PR.total_reports || 0) + 1;
+  let newStreak   = PR.current_streak || 0;
+
+  if (lastDate === today) {
+    // Already reported today — only bump total
+    try { await sb.from('profiles').update({ total_reports: totalReports }).eq('id', CU.id); } catch(e) {}
+    PR.total_reports = totalReports;
+    _checkBadges(PR, totalReports, newStreak);
+    renderStreakBanner();
+    return;
+  }
+
+  const yesterday = new Date(Date.now() + 60 * 60 * 1000 - 86400000).toISOString().slice(0, 10);
+  newStreak = (lastDate === yesterday) ? newStreak + 1 : 1;
+
+  const longestStreak = Math.max(newStreak, PR.longest_streak || 0);
+
+  try {
+    await sb.from('profiles').update({
+      current_streak:   newStreak,
+      longest_streak:   longestStreak,
+      last_report_date: today,
+      total_reports:    totalReports,
+    }).eq('id', CU.id);
+
+    PR.current_streak   = newStreak;
+    PR.longest_streak   = longestStreak;
+    PR.last_report_date = today;
+    PR.total_reports    = totalReports;
+
+    if ([3, 7, 14, 30, 100].includes(newStreak)) showStreakMilestone(newStreak);
+    _checkBadges(PR, totalReports, newStreak);
+    renderStreakBanner();
+  } catch(e) {}
+}
+
+function _checkBadges(profile, totalReports, streak) {
+  const current = new Set(profile.badges || []);
+  const toAward = [];
+
+  if (totalReports >= 1   && !current.has('first_report'))  toAward.push('first_report');
+  if (totalReports >= 10  && !current.has('reports_10'))    toAward.push('reports_10');
+  if (totalReports >= 50  && !current.has('reports_50'))    toAward.push('reports_50');
+  if (totalReports >= 100 && !current.has('reports_100'))   toAward.push('reports_100');
+  if (streak >= 3   && !current.has('streak_3'))            toAward.push('streak_3');
+  if (streak >= 7   && !current.has('streak_7'))            toAward.push('streak_7');
+  if (streak >= 14  && !current.has('streak_14'))           toAward.push('streak_14');
+  if (streak >= 30  && !current.has('streak_30'))           toAward.push('streak_30');
+  if (streak >= 100 && !current.has('streak_100'))          toAward.push('streak_100');
+
+  if (!toAward.length) return;
+
+  const newBadges = [...current, ...toAward];
+  sb.from('profiles').update({ badges: newBadges }).eq('id', CU.id).then(() => {
+    PR.badges = newBadges;
+    showBadgeCelebration(toAward[toAward.length - 1]);
+  });
+}
+
+function renderStreakBanner() {
+  const el    = document.getElementById('streakBanner');
+  const inner = document.getElementById('streakBannerInner');
+  if (!el || !inner) return;
+  if (!CU || !PR) { el.style.display = 'none'; return; }
+
+  const streak        = PR.current_streak || 0;
+  const today         = getTodayWAT();
+  const reportedToday = PR.last_report_date === today;
+
+  if (streak === 0 && !reportedToday) {
+    inner.className = 'streak-zero';
+    inner.innerHTML = `<span style="font-size:1.1rem">📡</span> <span>Start your streak — report power now!</span>`;
+    el.style.display = 'block';
+    return;
+  }
+
+  const yesterday = new Date(Date.now() + 60 * 60 * 1000 - 86400000).toISOString().slice(0, 10);
+  const atRisk    = !reportedToday && PR.last_report_date === yesterday;
+  const hourWAT   = new Date(Date.now() + 60 * 60 * 1000).getUTCHours();
+
+  if (atRisk && hourWAT >= 18) {
+    inner.className = 'streak-nudge';
+    inner.innerHTML = `<span class="streak-active" style="font-size:1.05rem">🔥</span> <strong>${streak}-day streak at risk!</strong> Report before midnight to keep it alive.`;
+    el.style.display = 'block';
+    return;
+  }
+
+  inner.className = 'streak-active';
+  const label = streak === 1 ? '1-day streak' : `${streak}-day streak`;
+  const extra = reportedToday ? ' ✓' : '';
+  inner.innerHTML = `<span style="font-size:1.1rem">🔥</span> <strong>${label}${extra}</strong>${streak >= 7 ? ' — You\'re on fire!' : ''}`;
+  el.style.display = 'block';
+}
+
+function showStreakMilestone(days) {
+  const msgs = {
+    3:   '3-day streak! 🔥 You\'re building a habit!',
+    7:   '7-day streak! ⚡ One week of power watching!',
+    14:  '14-day streak! 🌟 Two weeks strong!',
+    30:  '30-day streak! 🏆 One month — you\'re a legend!',
+    100: '100-day streak! 👑 UNSTOPPABLE!',
+  };
+  const t = document.createElement('div');
+  t.className = 'milestone-toast';
+  t.textContent = msgs[days] || `${days}-day streak! 🔥`;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 4200);
+}
+
+function showBadgeCelebration(badgeKey) {
+  const def     = BADGE_DEFS[badgeKey];
+  if (!def) return;
+  const overlay = document.getElementById('badgeCelebOverlay');
+  if (!overlay) return;
+  document.getElementById('badgeCelebIcon').textContent  = def.emoji;
+  document.getElementById('badgeCelebTitle').textContent = def.name;
+  document.getElementById('badgeCelebSub').textContent   = def.desc;
+  overlay.style.display = 'flex';
+  spawnConfetti();
+}
+
+function closeBadgeCeleb() {
+  const overlay = document.getElementById('badgeCelebOverlay');
+  if (overlay) overlay.style.display = 'none';
+}
+
+function shareBadgeWhatsApp() {
+  const icon   = document.getElementById('badgeCelebIcon')?.textContent  || '🏅';
+  const name   = document.getElementById('badgeCelebTitle')?.textContent || 'badge';
+  const streak = PR?.current_streak || 0;
+  const msg = `${icon} I just earned the "${name}" badge on NEPAWatch!${streak > 0 ? ` ${streak}-day reporting streak! 🔥` : ''}\n\nJoin me — track power outages in your area: https://nepawatch.app`;
+  window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
+}
+
+function spawnConfetti() {
+  const canvas = document.getElementById('confettiCanvas');
+  if (!canvas) return;
+  const colors = ['#f43f5e', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ec4899'];
+  canvas.innerHTML = '';
+  for (let i = 0; i < 60; i++) {
+    const p = document.createElement('div');
+    p.className = 'confetti-piece';
+    p.style.cssText = [
+      `left:${Math.random() * 100}%`,
+      `background:${colors[Math.floor(Math.random() * colors.length)]}`,
+      `animation-delay:${(Math.random() * 0.8).toFixed(2)}s`,
+      `animation-duration:${(1.4 + Math.random() * 0.8).toFixed(2)}s`,
+      `transform:rotate(${Math.floor(Math.random() * 360)}deg)`,
+    ].join(';');
+    canvas.appendChild(p);
+  }
+}
