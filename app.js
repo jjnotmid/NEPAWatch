@@ -3401,20 +3401,7 @@ function renderMyArea(){
 }
 
 /* ━━━ PATCH 2: renderCommunity — includes NEPAWatch AI on leaderboard ━━━ */
-function renderCommFeed(){
-  const el=document.getElementById("commFeed");
-  if(!el)return;
-  // Show latest 20 reports — no login required, visible to everyone
-  const pool=reports.slice(0,20);
-  if(!pool.length){
-    el.innerHTML=`<div class="empty" style="padding:20px 16px"><div class="empty-ico">${IC.out}</div><p>No reports yet — be the first!</p></div>`;
-    return;
-  }
-  el.innerHTML=pool.map((r,i)=>_buildReportCard(r,i)).join("");
-}
-
 async function renderCommunity(){
-  renderCommFeed();
   document.getElementById("lbList").innerHTML=`<div class="loading-row"><div class="spin w"></div>Loading leaderboard...</div>`;
   try{
     const{data:repData,error:repErr}=await sb.from("reports").select("user_id,location_name,location_area,type,created_at").not("user_id","is",null).order("created_at",{ascending:false}).limit(1000);
@@ -3430,14 +3417,21 @@ async function renderCommunity(){
          Run supabase-security-fix.sql section 7 if names still show as "Reporter". */
       try{
         const{data:profData}=await sb.from("profiles").select("id,name,email").in("id",uids);
-        (profData||[]).forEach(p=>{ profMap[p.id]=p.name||p.email?.split("@")[0]||profMap[p.id]; });
+        (profData||[]).forEach(p=>{
+          const fullName=p.name||p.email?.split("@")[0]||profMap[p.id]||"";
+          profMap[p.id]=fullName.split(" ")[0]||fullName; // first name only
+        });
       }catch(e){}
-      const _displayName=(uid)=>profMap[uid]||(uid===CU?.id&&PR?.name?PR.name:null)||null;
+      const _displayName=(uid)=>{
+        if(profMap[uid])return profMap[uid];
+        if(uid===CU?.id&&PR?.name)return PR.name.split(" ")[0]||PR.name;
+        return null;
+      };
       /* Add AI entry */
       const aiCount=counts[AI_USER_ID]?.count||0;
       let reporters=Object.entries(counts)
         .filter(([uid])=>uid!==AI_USER_ID)
-        .map(([uid,c])=>({name:_displayName(uid)||'Anonymous',uid,count:c.count,isAI:false}))
+        .map(([uid,c])=>({name:_displayName(uid)||'Reporter',uid,count:c.count,isAI:false}))
         .sort((a,b)=>b.count-a.count).slice(0,5);
       /* Insert AI into sorted position */
       if(aiCount>0){
@@ -3450,7 +3444,7 @@ async function renderCommunity(){
         const rankClass=["gold","silver","bronze","","",""];
         document.getElementById("lbList").innerHTML=reporters.map((r,i)=>{
           const isAI=r.isAI;
-          const initials=isAI?'AI':(r.name!=='Anonymous'?r.name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2):'?');
+          const initials=isAI?'AI':(r.name&&r.name!=='Reporter'?r.name.slice(0,2).toUpperCase():'?');
           const avatarColor=isAI?'var(--p)':`hsl(${(r.uid||'').split('').reduce((a,c)=>a+c.charCodeAt(0),0)%360},55%,55%)`;
           const avatarHtml=`<div style="width:32px;height:32px;border-radius:50%;background:${isAI?'var(--pp)':'rgba(255,255,255,.08)'};color:${avatarColor};display:flex;align-items:center;justify-content:center;font-size:.65rem;font-weight:800;flex-shrink:0;border:1.5px solid ${avatarColor}33">${initials}</div>`;
           const nameHtml=isAI?`<span style="color:var(--p);font-weight:700">${IC.ai}&nbsp;${r.name}</span>`:`<span style="font-weight:600">${r.name}</span>`;
