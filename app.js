@@ -2348,7 +2348,8 @@ async function initAuth(){
 }
 function _resetFormHTML(){return`<div class="auth-wrap"><div class="auth-logo"><div class="auth-logo-icon" style="background:var(--p)">${LOGO_IMG_TAG}</div><span class="auth-logo-name">NEPA<em>Watch</em></span></div><h2>Set new password</h2><p class="auth-sub">Choose a strong new password for your account.</p><div class="msg err" id="authErr"></div><div class="msg ok" id="authOk"></div><div class="fld"><label>New Password</label><input id="inp-newpass" type="password" placeholder="Min 6 characters" autocomplete="new-password"><button type="button" class="pw-eye-btn" onclick="appTogglePw(this)" tabindex="-1"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M1 8C2.5 5 5 3.5 8 3.5C11 3.5 13.5 5 15 8C13.5 11 11 12.5 8 12.5C5 12.5 2.5 11 1 8Z" stroke="currentColor" stroke-width="1.3"/><circle cx="8" cy="8" r="2.2" stroke="currentColor" stroke-width="1.3"/></svg></button></div><div class="fld"><label>Confirm Password</label><input id="inp-confpass" type="password" placeholder="Repeat password" autocomplete="new-password"><button type="button" class="pw-eye-btn" onclick="appTogglePw(this)" tabindex="-1"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M1 8C2.5 5 5 3.5 8 3.5C11 3.5 13.5 5 15 8C13.5 11 11 12.5 8 12.5C5 12.5 2.5 11 1 8Z" stroke="currentColor" stroke-width="1.3"/><circle cx="8" cy="8" r="2.2" stroke="currentColor" stroke-width="1.3"/></svg></button></div><button class="auth-btn" id="authBtn" onclick="doPasswordReset()">Update Password</button></div>`;}
 
-async function loadProfile(){if(!CU)return;try{const{data,error}=await sb.from("profiles").select("*").eq("id",CU.id).single();if(!error&&data){PR=data;if(PR.location_id){document.getElementById("locTag").classList.add("on");document.getElementById("locLabel").textContent=PR.location_label||PR.location_name;}}else if(error&&error.code==="PGRST116"){const name=CU.user_metadata?.name||CU.email.split("@")[0];await sb.from("profiles").upsert({id:CU.id,email:CU.email,name,notif_on:true},{onConflict:"id"});PR={id:CU.id,email:CU.email,name,notif_on:true,location_id:null};}}catch(e){}}
+async function loadProfile(){if(!CU)return;try{const{data,error}=await sb.from("profiles").select("*").eq("id",CU.id).single();if(!error&&data){PR=data;if(PR.location_id){document.getElementById("locTag").classList.add("on");document.getElementById("locLabel").textContent=PR.location_label||PR.location_name;}}else if(error&&error.code==="PGRST116"){const name=CU.user_metadata?.name||CU.email.split("@")[0];await sb.from("profiles").upsert({id:CU.id,email:CU.email,name,notif_on:true},{onConflict:"id"});PR={id:CU.id,email:CU.email,name,notif_on:true,location_id:null};}if(PR){renderStreakBanner();renderHomeAchievements();renderRivalryCard();setTimeout(_scheduleLocalNotifications,2000);}
+  }catch(e){}}
 
 async function doRegister(name,email,pass){const{data,error}=await sb.auth.signUp({email,password:pass,options:{data:{name},emailRedirectTo:APP_URL+"?mode=reset"}});if(error){if(error.message?.toLowerCase().includes("rate limit")||error.message?.toLowerCase().includes("over_email_send_rate_limit"))throw new Error("RATE_LIMIT");throw new Error(error.message);}if(data.user){await sb.from("profiles").upsert({id:data.user.id,email,name,notif_on:true},{onConflict:"id"});}if(data.session){CU=data.user;await loadProfile();renderAccount();updateBanner();toast(`Welcome, ${name}!`,"ok");_maybeStartTour();}sendEmail(email,"Welcome to NEPAWatch Nigeria",`Hi ${name},\n\nWelcome to NEPAWatch Nigeria!\n\nYou will receive real-time email alerts whenever power goes out or is restored near your street.\n\nOpen the app and set your location to activate alerts.\n\nStay powered,\nNEPAWatch Nigeria`,buildEmailHtml({type:'welcome',name,appUrl:APP_URL}));return data;}
 async function doLogin(email,pass){const{data,error}=await sb.auth.signInWithPassword({email,password:pass});if(error)throw new Error(error.message);return data;}
@@ -2626,6 +2627,7 @@ async function loadReports(){
     console.warn('[loadReports] failed:',e?.message);
   }
   render();
+  renderRivalryCard();
   if(_nearbyAreas.length) renderNearbyDashboard();
   /* Safety: re-render stats 300ms later so they always reflect final data
      even if a concurrent animation left them at an intermediate value.   */
@@ -3452,6 +3454,112 @@ async function renderCommunity(){
   document.getElementById("commNote").style.display="block";
 }
 
+function _weeklyResetNote(){
+  const dow=new Date(Date.now()+3600000).getUTCDay();
+  const daysUntil=dow===1?7:dow===0?1:8-dow;
+  const label=daysUntil===1?"tomorrow":daysUntil===7?"next Monday":`in ${daysUntil} days`;
+  return`<div class="weekly-reset-note">Leaderboard resets every Monday · Next reset ${label}</div>`;
+}
+
+async function _awardWeeklyChampion(){
+  if(!CU||!PR)return;
+  const newBadges=[...new Set([...(PR.badges||[]),"weekly_champion"])];
+  await sb.from("profiles").update({badges:newBadges}).eq("id",CU.id);
+  PR.badges=newBadges;
+  showBadgeCelebration("weekly_champion");
+}
+
+function _showChampToast(){
+  const msgs=["You're #1 this week — the community sees you!","Top of the board! Keep those reports coming.","Weekly Champion! You're keeping everyone informed.","Nobody's beating you this week — respect!","You're leading the pack. Champion energy!"];
+  const t=document.createElement("div");
+  t.className="milestone-toast";
+  t.innerHTML=`${_ico("crown",16,"#FFB800")}<span style="font-size:.78rem;font-weight:700;color:var(--ink)">${msgs[Math.floor(Math.random()*msgs.length)]}</span>`;
+  document.body.appendChild(t);
+  requestAnimationFrame(()=>requestAnimationFrame(()=>t.classList.add("show")));
+  setTimeout(()=>{t.classList.remove("show");setTimeout(()=>t.remove(),500);},4000);
+}
+
+/* ━━━ BADGE RENDERING HELPERS ━━━ */
+function _renderBadgeGrid(earned){
+  const earnedSet=new Set(earned||[]);
+  return BADGE_DISPLAY_ORDER.map(key=>{
+    const def=BADGE_DEFS[key];if(!def)return'';
+    const has=earnedSet.has(key);
+    const color=has?(def.gold?'#f59e0b':def.color):'var(--ink3)';
+    const bg=has?(def.gold?'rgba(245,158,11,.1)':`${def.color}18`):'var(--sf2)';
+    const border=has?(def.gold?'rgba(245,158,11,.45)':`${def.color}30`):'var(--bd)';
+    const glow=has&&def.gold?'box-shadow:0 0 14px rgba(245,158,11,.2);':'';
+    return`<div class="badge-item${has?has&&def.gold?' gold':' earned':' locked'}" style="background:${bg};border-color:${border};${glow}" title="${def.desc}" onclick="${has?`showBadgeCelebration('${key}')`:''}" >
+      <div class="badge-ico">${_ico(def.iconKey,22,color)}</div>
+      <div class="badge-name">${def.name}</div>
+    </div>`;
+  }).join('');
+}
+
+function renderHomeAchievements(){
+  const el=document.getElementById('homeAchievements');
+  if(!el)return;
+  if(!CU||!PR){el.style.display='none';return;}
+  const earned=(PR.badges||[]).filter(k=>BADGE_DEFS[k]);
+  const earnedMain=earned.filter(k=>BADGE_DISPLAY_ORDER.includes(k));
+  el.style.display='block';
+  el.innerHTML=`<div class="achiev-wrap"><div class="achiev-hd"><span class="achiev-hd-title">Your Achievements</span><span class="achiev-hd-count">${earnedMain.length}/${BADGE_DISPLAY_ORDER.length}</span></div><div class="badge-grid">${_renderBadgeGrid(earned)}</div></div>`;
+}
+
+function _getRival(area){
+  if(!AREA_COORDS[area])return null;
+  const{lat,lng}=AREA_COORDS[area];
+  const entry=Object.entries(AREA_COORDS)
+    .filter(([k])=>k!==area)
+    .map(([k,c])=>({area:k,dist:haversine(lat,lng,c.lat,c.lng)}))
+    .filter(e=>e.dist>=1.5&&e.dist<=15)
+    .sort((a,b)=>a.dist-b.dist)[0];
+  return entry?.area||null;
+}
+
+function _calcAreaWeeklyHours(area,weekStartMs){
+  const rpts=reports.filter(r=>areaMatches(r.area,area)&&r.time>=weekStartMs);
+  const outCount=rpts.filter(r=>r.type==='out').length;
+  const bckCount=rpts.filter(r=>r.type==='bck').length;
+  if(outCount+bckCount===0)return null;
+  const daysElapsed=Math.max(1,(Date.now()-weekStartMs)/86400000);
+  const avgOutHrs=bckCount>0?Math.max(2,5-bckCount*0.2):5;
+  const downHrs=Math.min(outCount*avgOutHrs,daysElapsed*20);
+  return parseFloat(Math.max(1,Math.min(23,(daysElapsed*24-downHrs)/daysElapsed)).toFixed(1));
+}
+
+function renderRivalryCard(){
+  const el=document.getElementById('rivalryCard');
+  if(!el)return;
+  if(!CU||!PR||!PR.location_area){el.style.display='none';return;}
+  const userArea=PR.location_area;
+  const rival=_getRival(userArea);
+  if(!rival){el.style.display='none';return;}
+  const watNow=new Date(Date.now()+3600000);
+  const dow=watNow.getUTCDay();
+  const daysBack=dow===0?6:dow-1;
+  const monMid=new Date(Date.now()+3600000-daysBack*86400000);
+  monMid.setUTCHours(0,0,0,0);
+  const weekStartMs=monMid.getTime()-3600000;
+  const myHrs=_calcAreaWeeklyHours(userArea,weekStartMs);
+  const rivalHrs=_calcAreaWeeklyHours(rival,weekStartMs);
+  el.style.display='block';
+  if(myHrs===null&&rivalHrs===null){
+    el.innerHTML=`<div class="rivalry-card"><div class="rv-header"><span class="rv-title">Area Rivalry</span><span class="rv-week">This week</span></div><div class="rv-matchup"><div class="rv-side"><div class="rv-area-name">${userArea}</div><div class="rv-score rv-nodata">—</div></div><div class="rv-vs">VS</div><div class="rv-side"><div class="rv-area-name">${rival}</div><div class="rv-score rv-nodata">—</div></div></div><div class="rv-status">Report power events to see ${userArea} vs ${rival} score</div></div>`;
+    return;
+  }
+  const myScore=myHrs??0;
+  const rivalScore=rivalHrs??0;
+  const myWin=myScore>rivalScore;
+  const tied=myScore===rivalScore&&myHrs!==null&&rivalHrs!==null;
+  const statusLine=tied
+    ?`${userArea} and ${rival} dey level this week`
+    :myWin
+    ?`${userArea} dey win — keep reporting!`
+    :`${rival} dey lead — ${userArea} needs more reports!`;
+  el.innerHTML=`<div class="rivalry-card"><div class="rv-header"><span class="rv-title">Area Rivalry</span><span class="rv-week">This week</span></div><div class="rv-matchup"><div class="rv-side${myWin?' rv-winning':''}"><div class="rv-area-name">${userArea}</div><div class="rv-score">${myHrs!==null?myHrs+'<span class="rv-unit">hrs/day</span>':'—'}</div>${myWin?`<div class="rv-badge">${_ico('crown',12,'#FFB800')} Winning</div>`:''}</div><div class="rv-vs">VS</div><div class="rv-side${!myWin&&!tied?' rv-winning':''}"><div class="rv-area-name">${rival}</div><div class="rv-score">${rivalHrs!==null?rivalHrs+'<span class="rv-unit">hrs/day</span>':'—'}</div>${!myWin&&!tied&&rivalHrs!==null?`<div class="rv-badge">${_ico('crown',12,'#FFB800')} Winning</div>`:''}</div></div><div class="rv-status">${statusLine}</div></div>`;
+}
+
 function renderFallbackLeaderboard(){document.getElementById("lbList").innerHTML=`<div class="empty" style="padding:24px 18px"><div class="empty-ico">${IC.user}</div><p>Be the first to report! Top reporters will appear here.</p></div>`;}
 
 function renderAccount(){const el=document.getElementById("authWrap");if(CU&&PR){renderProfile(el);_maybeShowA2HSOnAccount();}else if(CU&&!PR)el.innerHTML=`<div class="loading-row"><div class="spin w"></div>Loading profile...</div>`;else renderAuthForm(el,"login");}
@@ -3647,6 +3755,171 @@ if ('serviceWorker' in navigator) {
       }
     }
   });
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   SMART NOTIFICATION SCHEDULING
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+function _scheduleLocalNotifications(){
+  if(!CU||!PR||Notification.permission!=='granted')return;
+  const today=getTodayWAT();
+  const watNow=new Date(Date.now()+3600000);
+  const watHour=watNow.getUTCHours();
+  const watDay=watNow.getUTCDay(); // 0=Sun
+  const userName=PR.name?.split(' ')[0]||'';
+  const userEmail=CU.email;
+
+  // ── Inactivity re-engagement: 24+ hours without opening app (daily reminder)
+  const LAST_KEY='nw-last-visit';
+  const INACT_KEY='nw-inact-'+today;
+  const lastVisit=parseInt(localStorage.getItem(LAST_KEY)||'0');
+  if(lastVisit&&!localStorage.getItem(INACT_KEY)){
+    const hoursSince=(Date.now()-lastVisit)/3600000;
+    if(hoursSince>=24&&PR.location_area){
+      localStorage.setItem(INACT_KEY,'1');
+      const daysNum=Math.floor(hoursSince/24);
+      const daysLabel=daysNum===1?'1 day':`${daysNum} days`;
+      const outCnt=reports.filter(r=>areaMatches(r.area,PR.location_area)&&r.type==='out'&&r.time>lastVisit).length;
+      const notifBody=outCnt>0
+        ?`${outCnt} outage${outCnt!==1?'s':''} hit ${PR.location_area} while you were away. Come see what happened.`
+        :`${PR.location_area} had activity while you were gone — check what you missed.`;
+      _fireNotification(`NEPAWatch missed you — ${daysLabel} away`,notifBody,'inactivity',PR.location_area,'/');
+      // Email
+      if(userEmail&&PR.notif_on!==false){
+        const subject=`NEPAWatch missed you — ${daysLabel} away`;
+        const plainText=`Hi ${userName},\n\n${notifBody}\n\nOpen NEPAWatch to catch up: ${APP_URL}\n\n— NEPAWatch`;
+        const html=_buildNotifHtml(`NEPAWatch missed you — ${daysLabel} away`,[
+          outCnt>0?['Outages in your area',`${outCnt} outage${outCnt!==1?'s':''} while you were away`]:['Status',`Activity in ${PR.location_area} while you were away`],
+          ['Time away',daysLabel],
+          ['Your area',PR.location_area],
+        ],'#3b82f6');
+        sendEmail(userEmail,subject,plainText,html).catch(()=>{});
+      }
+    }
+  }
+  localStorage.setItem(LAST_KEY,String(Date.now()));
+
+  // ── Streak danger: fire once at 9pm WAT if streak active and not reported today
+  const SNUDGE_KEY='nw-snudge-'+today;
+  if(watHour>=21&&PR.current_streak>0&&PR.last_report_date!==today&&!localStorage.getItem(SNUDGE_KEY)){
+    localStorage.setItem(SNUDGE_KEY,'1');
+    const s=PR.current_streak;
+    _fireNotification(
+      `Your ${s}-day streak is at risk`,
+      `You haven't reported today. Open NEPAWatch before midnight to keep your ${s}-day streak alive.`,
+      'streak','','/'
+    );
+    // Email
+    if(userEmail&&PR.notif_on!==false){
+      const subject=`Your ${s}-day streak is at risk — report before midnight`;
+      const plainText=`Hi ${userName},\n\nYour ${s}-day reporting streak will reset at midnight if you don't report today.\n\nIt only takes 10 seconds — open NEPAWatch and report your area.\n\n${APP_URL}\n\n— NEPAWatch`;
+      const html=_buildNotifHtml(`Your ${s}-day streak is at risk`,[
+        ['Current streak',`${s} day${s!==1?'s':''}`],
+        ['Status','No report yet today'],
+        ['Deadline','Midnight tonight (WAT)'],
+      ],'#f97316');
+      sendEmail(userEmail,subject,plainText,html).catch(()=>{});
+    }
+  }
+
+  // ── Weekly summary: Sunday >= 7pm WAT
+  const WSUM_KEY='nw-wsum-'+today;
+  if(watDay===0&&watHour>=19&&!localStorage.getItem(WSUM_KEY)){
+    localStorage.setItem(WSUM_KEY,'1');
+    _fireWeeklySummaryNotif();
+  }
+
+  // ── Monday rivalry nudge: fire once on Monday 8am–8pm WAT
+  if(watDay===1&&watHour>=8&&watHour<20&&PR.location_area){
+    const RIVAL_KEY='nw-rivalry-'+today;
+    if(!localStorage.getItem(RIVAL_KEY)){
+      const rival=_getRival(PR.location_area);
+      if(rival){
+        localStorage.setItem(RIVAL_KEY,'1');
+        _fireNotification(
+          `New week, new rivalry — ${PR.location_area} vs ${rival}`,
+          `Who go have more power this week? Start reporting to represent ${PR.location_area}.`,
+          'rivalry',PR.location_area,'/'
+        );
+      }
+    }
+  }
+}
+
+async function _fireWeeklySummaryNotif(){
+  if(!CU||!PR)return;
+  try{
+    const watNow=new Date(Date.now()+3600000);
+    const dow=watNow.getUTCDay();
+    const daysBack=dow===0?6:dow-1;
+    const monMid=new Date(Date.now()+3600000-daysBack*86400000);
+    monMid.setUTCHours(0,0,0,0);
+    const wStart=new Date(monMid.getTime()-3600000).toISOString();
+    const{data}=await sb.from('reports').select('user_id').gte('created_at',wStart).neq('user_id',AI_USER_ID).limit(500);
+    if(!data)return;
+
+    /* Build real counts and rank from live DB data */
+    const cm={};data.forEach(r=>{if(r.user_id)cm[r.user_id]=(cm[r.user_id]||0)+1;});
+    const myCount=cm[CU.id]||0;
+    const sorted=Object.entries(cm).sort((a,b)=>b[1]-a[1]);
+    const myRank=sorted.findIndex(([uid])=>uid===CU.id)+1; // 0 if not found → +1=1 but we guard below
+    const hasRank=myCount>0&&myRank>0;
+    const area=PR.location_area||'your area';
+    const streak=PR.current_streak||0;
+
+    const rankTxt=hasRank?` Ranked #${myRank} in Lagos this week.`:'';
+    const streakTxt=streak>0?` ${streak}-day streak.`:'';
+    const motivator=myCount>=5
+      ?`You are one of NEPAWatch's most active guardians this week. Nigeria sees your effort.`
+      :myCount>=1
+      ?`You reported ${myCount} time${myCount!==1?'s':''} this week — every report makes the map more accurate for your neighbors.`
+      :`We missed your reports this week. Your neighbors are counting on you. Come back!`;
+
+    /* Push notification */
+    _fireNotification(
+      `Your NEPAWatch Week — ${area}`,
+      `${motivator}${rankTxt}${streakTxt}`,
+      'weekly',area,'/?page=community'
+    );
+
+    /* Email — only if user has email alerts on */
+    const userEmail=CU.email;
+    if(userEmail&&PR.notif_on!==false){
+      const subject=`Your NEPAWatch Weekly: ${area} — ${myCount} report${myCount!==1?'s':''} this week`;
+      const plainText=`Hi ${PR.name?.split(' ')[0]||''},\n\n${motivator}${rankTxt}${streakTxt}\n\nSee the full leaderboard: ${APP_URL}\n\n— NEPAWatch`;
+      const rows=[
+        ['Your area',area],
+        ['Your reports this week',String(myCount)],
+        ...(hasRank?[['Your rank',`#${myRank} in Lagos`]]:[] ),
+        ...(streak>0?[['Reporting streak',`${streak} day${streak!==1?'s':''}`]]:[] ),
+        ['Community','Total '+sorted.length+' reporter'+(sorted.length!==1?'s':'')+' this week'],
+      ];
+      const html=_buildNotifHtml(`Your NEPAWatch Week — ${area}`,rows,'#AAFF00');
+      sendEmail(userEmail,subject,plainText,html).catch(()=>{});
+    }
+  }catch(e){}
+}
+
+async function _checkAIPredictionWarning(){
+  if(!CU||!PR?.location_area)return;
+  if(typeof predictOutage!=='function')return;
+  if(Notification.permission!=='granted')return;
+  const watNow=new Date(Date.now()+3600000);
+  const h=watNow.getUTCHours();
+  const dow=watNow.getUTCDay();
+  const AI_WARN_KEY=`nw-ai-warn-${getTodayWAT()}-${h}`;
+  if(localStorage.getItem(AI_WARN_KEY))return;
+  try{
+    const{prob}=predictOutage(PR.location_area,(h+1)%24,dow,true);
+    if(prob>=60){
+      localStorage.setItem(AI_WARN_KEY,'1');
+      _fireNotification(
+        'NEPAWatch AI Warning',
+        `${PR.location_area} has a ${Math.round(prob)}% chance of outage in the next hour based on today\'s pattern. Charge your devices now.`,
+        'ai_warning',PR.location_area,'/?page=predict'
+      );
+    }
+  }catch(e){}
 }
 
 function render(){renderStats();renderFeed("liveFeed");renderDiscos();tickDurationTimers();if(_mpMap&&document.getElementById("mapPickerOverlay")?.classList.contains("open"))_mpDrawPowerDots();}

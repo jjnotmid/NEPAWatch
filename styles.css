@@ -783,3 +783,83 @@ body::after{content:"";display:block;position:fixed;bottom:0;left:0;right:0;heig
   width: 100%;
   min-height: 100px;
 }
+
+/* ═══════════════════════════════════════════════════
+   STREAK & GAMIFICATION STYLES
+   ═══════════════════════════════════════════════════ */
+
+/* ── Streak active banner ── */
+.streak-active{background:linear-gradient(135deg,rgba(255,120,0,.10),rgba(255,60,0,.06));border:1.5px solid rgba(255,120,0,.28);border-radius:14px;padding:12px 14px;display:flex;align-items:center;justify-content:center;gap:10px;cursor:pointer;transition:border-color .15s;text-align:center}
+.streak-active:hover{border-color:rgba(255,120,0,.5)}
+.streak-flame{font-size:1.6rem;line-height:1;flex-shrink:0;animation:flame-pulse 2s ease-in-out infinite}
+@keyframes flame-pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.12) rotate(-3deg)}}
+.streak-count{font-family:'Bricolage Grotesque',sans-serif;font-size:1.3rem;font-weight:900;color:#FF7800;letter-spacing:-.03em}
+.streak-label{font-size:.72rem;color:var(--ink2);margin-top:1px}
+.streak-days{font-size:.63rem;color:var(--ink3);margin-top:1px}
+.streak-chevron{margin-left:auto;color:var(--ink3);flex-shrink:0}
+
+/* ── Streak nudge banner ── */
+.streak-nudge{background:rgba(255,64,85,.06);border:1.5px solid rgba(255,64,85,.22);border-radius:14px;padding:12px 14px;display:flex;align-items:center;justify-content:center;gap:10px;cursor:pointer;text-align:center}
+.streak-nudge:hover{border-color:rgba(255,64,85,.4)}
+.sn-ico{font-size:1.4rem;flex-shrink:0;animation:nudge-shake 3s ease-in-out infinite}
+@keyframes nudge-shake{0%,85%,100%{transform:rotate(0)}90%{transform:rotate(-12deg)}95%{transform:rotate(12deg)}}
+.sn-body{flex:1}
+.sn-title{font-size:.82rem;font-weight:700;color:#FF4055}
+.sn-sub{font-size:.68rem;color:var(--ink3);margin-top:2px}
+.sn-btn{flex-shrink:0;background:#FF4055;color:#fff;border:none;border-radius:8px;padding:7px 12px;font-size:.72rem;font-weight:700;cursor:pointer;white-space:nowrap}
+
+/* ── Streak zero (first time) ── */
+.streak-zero{background:var(--sf);border:1.5px dashed var(--bd);border-radius:14px;padding:12px 14px;display:flex;align-items:center;justify-content:center;gap:10px;cursor:pointer;text-align:center}
+.streak-zero-ico{font-size:1.3rem;opacity:.6;flex-shrink:0}
+.streak-zero-txt{font-size:.76rem;color:var(--ink2);line-height:1.4}
+.streak-zero-txt strong{color:var(--ink)}
+
+/* ── Badge grid on profile ── */
+.badges-section{margin:16px 0 8px}
+.badges-title{font-size:.67rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--ink3);margin-bottom:10px}
+.badge-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:0 18px 4px}
+.badge-item{background:var(--sf2);border:1.5px solid var(--bd);border-radius:12px;padding:11px 6px 9px;text-align:center;transition:border-color .2s,background .2s,box-shadow .2s;cursor:default}
+.badge-item.earned{border-color:var(--pb);background:var(--pp)}
+.badge-item.locked{opacity:.32;filter:grayscale(.8)}
+.badge-item.gold{border-color:rgba(255,184,0,.5);background:rgba(255,184,0,.07);box-shadow:0 0 14px rgba(255,184,0,.15)}
+.badge-ico{display:flex;align-items:center;justify-content:center;height:28px;margin-bottom:6px}
+.badge-name{font-size:.54rem;font-weight:700;color:var(--ink3);line-height:1.2;text-transform:uppercase;letter-spacing:.03em}
+.badge-item.earned .badge-name{color:var(--ink2)}
+.badge-item.gold .badge-name{color:#FFB800}
+.achiev-wrap{margin:0 0 6px}
+.achiev-hd{display:flex;align-items:center;justify-content:space-between;padding:0 18px;margin-bottom:8px}
+.achiev-hd-title{font-size:.72rem;font-weight:700;color:var(--ink3);text-transform:uppercase;letter-spacing:.06em}
+.achiev-hd-count{font-size:.7rem;font-weight:700;color:var(--p)}
+.lbi-badges{display:flex;align-items:center;gap:3px;margin-left:2px}
+.ref-pill{margin:0 18px 14px;padding:11px 14px;border-radius:14px;background:var(--sf);border:1px solid var(--bd);display:flex;align-items:center;gap:10px}
+.ref-pill-link{font-size:.65rem;color:var(--p);font-weight:600;word-break:break-all;flex:1}
+.ref-copy-btn{font-size:.62rem;font-weight:700;color:var(--p);background:var(--pp);border:1px solid var(--pb);border-radius:7px;padding:4px 9px;cursor:pointer;white-space:nowrap;flex-shrink:0}
+
+/* ── Milestone toast ── */
+.milestone-toast{position:fixed;top:calc(68px + env(safe-area-inset-top));left:50%;transform:translateX(-50%) translateY(-120px);z-index:1500;background:var(--sf);border:1.5px solid var(--pb);border-radius:16px;padding:14px 18px;display:flex;align-items:center;gap:12px;box-shadow:0 8px 32px rgba(0,0,0,.5);transition:transform .4s cubic-bezier(.34,1.56,.64,1);max-width:340px;width:calc(100vw - 32px)}
+.milestone-toast.show{transform:translateX(-50%) translateY(0)}
+.mt-ico{font-size:1.8rem;flex-shrink:0}
+.mt-body{flex:1}
+.mt-title{font-family:'Bricolage Grotesque',sans-serif;font-size:.95rem;font-weight:900;color:var(--p)}
+.mt-sub{font-size:.72rem;color:var(--ink2);margin-top:2px}
+
+/* ── Confetti particle ── */
+.confetti-piece{position:absolute;width:8px;height:8px;border-radius:1px;opacity:0;animation:confetti-fall 1.8s ease-in forwards}
+@keyframes confetti-fall{0%{opacity:1;transform:translateY(-20px) rotate(0deg)}100%{opacity:0;transform:translateY(200px) rotate(720deg)}}
+
+/* ── Area Rivalry Card ── */
+.rivalry-card{background:var(--sf);border:1px solid var(--bd);border-radius:var(--r);padding:14px 16px;box-shadow:var(--sh)}
+.rv-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.rv-title{font-size:.72rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--ink3)}
+.rv-week{font-size:.68rem;color:var(--ink3);background:var(--sf2);border:1px solid var(--bd);border-radius:20px;padding:2px 8px}
+.rv-matchup{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.rv-side{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px 8px;border-radius:10px;border:1px solid var(--bd);background:var(--sf2);transition:border-color .2s,background .2s;min-width:0}
+.rv-side.rv-winning{border-color:var(--p);background:var(--pp)}
+.rv-area-name{font-size:.75rem;font-weight:600;color:var(--ink);text-align:center;line-height:1.25;word-break:break-word}
+.rv-score{font-size:1.2rem;font-weight:800;color:var(--ink2);line-height:1;font-family:var(--font-display)}
+.rv-side.rv-winning .rv-score{color:var(--p)}
+.rv-score.rv-nodata{color:var(--ink3);font-size:.9rem}
+.rv-unit{font-size:.6rem;font-weight:500;color:var(--ink3);margin-left:1px}
+.rv-badge{display:flex;align-items:center;gap:3px;font-size:.65rem;font-weight:700;color:var(--am);margin-top:1px}
+.rv-vs{font-size:.72rem;font-weight:800;color:var(--ink3);letter-spacing:.05em;flex-shrink:0}
+.rv-status{font-size:.76rem;color:var(--ink2);text-align:center;padding-top:8px;border-top:1px solid var(--bd)}
