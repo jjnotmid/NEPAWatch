@@ -2563,7 +2563,7 @@ function findNearbyPowerSpots(lat,lng,limit=5){return Object.entries(AREA_COORDS
 
 function clearLoc(){filterArea="";const sel=document.getElementById("areaFilter");if(sel)sel.value="";document.getElementById("locTag").classList.remove("on");document.getElementById("geoBtn").classList.remove("active");document.getElementById("geoBtnTxt").textContent="Locate Me";_nearbyAreas=[];_userLat=null;_userLng=null;userExactLat=userExactLng=null;_hideMap();if(_leafletUserMarker){_leafletUserMarker.remove();_leafletUserMarker=null;}_leafletPowerMarkers.forEach(m=>m.remove());_leafletPowerMarkers=[];if(_leafletMap){_leafletMap.remove();_leafletMap=null;}renderNearbyDashboard();renderFeed("liveFeed");if(CU&&PR){PR.location_id=null;PR.location_name=null;PR.location_area=null;PR.location_label=null;sb.from("profiles").update({location_id:null,location_name:null,location_area:null,location_label:null}).eq("id",CU.id).then(()=>{}).catch(()=>{});}}
 
-function renderNearbyDashboard(){const el=document.getElementById("nearbyDashboard");if(!_nearbyAreas.length){el.innerHTML="";return;}const cards=_nearbyAreas.slice(0,6).map(({area,dist})=>{const status=getPlaceStatus(area);const statusCls=status==="out"?"nb-status s-out":status==="on"?"nb-status s-on":"nb-status s-unk";const statusTxt=status==="out"?"Power Out":status==="on"?"Power On":"No reports";const statusIco=status==="out"?IC.out:status==="on"?IC.bck:IC.pin;const distStr=dist<1?`${Math.round(dist*1000)}m away`:`${dist.toFixed(1)}km away`;return`<div class="nb-card" onclick="jumpToArea('${area}')"><div class="nb-area">${area}</div><div class="nb-dist">${distStr}</div><div class="${statusCls}">${statusIco}&nbsp;${statusTxt}</div></div>`;}).join("");el.innerHTML=`<div class="slbl">Nearby Areas</div><div class="nearby-grid">${cards}</div>`;}
+function renderNearbyDashboard(){const el=document.getElementById("nearbyDashboard");if(!_nearbyAreas.length){el.innerHTML="";return;}const cards=_nearbyAreas.slice(0,10).map(({area,dist})=>{const status=getPlaceStatus(area);const statusCls=status==="out"?"nb-status s-out":status==="on"?"nb-status s-on":"nb-status s-unk";const statusTxt=status==="out"?"Power Out":status==="on"?"Power On":"No data";const statusIco=status==="out"?IC.out:status==="on"?IC.bck:IC.pin;const distStr=dist<1?`${Math.round(dist*1000)}m`:`${dist.toFixed(1)}km`;return`<div class="nb-card" onclick="jumpToArea('${area}')"><div class="nb-area">${area}</div><div class="nb-dist">${distStr} away</div><div class="${statusCls}">${statusIco}&nbsp;${statusTxt}</div></div>`;}).join("");el.innerHTML=`<div class="slbl">Nearby Areas</div><div class="nearby-scroll">${cards}</div>`;}
 
 async function loadUserCount(){try{const{count,error}=await sb.from("profiles").select("id",{count:"exact",head:true});if(!error&&count!=null){_userCount=count;const pill=document.getElementById("userCountPill");const num=document.getElementById("userCountNum");if(pill&&num&&count>=2){num.textContent=count.toLocaleString();pill.style.display="flex";}}}catch(e){}}
 
@@ -3489,7 +3489,7 @@ function _renderBadgeGrid(earned){
     const bg=has?(def.gold?'rgba(245,158,11,.1)':`${def.color}18`):'var(--sf2)';
     const border=has?(def.gold?'rgba(245,158,11,.45)':`${def.color}30`):'var(--bd)';
     const glow=has&&def.gold?'box-shadow:0 0 14px rgba(245,158,11,.2);':'';
-    return`<div class="badge-item${has?has&&def.gold?' gold':' earned':' locked'}" style="background:${bg};border-color:${border};${glow}" title="${def.desc}" onclick="${has?`showBadgeCelebration('${key}')`:''}" >
+    return`<div class="badge-item${has?has&&def.gold?' gold':' earned':' locked'}" style="background:${bg};border-color:${border};${glow}" title="${def.desc}" onclick="${has?`showBadgeCelebration('${key}')`:`showBadgeHowTo('${key}')`}" >
       <div class="badge-ico">${_ico(def.iconKey,22,color)}</div>
       <div class="badge-name">${def.name}</div>
     </div>`;
@@ -4966,3 +4966,159 @@ async function _onPWAInstalled() {
 
 // Fires when user installs via browser menu (outside our custom modal)
 window.addEventListener('appinstalled', () => { _onPWAInstalled(); });
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   BADGE SYSTEM — constants & functions
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+const BADGE_DEFS = {
+  first_report:    { iconKey:'plant',    color:'#22c55e', name:'First Report',    desc:'Submitted your first report — the journey begins!',          howToEarn:'Submit your first power report from the Home tab.',                         shareMsg:(a)=>`I just submitted my first power report on NEPAWatch! Helping Nigeria stay informed about power in ${a||'my area'}. Join me: nepawatch.app` },
+  streak_3:        { iconKey:'flame',    color:'#f97316', name:'3-Day Streak',    desc:'Reported 3 days in a row',                                    howToEarn:'Report power status on 3 consecutive days without skipping a day.',         shareMsg:(a)=>`I just hit a 3-day reporting streak on NEPAWatch! Tracking power in ${a||'my area'} every day. Join me: nepawatch.app` },
+  streak_7:        { iconKey:'shield',   color:'#eab308', name:'Area Guardian',   desc:'7-day reporting streak — your area depends on you',           howToEarn:'Keep your daily reporting streak alive for 7 days straight.',              shareMsg:(a)=>`I just earned the Area Guardian badge on NEPAWatch for tracking power in ${a||'my area'} for 7 days straight! Join me: nepawatch.app` },
+  streak_14:       { iconKey:'star',     color:'#a855f7', name:'Power Tracker',   desc:'14-day reporting streak — two weeks strong',                  howToEarn:'Maintain a 14-day reporting streak without missing a single day.',         shareMsg:(a)=>`14-day reporting streak on NEPAWatch! Tracking power outages in ${a||'my area'} every single day. Join me: nepawatch.app` },
+  streak_30:       { iconKey:'trophy',   color:'#22c55e', name:'NEPA Veteran',    desc:'30-day streak — one month of power watching',                 howToEarn:'Report every day for a full 30 days. Missing one day resets your streak.', shareMsg:(a)=>`I just earned the NEPA Veteran badge on NEPAWatch — 30 days straight tracking power in ${a||'my area'}! Join me: nepawatch.app` },
+  streak_100:      { iconKey:'crown',    color:'#f59e0b', name:'Grid Watcher',    desc:'100-day streak — ultra rare, gold tier',                      howToEarn:'Achieve a 100-day daily reporting streak. Ultra rare — gold tier badge.', shareMsg:(a)=>`100-day reporting streak on NEPAWatch. I am the Grid Watcher of ${a||'my area'} — ultra rare badge. Join me: nepawatch.app`, gold:true },
+  reports_10:      { iconKey:'chart',    color:'#10b981', name:'10 Reports',      desc:'10 total reports submitted',                                  howToEarn:'Submit a total of 10 power reports from any location.',                    shareMsg:(a)=>`Just hit 10 reports on NEPAWatch — helping ${a||'my area'} stay informed about power. Join me: nepawatch.app` },
+  reports_25:      { iconKey:'lightning',color:'#6366f1', name:'Power Watcher',   desc:'25 total reports submitted',                                  howToEarn:'Submit a total of 25 power reports. Every report counts.',                 shareMsg:(a)=>`Just earned the Power Watcher badge on NEPAWatch — 25 reports from ${a||'my area'}! Join me: nepawatch.app` },
+  reports_50:      { iconKey:'medal',    color:'#ec4899', name:'Outage Hero',     desc:'50 total reports submitted',                                  howToEarn:'Submit 50 total power reports to earn this badge.',                       shareMsg:(a)=>`50 reports on NEPAWatch! Helping ${a||'my area'} stay informed about power. Join: nepawatch.app` },
+  reports_100:     { iconKey:'medal',    color:'#f43f5e', name:'Power General',   desc:'100 total reports submitted',                                 howToEarn:'Submit 100 total power reports. A serious commitment to the community.',  shareMsg:(a)=>`100 reports on NEPAWatch — Power General status in ${a||'my area'}! Join me: nepawatch.app` },
+  weekly_champion: { iconKey:'gold',     color:'#f59e0b', name:'Weekly Champion', desc:'Top reporter of the week — community leader',                 howToEarn:'Submit the most reports in a single week to top the leaderboard.',       shareMsg:(a)=>`I just won Weekly Champion on NEPAWatch — top reporter in ${a||'Lagos'} this week! Join me: nepawatch.app` },
+  referral_3:      { iconKey:'users',    color:'#06b6d4', name:'Community Builder',desc:'Referred 3 friends who joined NEPAWatch',                   howToEarn:'Share your referral link and get 3 friends to sign up and report.',       shareMsg:(a)=>`I just earned the Community Builder badge on NEPAWatch for bringing 3 friends to track power in Nigeria! Join us: nepawatch.app` },
+};
+
+const BADGE_DISPLAY_ORDER = ['first_report','streak_3','streak_7','streak_30','streak_100','reports_25','weekly_champion','referral_3'];
+const BADGE_PRIORITY = ['streak_100','weekly_champion','streak_30','streak_14','streak_7','reports_100','reports_50','reports_25','streak_3','referral_3','first_report'];
+
+function getTodayWAT(){const now=new Date(Date.now()+3600000);return now.toISOString().slice(0,10);}
+
+async function updateStreak(){
+  if(!CU||!PR)return;
+  const today=getTodayWAT();
+  const lastDate=PR.last_report_date;
+  const totalReports=(PR.total_reports||0)+1;
+  let newStreak=PR.current_streak||0;
+  if(lastDate===today){
+    try{await sb.from('profiles').update({total_reports:totalReports}).eq('id',CU.id);}catch(e){}
+    PR.total_reports=totalReports;
+    _checkBadges(PR,totalReports,newStreak);
+    renderStreakBanner();
+    return;
+  }
+  const yesterday=new Date(Date.now()+3600000-86400000).toISOString().slice(0,10);
+  newStreak=(lastDate===yesterday)?newStreak+1:1;
+  const longestStreak=Math.max(newStreak,PR.longest_streak||0);
+  try{
+    await sb.from('profiles').update({current_streak:newStreak,longest_streak:longestStreak,last_report_date:today,total_reports:totalReports}).eq('id',CU.id);
+    PR.current_streak=newStreak;PR.longest_streak=longestStreak;PR.last_report_date=today;PR.total_reports=totalReports;
+    if([3,7,14,30,100].includes(newStreak))showStreakMilestone(newStreak);
+    _checkBadges(PR,totalReports,newStreak);
+    renderStreakBanner();
+  }catch(e){}
+}
+
+function _checkBadges(profile,totalReports,streak){
+  const current=new Set(profile.badges||[]);
+  const toAward=[];
+  if(totalReports>=1&&!current.has('first_report'))toAward.push('first_report');
+  if(totalReports>=10&&!current.has('reports_10'))toAward.push('reports_10');
+  if(totalReports>=25&&!current.has('reports_25'))toAward.push('reports_25');
+  if(totalReports>=50&&!current.has('reports_50'))toAward.push('reports_50');
+  if(totalReports>=100&&!current.has('reports_100'))toAward.push('reports_100');
+  if(streak>=3&&!current.has('streak_3'))toAward.push('streak_3');
+  if(streak>=7&&!current.has('streak_7'))toAward.push('streak_7');
+  if(streak>=14&&!current.has('streak_14'))toAward.push('streak_14');
+  if(streak>=30&&!current.has('streak_30'))toAward.push('streak_30');
+  if(streak>=100&&!current.has('streak_100'))toAward.push('streak_100');
+  if((profile.referral_count||0)>=3&&!current.has('referral_3'))toAward.push('referral_3');
+  if(!toAward.length)return;
+  const newBadges=[...current,...toAward];
+  sb.from('profiles').update({badges:newBadges}).eq('id',CU.id).then(()=>{
+    PR.badges=newBadges;
+    const celebrate=BADGE_PRIORITY.find(k=>toAward.includes(k))||toAward[toAward.length-1];
+    showBadgeCelebration(celebrate);
+    renderHomeAchievements();
+  });
+}
+
+let _celebBadgeKey='';
+
+function showBadgeCelebration(badgeKey){
+  const def=BADGE_DEFS[badgeKey];if(!def)return;
+  _celebBadgeKey=badgeKey;
+  const overlay=document.getElementById('badgeCelebOverlay');if(!overlay)return;
+  document.getElementById('badgeCelebIcon').innerHTML=_ico(def.iconKey,60,def.gold?'#f59e0b':def.color);
+  document.getElementById('badgeCelebTitle').textContent=def.name;
+  document.getElementById('badgeCelebSub').textContent=def.desc;
+  const box=document.getElementById('badgeCelebBox');
+  if(box)box.style.borderColor=def.gold?'rgba(245,158,11,.5)':'var(--bd)';
+  overlay.style.display='flex';
+  spawnConfetti();
+}
+
+function closeBadgeCeleb(){const overlay=document.getElementById('badgeCelebOverlay');if(overlay)overlay.style.display='none';}
+
+function shareBadgeWhatsApp(){
+  const def=BADGE_DEFS[_celebBadgeKey];if(!def)return;
+  const area=PR?.location_area||PR?.location_name||'my area';
+  const msg=def.shareMsg?def.shareMsg(area):`I just earned the "${def.name}" badge on NEPAWatch! Join me: nepawatch.app`;
+  window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`,'_blank');
+}
+
+function showBadgeHowTo(key){
+  const def=BADGE_DEFS[key];if(!def)return;
+  const overlay=document.getElementById('badgeHowToOverlay');if(!overlay)return;
+  document.getElementById('bht-icon').innerHTML=_ico(def.iconKey,40,'var(--ink3)');
+  document.getElementById('bht-name').textContent=def.name;
+  document.getElementById('bht-how').textContent=def.howToEarn||def.desc;
+  overlay.style.display='flex';
+}
+
+function closeBadgeHowTo(){const el=document.getElementById('badgeHowToOverlay');if(el)el.style.display='none';}
+
+function renderStreakBanner(){
+  const el=document.getElementById('streakBanner');
+  const inner=document.getElementById('streakBannerInner');
+  if(!el||!inner)return;
+  if(!CU||!PR){el.style.display='none';return;}
+  const streak=PR.current_streak||0;
+  const today=getTodayWAT();
+  const reportedToday=PR.last_report_date===today;
+  if(streak===0&&!reportedToday){
+    inner.className='streak-zero';
+    inner.innerHTML=`${_ico('signal',16,'#3b82f6')} <span>Start your streak — report power now!</span>`;
+    el.style.display='block';return;
+  }
+  const yesterday=new Date(Date.now()+3600000-86400000).toISOString().slice(0,10);
+  const atRisk=!reportedToday&&PR.last_report_date===yesterday;
+  const hourWAT=new Date(Date.now()+3600000).getUTCHours();
+  if(atRisk&&hourWAT>=18){
+    inner.className='streak-nudge';
+    inner.innerHTML=`${_ico('warning',16,'#f97316')} <strong>${streak}-day streak at risk!</strong> Report before midnight to keep it alive.`;
+    el.style.display='block';return;
+  }
+  inner.className='streak-active';
+  const label=streak===1?'1-day streak':`${streak}-day streak`;
+  const extra=reportedToday?' ✓':'';
+  inner.innerHTML=`${_ico('flame',16,'#f97316')} <strong>${label}${extra}</strong>${streak>=7?' — On fire!':''}`;
+  el.style.display='block';
+}
+
+function showStreakMilestone(days){
+  const msgs={3:"3-day streak — you're building a habit!",7:"7-day streak — one week of power watching!",14:"14-day streak — two weeks strong!",30:"30-day streak — one month of power watching!",100:"100-day streak — unstoppable!"};
+  const t=document.createElement('div');
+  t.className='milestone-toast';
+  t.innerHTML=`${_ico('flame',14,'currentColor')} ${msgs[days]||`${days}-day streak!`}`;
+  document.body.appendChild(t);
+  setTimeout(()=>t.remove(),4200);
+}
+
+function spawnConfetti(){
+  const canvas=document.getElementById('confettiCanvas');if(!canvas)return;
+  const colors=['#f43f5e','#f59e0b','#10b981','#3b82f6','#8b5cf6','#ec4899'];
+  canvas.innerHTML='';
+  for(let i=0;i<60;i++){
+    const p=document.createElement('div');
+    p.className='confetti-piece';
+    p.style.cssText=[`left:${Math.random()*100}%`,`background:${colors[Math.floor(Math.random()*colors.length)]}`,`animation-delay:${(Math.random()*.8).toFixed(2)}s`,`animation-duration:${(1.4+Math.random()*.8).toFixed(2)}s`,`transform:rotate(${Math.floor(Math.random()*360)}deg)`].join(';');
+    canvas.appendChild(p);
+  }
+}
