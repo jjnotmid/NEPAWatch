@@ -3588,9 +3588,44 @@ function renderHomeAchievements(){
   if(!el)return;
   if(!CU||!PR){el.style.display='none';return;}
   const earned=(PR.badges||[]).filter(k=>BADGE_DEFS[k]);
+  const earnedSet=new Set(earned);
   const earnedMain=earned.filter(k=>BADGE_DISPLAY_ORDER.includes(k));
   el.style.display='block';
-  el.innerHTML=`<div class="achiev-wrap"><div class="achiev-hd"><span class="achiev-hd-title">Your Achievements</span><span class="achiev-hd-count">${earnedMain.length}/${BADGE_DISPLAY_ORDER.length}</span></div><div class="badge-grid">${_renderBadgeGrid(earned)}</div></div>`;
+
+  // Layout constants
+  const R=26,sX=86,yHi=36,yLo=84,padX=18,H=150;
+  const nd=BADGE_DISPLAY_ORDER.map((key,i)=>({key,cx:padX+R+i*sX,cy:i%2===0?yLo:yHi}));
+  const W=nd[nd.length-1].cx+R+padX+4;
+  const off=sX*0.4;
+
+  // Full background path (dashed gray)
+  let fp=`M ${nd[0].cx} ${nd[0].cy}`;
+  for(let i=1;i<nd.length;i++){const p=nd[i-1],c=nd[i];fp+=` C ${p.cx+off} ${p.cy} ${c.cx-off} ${c.cy} ${c.cx} ${c.cy}`;}
+
+  // Progress path (solid accent) up to furthest earned node
+  let progIdx=-1;
+  for(let i=nd.length-1;i>=0;i--){if(earnedSet.has(nd[i].key)){progIdx=i;break;}}
+  let ep='';
+  if(progIdx>=1){
+    ep=`M ${nd[0].cx} ${nd[0].cy}`;
+    for(let i=1;i<=progIdx;i++){const p=nd[i-1],c=nd[i];ep+=` C ${p.cx+off} ${p.cy} ${c.cx-off} ${c.cy} ${c.cx} ${c.cy}`;}
+  }
+
+  // Node + label HTML
+  const nodesHTML=nd.map(({key,cx,cy})=>{
+    const def=BADGE_DEFS[key];if(!def)return'';
+    const has=earnedSet.has(key);
+    const gold=has&&def.gold;
+    const color=has?(gold?'#f59e0b':def.color):'var(--ink3)';
+    const bg=has?(gold?'rgba(245,158,11,.13)':`${def.color}1e`):'var(--sf2)';
+    const bc=has?(gold?'rgba(245,158,11,.45)':`${def.color}55`):'var(--bd)';
+    const glow=gold?'box-shadow:0 0 16px rgba(245,158,11,.28);':has?`box-shadow:0 0 8px ${def.color}2e;`:'';
+    const check=has?`<div class="pn-check">${_ico('check',9,'#fff')}</div>`:'';
+    const cls=`path-node${has?(gold?' pn-gold':' pn-on'):' pn-locked'}`;
+    return`<div class="${cls}" style="left:${cx-R}px;top:${cy-R}px;background:${bg};border-color:${bc};${glow}" onclick="${has?`showBadgeCelebration('${key}')`:`showBadgeHowTo('${key}')`}">${_ico(def.iconKey,20,color)}${check}</div><div class="pn-lbl" style="left:${cx}px;top:${cy+R+6}px${has?'':';opacity:.35'}">${def.name}</div>`;
+  }).join('');
+
+  el.innerHTML=`<div class="achiev-hd"><span class="achiev-hd-title">Achievements</span><span class="achiev-hd-count">${earnedMain.length}/${BADGE_DISPLAY_ORDER.length}</span></div><div class="path-scroll"><div class="path-track" style="width:${W}px;height:${H}px"><svg class="path-svg" width="${W}" height="${H}"><path d="${fp}" fill="none" stroke="var(--bd)" stroke-width="2.5" stroke-dasharray="5 4" stroke-linecap="round"/>${ep?`<path d="${ep}" fill="none" stroke="var(--p)" stroke-width="2.5" stroke-linecap="round" opacity=".65"/>`:''}</svg>${nodesHTML}</div></div>`;
 }
 
 function _getRival(area){
