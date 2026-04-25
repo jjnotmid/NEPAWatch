@@ -3482,12 +3482,18 @@ async function renderCommunity(){
       /* ── Personal rank banner ── */
       if(weeklyWrap){
         if(CU&&myRank>0){
-          const champMsg=myRank===1?" 🏆 Weekly Champion!":"";
-          weeklyWrap.innerHTML=`<div class="weekly-rank-pill">${_ico("trophy",14,"#f59e0b")} You're ranked <strong>#${myRank}</strong> this week&nbsp;·&nbsp;${myCount} report${myCount!==1?"s":""}${champMsg}</div>${_weeklyResetNote()}`;
-          /* Award weekly_champion badge if user is #1 and doesn't have it yet */
-          if(myRank===1&&PR&&!(PR.badges||[]).includes("weekly_champion"))_awardWeeklyChampion();
+          if(myRank===1){
+            weeklyWrap.innerHTML=`<div class="weekly-rank-pill champion-pill"><div class="wrp-rank-box">${_ico("crown",20,"#FFB800")}<span class="wrp-rank-num champ">#1</span><span class="wrp-rank-lbl">This week</span></div><div class="wrp-divider"></div><div class="wrp-info"><div class="wrp-title champ">You're the Weekly Champion!</div><div class="wrp-sub">${myCount} report${myCount!==1?"s":""} · You're leading the pack — keep it up!</div></div></div>${_weeklyResetNote()}`;
+            /* Award badge first time */
+            if(PR&&!(PR.badges||[]).includes("weekly_champion"))_awardWeeklyChampion();
+            else _showChampToast();
+          }else{
+            const gap=sorted.length>0?sorted[0].count-myCount:0;
+            const gapTxt=gap>0?` · ${gap} report${gap!==1?"s":""} behind #1`:"";
+            weeklyWrap.innerHTML=`<div class="weekly-rank-pill"><div class="wrp-rank-box">${_ico("trophy",18,"#f59e0b")}<span class="wrp-rank-num">#${myRank}</span><span class="wrp-rank-lbl">This week</span></div><div class="wrp-divider"></div><div class="wrp-info"><div class="wrp-title">You're ranked #${myRank} this week</div><div class="wrp-sub">${myCount} report${myCount!==1?"s":""}${gapTxt}</div></div></div>${_weeklyResetNote()}`;
+          }
         }else if(CU){
-          weeklyWrap.innerHTML=`<div class="weekly-rank-pill zero">${_ico("signal",14,"#3b82f6")} No reports yet this week — join the competition!</div>${_weeklyResetNote()}`;
+          weeklyWrap.innerHTML=`<div class="weekly-rank-pill zero"><div style="display:flex;align-items:center;gap:9px;width:100%">${_ico("signal",18,"#3b82f6")}<div class="wrp-info"><div class="wrp-title" style="color:#93c5fd">No reports yet this week</div><div class="wrp-sub">Submit a report to join the competition!</div></div></div></div>${_weeklyResetNote()}`;
         }else{
           weeklyWrap.innerHTML=_weeklyResetNote();
         }
@@ -3520,6 +3526,16 @@ async function _awardWeeklyChampion(){
   await sb.from("profiles").update({badges:newBadges}).eq("id",CU.id);
   PR.badges=newBadges;
   showBadgeCelebration("weekly_champion");
+}
+
+function _showChampToast(){
+  const msgs=["You're #1 this week — the community sees you!","Top of the board! Keep those reports coming.","Weekly Champion! You're keeping everyone informed.","Nobody's beating you this week — respect!","You're leading the pack. Champion energy!"];
+  const t=document.createElement("div");
+  t.className="milestone-toast";
+  t.innerHTML=`${_ico("crown",16,"#FFB800")}<span style="font-size:.78rem;font-weight:700;color:var(--ink)">${msgs[Math.floor(Math.random()*msgs.length)]}</span>`;
+  document.body.appendChild(t);
+  requestAnimationFrame(()=>requestAnimationFrame(()=>t.classList.add("show")));
+  setTimeout(()=>{t.classList.remove("show");setTimeout(()=>t.remove(),500);},4000);
 }
 
 function renderFallbackLeaderboard(){document.getElementById("lbList").innerHTML=`<div class="empty" style="padding:24px 18px"><div class="empty-ico">${IC.user}</div><p>Be the first to report! Top reporters will appear here.</p></div>`;}

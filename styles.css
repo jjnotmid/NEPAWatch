@@ -374,8 +374,18 @@ body::after{content:"";display:block;position:fixed;bottom:0;left:0;right:0;heig
 .lbs{font-size:.6rem;color:var(--ink3)}
 .lbi-a{font-size:.6rem;color:var(--ink3);margin-top:2px;display:flex;align-items:center;gap:4px}
 .lbi-c small{font-size:.57rem;color:var(--ink3);font-weight:400;display:block;font-family:var(--font-body)}
-.weekly-rank-pill{margin:0 18px 6px;padding:11px 15px;border-radius:16px;background:var(--pp);border:1px solid var(--pb);font-size:.73rem;color:var(--p);font-weight:600;display:flex;align-items:center;gap:7px}
-.weekly-rank-pill.zero{background:rgba(59,130,246,.08);border-color:rgba(59,130,246,.2);color:#93c5fd}
+.weekly-rank-pill{margin:0 18px 8px;padding:13px 16px;border-radius:18px;background:var(--pp);border:1px solid var(--pb);display:flex;align-items:center;gap:13px}
+.weekly-rank-pill.champion-pill{background:linear-gradient(135deg,rgba(255,184,0,.13) 0%,rgba(245,158,11,.06) 100%);border-color:rgba(255,184,0,.4)}
+.weekly-rank-pill.zero{background:rgba(59,130,246,.07);border-color:rgba(59,130,246,.2)}
+.wrp-rank-box{display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:44px;gap:2px}
+.wrp-rank-num{font-family:var(--font-display);font-size:1.55rem;font-weight:900;line-height:1;color:var(--p)}
+.wrp-rank-num.champ{color:#FFB800}
+.wrp-rank-lbl{font-size:.52rem;font-weight:700;color:var(--ink3);text-transform:uppercase;letter-spacing:.05em}
+.wrp-divider{width:1px;height:36px;background:var(--bd);flex-shrink:0}
+.wrp-info{flex:1;min-width:0}
+.wrp-title{font-size:.8rem;font-weight:700;color:var(--ink);line-height:1.3}
+.wrp-title.champ{color:#FFB800}
+.wrp-sub{font-size:.64rem;color:var(--ink3);margin-top:2px}
 .weekly-reset-note{margin:0 18px 14px;font-size:.62rem;color:var(--ink3);text-align:center}
 
 /* ===== AUTH ===== */
