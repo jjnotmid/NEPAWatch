@@ -3622,7 +3622,7 @@ function renderHomeAchievements(){
     const glow=gold?'box-shadow:0 0 16px rgba(245,158,11,.28);':has?`box-shadow:0 0 8px ${def.color}2e;`:'';
     const check=has?`<div class="pn-check">${_ico('check',9,'#fff')}</div>`:'';
     const cls=`path-node${has?(gold?' pn-gold':' pn-on'):' pn-locked'}`;
-    return`<div class="${cls}" style="left:${cx-R}px;top:${cy-R}px;background:${bg};border-color:${bc};${glow}" onclick="${has?`showBadgeCelebration('${key}')`:`showBadgeHowTo('${key}')`}">${_ico(def.iconKey,20,color)}${check}</div><div class="pn-lbl" style="left:${cx}px;top:${cy+R+6}px${has?'':';opacity:.35'}">${def.name}</div>`;
+    return`<div class="${cls}" style="left:${cx-R}px;top:${cy-R}px;background:${bg};border-color:${bc};${glow}" onclick="${has?`showBadgeCelebration('${key}')`:`showBadgeHowTo('${key}')`}">${_ico(def.iconKey,20,color)}${check}</div><div class="pn-lbl" style="left:${cx}px;top:${cy+R+6}px${has?'':';opacity:.58'}">${def.name}</div>`;
   }).join('');
 
   el.innerHTML=`<div class="achiev-hd"><span class="achiev-hd-title">Achievements</span><span class="achiev-hd-count">${earnedMain.length}/${BADGE_DISPLAY_ORDER.length}</span></div><div class="path-scroll"><div class="path-track" style="width:${W}px;height:${H}px"><svg class="path-svg" width="${W}" height="${H}"><path d="${fp}" fill="none" stroke="var(--bd)" stroke-width="2.5" stroke-dasharray="5 4" stroke-linecap="round"/>${ep?`<path d="${ep}" fill="none" stroke="var(--p)" stroke-width="2.5" stroke-linecap="round" opacity=".65"/>`:''}</svg>${nodesHTML}</div></div>`;
