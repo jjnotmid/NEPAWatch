@@ -2355,7 +2355,8 @@ async function initAuth(){
 }
 function _resetFormHTML(){return`<div class="auth-wrap"><div class="auth-logo"><div class="auth-logo-icon" style="background:var(--p)">${LOGO_IMG_TAG}</div><span class="auth-logo-name">NEPA<em>Watch</em></span></div><h2>Set new password</h2><p class="auth-sub">Choose a strong new password for your account.</p><div class="msg err" id="authErr"></div><div class="msg ok" id="authOk"></div><div class="fld"><label>New Password</label><input id="inp-newpass" type="password" placeholder="Min 6 characters" autocomplete="new-password"><button type="button" class="pw-eye-btn" onclick="appTogglePw(this)" tabindex="-1"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M1 8C2.5 5 5 3.5 8 3.5C11 3.5 13.5 5 15 8C13.5 11 11 12.5 8 12.5C5 12.5 2.5 11 1 8Z" stroke="currentColor" stroke-width="1.3"/><circle cx="8" cy="8" r="2.2" stroke="currentColor" stroke-width="1.3"/></svg></button></div><div class="fld"><label>Confirm Password</label><input id="inp-confpass" type="password" placeholder="Repeat password" autocomplete="new-password"><button type="button" class="pw-eye-btn" onclick="appTogglePw(this)" tabindex="-1"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M1 8C2.5 5 5 3.5 8 3.5C11 3.5 13.5 5 15 8C13.5 11 11 12.5 8 12.5C5 12.5 2.5 11 1 8Z" stroke="currentColor" stroke-width="1.3"/><circle cx="8" cy="8" r="2.2" stroke="currentColor" stroke-width="1.3"/></svg></button></div><button class="auth-btn" id="authBtn" onclick="doPasswordReset()">Update Password</button></div>`;}
 
-async function loadProfile(){if(!CU)return;try{const{data,error}=await sb.from("profiles").select("*").eq("id",CU.id).single();if(!error&&data){PR=data;if(PR.location_id){document.getElementById("locTag").classList.add("on");document.getElementById("locLabel").textContent=PR.location_label||PR.location_name;}}else if(error&&error.code==="PGRST116"){const name=CU.user_metadata?.name||CU.email.split("@")[0];await sb.from("profiles").upsert({id:CU.id,email:CU.email,name,notif_on:true},{onConflict:"id"});PR={id:CU.id,email:CU.email,name,notif_on:true,location_id:null};}if(PR)renderStreakBanner();}catch(e){}}
+async function loadProfile(){if(!CU)return;try{const{data,error}=await sb.from("profiles").select("*").eq("id",CU.id).single();if(!error&&data){PR=data;if(PR.location_id){document.getElementById("locTag").classList.add("on");document.getElementById("locLabel").textContent=PR.location_label||PR.location_name;}}else if(error&&error.code==="PGRST116"){const name=CU.user_metadata?.name||CU.email.split("@")[0];await sb.from("profiles").upsert({id:CU.id,email:CU.email,name,notif_on:true},{onConflict:"id"});PR={id:CU.id,email:CU.email,name,notif_on:true,location_id:null};}if(PR){renderStreakBanner();setTimeout(_scheduleLocalNotifications,2000);}
+  }catch(e){}}
 
 async function doRegister(name,email,pass){const{data,error}=await sb.auth.signUp({email,password:pass,options:{data:{name},emailRedirectTo:APP_URL+"?mode=reset"}});if(error){if(error.message?.toLowerCase().includes("rate limit")||error.message?.toLowerCase().includes("over_email_send_rate_limit"))throw new Error("RATE_LIMIT");throw new Error(error.message);}if(data.user){await sb.from("profiles").upsert({id:data.user.id,email,name,notif_on:true},{onConflict:"id"});}if(data.session){CU=data.user;await loadProfile();renderAccount();updateBanner();toast(`Welcome, ${name}!`,"ok");_maybeStartTour();}sendEmail(email,"Welcome to NEPAWatch Nigeria",`Hi ${name},\n\nWelcome to NEPAWatch Nigeria!\n\nYou will receive real-time email alerts whenever power goes out or is restored near your street.\n\nOpen the app and set your location to activate alerts.\n\nStay powered,\nNEPAWatch Nigeria`,buildEmailHtml({type:'welcome',name,appUrl:APP_URL}));return data;}
 async function doLogin(email,pass){const{data,error}=await sb.auth.signInWithPassword({email,password:pass});if(error)throw new Error(error.message);return data;}
@@ -3132,13 +3133,29 @@ async function sendEmail(to, subject, body, htmlBody) {
   } catch(e) {}
 }
 async function sendAreaAlerts(repName,repArea,repType,isAI=false){if(!repArea)return;
-  // Fire local push notification for foreground-invisible users
-  const _aiTag=isAI?' · NEPAWatch AI':'';
-  const pushTitle=repType==='out'?`Power Outage — ${repArea}${_aiTag}`:`Power Restored — ${repArea}${_aiTag}`;
-  const pushBody=isAI
-    ?(repType==='out'?`NEPAWatch AI predicts outage near ${repName}.`:`NEPAWatch AI: power restored near ${repName}.`)
-    :(repType==='out'?`Outage near ${repName}. Tap to confirm.`:`Power back near ${repName}. Tap to confirm.`);
-  _localNotify(pushTitle, pushBody, repType);
+  // Count recent cluster reports (last 30 min) to gauge verification weight
+  const _cluster=reports.filter(r=>areaMatches(r.area,repArea)&&r.type===repType&&(Date.now()-r.time)<30*60*1000).length;
+  let pushTitle,pushBody,pushNotifType;
+  if(isAI){
+    pushNotifType='ai_warning';
+    pushTitle='NEPAWatch AI Warning';
+    pushBody=repType==='out'
+      ?`AI pattern detected — power outage likely near ${repArea}. Charge your devices now.`
+      :`NEPAWatch AI: power may be restored near ${repArea}. Check the app.`;
+  }else if(repType==='out'){
+    pushNotifType='out';
+    pushTitle=`Light don go — ${repArea}`;
+    pushBody=_cluster>=3
+      ?`${_cluster} people in ${repArea} just confirmed power out. Check NEPAWatch now.`
+      :`Power outage near ${repName}. Tap to see live updates.`;
+  }else{
+    pushNotifType='bck';
+    pushTitle=`Light don come back — ${repArea}`;
+    pushBody=_cluster>=3
+      ?`${_cluster} people confirmed power restored in ${repArea}. Go pump water!`
+      :`Power restored near ${repName}. Tap to confirm.`;
+  }
+  _fireNotification(pushTitle,pushBody,pushNotifType,repArea,'/');
 const _aKey=repArea+'|'+repType;const _now=Date.now();if(_alertCooldowns[_aKey]&&(_now-_alertCooldowns[_aKey])<ALERT_COOLDOWN_MS)return;_alertCooldowns[_aKey]=_now;try{const _src=isAI?' · NEPAWatch AI':'';const subject=repType==="out"?`Power Outage — ${repArea}, Nigeria${_src}`:`Power Restored — ${repArea}, Nigeria${_src}`;const time=new Date().toLocaleTimeString("en-NG",{hour:"2-digit",minute:"2-digit"});const body=`${repType==="out"?"Power outage":"Power restored"} near ${repName}, ${repArea}.\n\nTime: ${time}\n\nSee live updates: ${APP_URL}\n\n— ${isAI?'NEPAWatch AI':'NEPAWatch'}`;const alertHtml=buildEmailHtml({type:repType,area:repArea,street:repName,time,appUrl:APP_URL});let edgeSent=false;try{const res=await fetch(EMAIL_FN,{method:"POST",headers:{"Content-Type":"application/json","apikey":SUPA_ANON,"Authorization":`Bearer ${SUPA_ANON}`},body:JSON.stringify({mode:"area_alert",area:repArea,repName,repType,subject,body,html:alertHtml,time,confirmRequest:true,isAI})});if(res.ok){const json=await res.json().catch(()=>({}));const count=json.sent||0;edgeSent=true;if(count>0){emailLog.unshift({subject,to:`${count} watcher${count!==1?"s":""} in ${repArea}`,time});if(emailLog.length>8)emailLog.pop();}}}catch(fe){}if(CU&&savedPlaces.length){const matchingPlaces=savedPlaces.filter(p=>strictAreaMatch(repArea,p.location_area)&&p.notif_on!==false);if(matchingPlaces.length&&CU.email&&!edgeSent){const placeNames=matchingPlaces.map(p=>getPlaceDisplayName(p)).join(", ");const placeHtml=buildEmailHtml({type:repType,area:repArea,street:repName,time,places:placeNames,appUrl:APP_URL});await sendEmail(CU.email,subject,body,placeHtml);emailLog.unshift({subject,to:CU.email+"  (saved place)",time});if(emailLog.length>8)emailLog.pop();toast("Alert sent for your saved place","ok");if(document.getElementById("page-account").classList.contains("active"))renderAccount();}}else if(!edgeSent&&CU&&PR&&strictAreaMatch(repArea,PR.location_area)&&PR.notif_on&&CU.email){const userHtml=buildEmailHtml({type:repType,area:repArea,street:repName,time,appUrl:APP_URL});await sendEmail(CU.email,subject,body,userHtml);emailLog.unshift({subject,to:CU.email,time});if(emailLog.length>8)emailLog.pop();toast("Alert sent to your email","ok");if(document.getElementById("page-account").classList.contains("active"))renderAccount();}}catch(e){}}
 
 function openModal(type){mType=type;mSel=null;document.getElementById("shTitle").textContent=type==="out"?"Report Power Outage":"Report Power Restored";document.getElementById("shDesc").textContent=type==="out"?"Search your street or area in Lagos.":"Great news! Tell your community.";const btn=document.getElementById("mBtn");btn.textContent=type==="out"?"Confirm Outage":"Confirm Restored";btn.className="mconfirm "+(type==="out"?"out":"bck");btn.disabled=true;document.getElementById("mSearch").value="";if(PR?.location_id){mSel=LOCS.find(l=>l.id===PR.location_id)||null;if(mSel){btn.disabled=false;btn.textContent=type==="out"?`Report — ${mSel.name}`:`Restored — ${mSel.name}`;}}renderMList(LOCS.slice(0,60));document.getElementById("repOverlay").classList.add("open");}
@@ -3691,48 +3708,145 @@ function getPushStatus() {
   return 'off';
 }
 
-// Deliver a local push-style notification when app is in foreground
-function _localNotify(title, body, type) {
-  if (document.visibilityState === 'visible') return; // skip if app is open
-  if (!('Notification' in window) || Notification.permission !== 'granted') return;
-  try { new Notification(title, { body, icon: '/logo2.jpg', tag: 'nw-local-' + type }); } catch(e) {}
+// Fire a rich local notification via the SW (falls back to basic Notification)
+async function _fireNotification(title,body,notifType,area='',url='/'){
+  if(document.visibilityState==='visible')return;
+  if(!('Notification' in window)||Notification.permission!=='granted')return;
+  const opts={body,icon:'/logo2.jpg',badge:'/badge.png',tag:`nw-${notifType}-${area||'all'}`,renotify:true,data:{url,area,type:notifType},actions:[{action:'open',title:'Open'},{action:'dismiss',title:'Dismiss'}]};
+  try{const reg=await navigator.serviceWorker.ready;await reg.showNotification(title,opts);}
+  catch(e){try{new Notification(title,{body,icon:'/logo2.jpg',tag:`nw-${notifType}`});}catch(_){}}
 }
 
-// Listen for SW push-click messages (navigate to area feed)
+// Listen for SW push-click messages — route to the relevant screen
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.addEventListener('message', event => {
     if (event.data?.type === 'PUSH_CLICK') {
+      const pushNotifType = event.data?.repType || '';
+      const pushArea      = event.data?.area    || '';
+
+      // Non-home destinations
+      if (pushNotifType === 'ai_warning') { go('predict'); return; }
+      if (pushNotifType === 'weekly')     { go('community'); return; }
+
+      // Home — optionally filtered to the area
       go('home');
-      const pushArea = event.data?.area;
       if (pushArea) {
-        // Filter feed to the notified area immediately so user sees context
         filterArea = pushArea;
         const areaFilterEl = document.getElementById('areaFilter');
         if (areaFilterEl) areaFilterEl.value = pushArea;
         renderFeed('liveFeed');
-        // Load fresh reports then show the info/feedback sheet
         loadReports().then(() => {
           const rep = reports.find(r =>
             (r.area === pushArea || areaMatches(r.area, pushArea)) &&
             (Date.now() - r.time) < 2 * 60 * 60 * 1000
           );
           if (!rep) return;
-          if (rep.isAI) showAIFeedbackPopup(rep);
-          else showPushInfoSheet(rep);
+          if (rep.isAI) showAIFeedbackPopup(rep); else showPushInfoSheet(rep);
         }).catch(() => {
-          // Fallback: still try with whatever is in memory
           const rep = reports.find(r =>
             (r.area === pushArea || areaMatches(r.area, pushArea)) &&
             (Date.now() - r.time) < 2 * 60 * 60 * 1000
           );
-          if (rep) {
-            if (rep.isAI) showAIFeedbackPopup(rep);
-            else showPushInfoSheet(rep);
-          }
+          if (rep) { if (rep.isAI) showAIFeedbackPopup(rep); else showPushInfoSheet(rep); }
         });
       }
     }
   });
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   SMART NOTIFICATION SCHEDULING
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+function _scheduleLocalNotifications(){
+  if(!CU||!PR||Notification.permission!=='granted')return;
+  const today=getTodayWAT();
+  const watNow=new Date(Date.now()+3600000);
+  const watHour=watNow.getUTCHours();
+  const watDay=watNow.getUTCDay(); // 0=Sun
+
+  // ── Inactivity re-engagement: 3+ days without opening app
+  const LAST_KEY='nw-last-visit';
+  const lastVisit=parseInt(localStorage.getItem(LAST_KEY)||'0');
+  if(lastVisit){
+    const daysSince=(Date.now()-lastVisit)/86400000;
+    if(daysSince>=3&&PR.location_area){
+      const outCnt=reports.filter(r=>areaMatches(r.area,PR.location_area)&&r.type==='out'&&r.time>lastVisit).length;
+      const body=outCnt>0
+        ?`${outCnt} outage${outCnt!==1?'s':''} hit ${PR.location_area} while you were away. Come see what happened.`
+        :`Your area ${PR.location_area} had activity while you were gone. Check what you missed.`;
+      _fireNotification(`NEPAWatch missed you — ${Math.floor(daysSince)} days away`,body,'inactivity',PR.location_area,'/');
+    }
+  }
+  localStorage.setItem(LAST_KEY,String(Date.now()));
+
+  // ── Streak danger: fire at 9pm WAT if streak active and not reported today
+  const SNUDGE_KEY='nw-snudge-'+today;
+  if(watHour>=21&&PR.current_streak>0&&PR.last_report_date!==today&&!localStorage.getItem(SNUDGE_KEY)){
+    localStorage.setItem(SNUDGE_KEY,'1');
+    const s=PR.current_streak;
+    _fireNotification(
+      `Your ${s}-day streak is at risk`,
+      `You haven't reported today. Open NEPAWatch before midnight to keep your ${s}-day streak alive.`,
+      'streak','','/'
+    );
+  }
+
+  // ── Weekly summary: Sunday >= 7pm WAT
+  const WSUM_KEY='nw-wsum-'+today;
+  if(watDay===0&&watHour>=19&&!localStorage.getItem(WSUM_KEY)){
+    localStorage.setItem(WSUM_KEY,'1');
+    _fireWeeklySummaryNotif();
+  }
+}
+
+async function _fireWeeklySummaryNotif(){
+  if(!CU||!PR)return;
+  try{
+    const watNow=new Date(Date.now()+3600000);
+    const dow=watNow.getUTCDay();
+    const daysBack=dow===0?6:dow-1;
+    const monMid=new Date(Date.now()+3600000-daysBack*86400000);
+    monMid.setUTCHours(0,0,0,0);
+    const wStart=new Date(monMid.getTime()-3600000).toISOString();
+    const{data}=await sb.from('reports').select('user_id').gte('created_at',wStart).neq('user_id',AI_USER_ID).limit(500);
+    if(!data)return;
+    const cm={};data.forEach(r=>{if(r.user_id)cm[r.user_id]=(cm[r.user_id]||0)+1;});
+    const myCount=cm[CU.id]||0;
+    const myRank=Object.entries(cm).sort((a,b)=>b[1]-a[1]).findIndex(([uid])=>uid===CU.id)+1;
+    const area=PR.location_area||'your area';
+    const rankTxt=myRank>0?` Ranked #${myRank} in Lagos this week.`:'';
+    const streakTxt=PR.current_streak>0?` ${PR.current_streak}-day streak.`:'';
+    const motivator=myCount>=5?'You are one of NEPAWatch\'s most active guardians this week.'
+      :myCount>=1?`You reported ${myCount} time${myCount!==1?'s':''} — every report helps your neighbors.`
+      :'We missed your reports this week. Your neighbors are counting on you. Come back!';
+    _fireNotification(
+      `Your NEPAWatch Week — ${area}`,
+      `${motivator}${rankTxt}${streakTxt}`,
+      'weekly',area,'/?page=community'
+    );
+  }catch(e){}
+}
+
+async function _checkAIPredictionWarning(){
+  if(!CU||!PR?.location_area)return;
+  if(typeof predictOutage!=='function')return;
+  if(Notification.permission!=='granted')return;
+  const watNow=new Date(Date.now()+3600000);
+  const h=watNow.getUTCHours();
+  const dow=watNow.getUTCDay();
+  const AI_WARN_KEY=`nw-ai-warn-${getTodayWAT()}-${h}`;
+  if(localStorage.getItem(AI_WARN_KEY))return;
+  try{
+    const{prob}=predictOutage(PR.location_area,(h+1)%24,dow,true);
+    if(prob>=60){
+      localStorage.setItem(AI_WARN_KEY,'1');
+      _fireNotification(
+        'NEPAWatch AI Warning',
+        `${PR.location_area} has a ${Math.round(prob)}% chance of outage in the next hour based on today\'s pattern. Charge your devices now.`,
+        'ai_warning',PR.location_area,'/?page=predict'
+      );
+    }
+  }catch(e){}
 }
 
 function render(){renderStats();renderFeed("liveFeed");renderDiscos();tickDurationTimers();if(_mpMap&&document.getElementById("mapPickerOverlay")?.classList.contains("open"))_mpDrawPowerDots();}
@@ -4131,6 +4245,8 @@ window.addEventListener("load",async()=>{
   renderMyArea();
   initPush();
   startBackgroundLocation();
+  setTimeout(_checkAIPredictionWarning,8000);
+  setInterval(_checkAIPredictionWarning,30*60*1000);
   startDurationTimer();
   loadAnnouncements();
   if(typeof AIReporter!=='undefined'){
