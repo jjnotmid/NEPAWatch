@@ -3413,12 +3413,17 @@ async function renderCommunity(){
       /* Build name map — seed with known current user first */
       const profMap={};
       if(CU&&PR?.name) profMap[CU.id]=PR.name.split(" ")[0]||PR.name;
-      /* RPC is SECURITY DEFINER — runs as postgres, bypasses RLS, reads auth.users directly.
-         This is the only reliable way to get names for other users. */
+      /* Try RPC first (SECURITY DEFINER, bypasses RLS), fall back to direct query */
       try{
         const{data:rpcData,error:rpcErr}=await sb.rpc("get_reporter_names",{user_ids:uids});
         if(!rpcErr&&rpcData?.length){
           rpcData.forEach(p=>{ if(p.first_name)profMap[p.id]=p.first_name; });
+        } else {
+          const{data:profData}=await sb.from("profiles").select("id,name,email").in("id",uids);
+          (profData||[]).forEach(p=>{
+            const n=p.name||p.email?.split("@")[0]||"";
+            if(n)profMap[p.id]=n.split(" ")[0]||n;
+          });
         }
       }catch(e){}
       const _displayName=(uid)=>{
