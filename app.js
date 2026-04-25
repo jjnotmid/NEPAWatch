@@ -3413,16 +3413,20 @@ async function renderCommunity(){
       /* Build name map — seed with known current user first */
       const profMap={};
       if(CU&&PR?.name) profMap[CU.id]=PR.name.split(" ")[0]||PR.name;
-      /* Try RPC first (SECURITY DEFINER, bypasses RLS), fall back to direct query */
+      /* Always query profiles directly — after the SQL fix, names are backfilled there */
+      try{
+        const{data:profData}=await sb.from("profiles").select("id,name,email").in("id",uids);
+        (profData||[]).forEach(p=>{
+          const n=(p.name&&p.name.trim())||p.email?.split("@")[0]||"";
+          if(n)profMap[p.id]=n.split(" ")[0]||n;
+        });
+      }catch(e){}
+      /* Also try RPC — SECURITY DEFINER reads auth.users for any still-missing names */
       try{
         const{data:rpcData,error:rpcErr}=await sb.rpc("get_reporter_names",{user_ids:uids});
         if(!rpcErr&&rpcData?.length){
-          rpcData.forEach(p=>{ if(p.first_name)profMap[p.id]=p.first_name; });
-        } else {
-          const{data:profData}=await sb.from("profiles").select("id,name,email").in("id",uids);
-          (profData||[]).forEach(p=>{
-            const n=p.name||p.email?.split("@")[0]||"";
-            if(n)profMap[p.id]=n.split(" ")[0]||n;
+          rpcData.forEach(p=>{
+            if(p.first_name&&p.first_name!=='Anon'&&!profMap[p.id])profMap[p.id]=p.first_name;
           });
         }
       }catch(e){}
