@@ -360,18 +360,23 @@ body::after{content:"";display:block;position:fixed;bottom:0;left:0;right:0;heig
 .mpl-item:hover{border-color:var(--bd2)}
 
 /* ===== LEADERBOARD ===== */
-.lbi{background:var(--sf);border-radius:18px;padding:13px 16px;margin:0 18px 9px;display:flex;align-items:center;gap:13px;border:1px solid var(--bd)}
+.lbi{background:var(--sf);border-radius:18px;padding:13px 16px;margin:0 18px 9px;display:flex;align-items:center;gap:13px;border:1px solid var(--bd);transition:border-color .2s}
+.lbi.champion{border-color:rgba(255,184,0,.4);background:linear-gradient(135deg,rgba(255,184,0,.06) 0%,var(--sf) 60%)}
+.lbi.me{border-color:rgba(170,255,0,.25)}
 .lbr{width:30px;height:30px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-size:.8rem;font-weight:800;color:var(--ink3);background:var(--sf2);flex-shrink:0}
 .lbr.gold{background:rgba(255,184,0,.2);color:var(--am)}
 .lbr.silver{background:rgba(180,180,200,.15);color:#A0A0C0}
 .lbr.bronze{background:rgba(200,150,80,.15);color:#C09050}
 /* Backward compat */
 .lba{width:34px;height:34px;border-radius:50%;background:var(--p);display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-weight:900;font-size:.85rem;color:#080B09;flex-shrink:0}
-.lbn,.lbi-n{font-size:.85rem;font-weight:700;color:var(--ink);flex:1}
+.lbn,.lbi-n{font-size:.85rem;font-weight:700;color:var(--ink);flex:1;display:flex;align-items:center;gap:5px;flex-wrap:wrap}
 .lbc,.lbi-c{font-size:.92rem;font-weight:900;color:var(--p);font-family:var(--font-display);flex-shrink:0;text-align:right}
 .lbs{font-size:.6rem;color:var(--ink3)}
 .lbi-a{font-size:.6rem;color:var(--ink3);margin-top:2px;display:flex;align-items:center;gap:4px}
 .lbi-c small{font-size:.57rem;color:var(--ink3);font-weight:400;display:block;font-family:var(--font-body)}
+.weekly-rank-pill{margin:0 18px 6px;padding:11px 15px;border-radius:16px;background:var(--pp);border:1px solid var(--pb);font-size:.73rem;color:var(--p);font-weight:600;display:flex;align-items:center;gap:7px}
+.weekly-rank-pill.zero{background:rgba(59,130,246,.08);border-color:rgba(59,130,246,.2);color:#93c5fd}
+.weekly-reset-note{margin:0 18px 14px;font-size:.62rem;color:var(--ink3);text-align:center}
 
 /* ===== AUTH ===== */
 .auth-wrap,.auth-wrap-inner{max-width:400px;margin:0 auto;padding:28px 20px 44px}

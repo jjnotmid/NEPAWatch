@@ -2660,7 +2660,7 @@ function startPolling(){
 async function pushReport(loc,type){
   if(!CU){toast("Sign in to submit a report","info");go("account");return;}
   // ── Rate limiting disabled for launch — no cap on reports ──
-  const tid="local-"+Date.now();reports.unshift({id:tid,name:loc.name,area:loc.area,type,time:Date.now(),confirms:1,userId:CU.id});if(reports.length>500){const di=reports.slice(400).findIndex(r=>!r.isAI&&r.userId!==AI_USER_ID&&!String(r.id).startsWith('local-')&&!String(r.id).startsWith('ai-'));if(di!==-1)reports.splice(400+di,1);else reports.pop();}render();try{const{data,error}=await sb.from("reports").insert({user_id:CU.id,display_name:PR?.name?.split(" ")[0]||null,location_name:loc.name,location_area:loc.area,type,confirms:1}).select().single();if(error){const idx=reports.findIndex(r=>r.id===tid);if(idx!==-1)reports.splice(idx,1);render();toast(`Could not save report: ${error.message}`,"err");return;}const idx=reports.findIndex(r=>r.id===tid);if(idx!==-1)reports[idx]={id:data.id,name:data.location_name,area:data.location_area,type:data.type,time:new Date(data.created_at).getTime(),confirms:data.confirms||1,userId:data.user_id};render();toast(type==="out"?`Outage reported — ${loc.name}`:`Power restored — ${loc.name}`,type==="out"?"err":"ok");updateStreak();if(PR&&!PR.location_id)await saveLocation(loc);await sendAreaAlerts(loc.name,loc.area,type);setTimeout(loadReports,2000);}catch(e){const idx=reports.findIndex(r=>r.id===tid);if(idx!==-1)reports.splice(idx,1);render();toast("Could not save report — check your connection","err");}}
+  const tid="local-"+Date.now();reports.unshift({id:tid,name:loc.name,area:loc.area,type,time:Date.now(),confirms:1,userId:CU.id});if(reports.length>500){const di=reports.slice(400).findIndex(r=>!r.isAI&&r.userId!==AI_USER_ID&&!String(r.id).startsWith('local-')&&!String(r.id).startsWith('ai-'));if(di!==-1)reports.splice(400+di,1);else reports.pop();}render();try{const firstName=PR?.name?.split(" ")[0]||null;const payload={user_id:CU.id,display_name:firstName,location_name:loc.name,location_area:loc.area,type,confirms:1};let{data,error}=await sb.from("reports").insert(payload).select().single();/* If display_name column doesn't exist yet, retry without it */if(error&&(error.message?.includes("display_name")||error.code==="PGRST204")){delete payload.display_name;({data,error}=await sb.from("reports").insert(payload).select().single());}if(error){const idx=reports.findIndex(r=>r.id===tid);if(idx!==-1)reports.splice(idx,1);render();toast(`Could not save report: ${error.message}`,"err");return;}const idx=reports.findIndex(r=>r.id===tid);if(idx!==-1)reports[idx]={id:data.id,name:data.location_name,area:data.location_area,type:data.type,time:new Date(data.created_at).getTime(),confirms:data.confirms||1,userId:data.user_id};render();toast(type==="out"?`Outage reported — ${loc.name}`:`Power restored — ${loc.name}`,type==="out"?"err":"ok");updateStreak();if(PR&&!PR.location_id)await saveLocation(loc);await sendAreaAlerts(loc.name,loc.area,type);setTimeout(loadReports,2000);}catch(e){const idx=reports.findIndex(r=>r.id===tid);if(idx!==-1)reports.splice(idx,1);render();toast("Could not save report — check your connection","err");}}
 
 async function addConfirm(repId) {
   const r = reports.find(x => x.id === repId);
@@ -3400,61 +3400,126 @@ function renderMyArea(){
   if(typeof renderMyAreaPredictWidget==='function')renderMyAreaPredictWidget();
 }
 
-/* ━━━ PATCH 2: renderCommunity — includes NEPAWatch AI on leaderboard ━━━ */
+/* ━━━ FEATURE 2: Weekly Area Leaderboard Competition ━━━ */
 async function renderCommunity(){
-  document.getElementById("lbList").innerHTML=`<div class="loading-row"><div class="spin w"></div>Loading leaderboard...</div>`;
+  document.getElementById("lbList").innerHTML=`<div class="loading-row"><div class="spin w"></div>Loading weekly leaderboard...</div>`;
+  const weeklyWrap=document.getElementById("weeklyRankWrap");
+  if(weeklyWrap)weeklyWrap.innerHTML="";
   try{
-    const{data:repData,error:repErr}=await sb.from("reports").select("user_id,display_name,location_name,location_area,type,created_at").not("user_id","is",null).order("created_at",{ascending:false}).limit(1000);
+    /* ── WAT week start: Monday 00:00 WAT (UTC+1) expressed as UTC ISO string ── */
+    const nowMs=Date.now();
+    const watNow=new Date(nowMs+3600000);
+    const dow=watNow.getUTCDay(); // 0=Sun, 1=Mon
+    const daysBack=dow===0?6:dow-1;
+    const monMidWAT=new Date(nowMs+3600000-daysBack*86400000);
+    monMidWAT.setUTCHours(0,0,0,0);
+    const weekStartUtc=new Date(monMidWAT.getTime()-3600000).toISOString();
+
+    /* ── Query this week's reports (exclude AI) ── */
+    const{data:repData,error:repErr}=await sb.from("reports")
+      .select("user_id,display_name,location_area,type,created_at")
+      .not("user_id","is",null)
+      .neq("user_id",AI_USER_ID)
+      .gte("created_at",weekStartUtc)
+      .order("created_at",{ascending:false})
+      .limit(500);
     if(repErr)throw repErr;
-    if(repData&&repData.length>0){
-      const counts={};
-      const profMap={};
-      if(CU&&PR?.name) profMap[CU.id]=PR.name.split(" ")[0]||PR.name;
-      /* Build counts + seed names directly from display_name stored on each report */
-      repData.forEach(r=>{
-        if(!r.user_id)return;
-        if(!counts[r.user_id])counts[r.user_id]={uid:r.user_id,count:0};
-        counts[r.user_id].count++;
-        if(r.display_name&&!profMap[r.user_id])profMap[r.user_id]=r.display_name;
-      });
-      const uids=Object.keys(counts).filter(u=>u!==AI_USER_ID).slice(0,20);
-      const _displayName=(uid)=>{
-        if(profMap[uid])return profMap[uid];
-        if(uid===CU?.id&&PR?.name)return PR.name.split(" ")[0]||PR.name;
-        return null;
-      };
-      /* Add AI entry */
-      const aiCount=counts[AI_USER_ID]?.count||0;
-      let reporters=Object.entries(counts)
-        .filter(([uid])=>uid!==AI_USER_ID)
-        .map(([uid,c])=>({name:_displayName(uid)||'Reporter',uid,count:c.count,isAI:false}))
-        .sort((a,b)=>b.count-a.count).slice(0,5);
-      /* Insert AI into sorted position */
-      if(aiCount>0){
-        const aiEntry={name:AI_USER_NAME,count:aiCount,isAI:true};
-        const insertAt=reporters.findIndex(r=>r.count<=aiCount);
-        if(insertAt===-1)reporters.push(aiEntry);else reporters.splice(insertAt,0,aiEntry);
-        reporters=reporters.slice(0,6);
+
+    /* ── Build per-user count map ── */
+    const countMap={};
+    (repData||[]).forEach(r=>{
+      if(!r.user_id)return;
+      if(!countMap[r.user_id])countMap[r.user_id]={count:0,name:null,area:null};
+      countMap[r.user_id].count++;
+      if(r.display_name&&!countMap[r.user_id].name)countMap[r.user_id].name=r.display_name;
+      if(r.location_area&&!countMap[r.user_id].area)countMap[r.user_id].area=r.location_area;
+    });
+    /* Seed current user's name from local profile */
+    if(CU&&PR?.name){
+      if(!countMap[CU.id])countMap[CU.id]={count:0,name:PR.name.split(" ")[0]||PR.name,area:null};
+      else if(!countMap[CU.id].name)countMap[CU.id].name=PR.name.split(" ")[0]||PR.name;
+    }
+
+    /* ── Sort → top 10 ── */
+    const sorted=Object.entries(countMap)
+      .map(([uid,d])=>({uid,...d}))
+      .sort((a,b)=>b.count-a.count)
+      .slice(0,10);
+
+    /* ── Best-effort: fetch streaks from profiles (non-blocking) ── */
+    let streakMap={};
+    if(sorted.length>0){
+      try{
+        const{data:profData}=await sb.from("profiles")
+          .select("id,current_streak,badges")
+          .in("id",sorted.map(s=>s.uid));
+        (profData||[]).forEach(p=>{streakMap[p.id]=p;});
+      }catch(_){}
+    }
+
+    /* ── Render leaderboard ── */
+    if(sorted.length>0){
+      const rankClass=["gold","silver","bronze","","","","","","",""];
+      const myIdx=CU?sorted.findIndex(s=>s.uid===CU.id):-1;
+      const myRank=myIdx+1;
+      const myCount=myIdx>=0?sorted[myIdx].count:0;
+
+      document.getElementById("lbList").innerHTML=sorted.map((r,i)=>{
+        const isChamp=i===0;
+        const isMe=CU&&r.uid===CU.id;
+        const streak=streakMap[r.uid]?.current_streak||0;
+        const initials=r.name?r.name.slice(0,2).toUpperCase():"??";
+        const hue=r.uid.split("").reduce((a,c)=>a+c.charCodeAt(0),0)%360;
+        const avatarColor=`hsl(${hue},55%,55%)`;
+        const champBadge=isChamp?`<span style="font-size:.52rem;background:rgba(255,184,0,.2);color:#FFB800;border-radius:5px;padding:1px 5px;font-weight:700;letter-spacing:.04em">CHAMPION</span>`:"";
+        const meBadge=isMe?`<span style="font-size:.52rem;background:rgba(170,255,0,.15);color:var(--p);border-radius:5px;padding:1px 5px;font-weight:700">YOU</span>`:"";
+        const streakBit=streak>=3?`${_ico("flame",11,"#f97316")}<span style="color:#f97316;font-weight:700">${streak}</span>`:"";
+        const areaTag=r.area?`<span>${r.area}</span>`:"";
+        const rankLabel=isChamp?_ico("crown",14,"#FFB800"):String(i+1);
+        return`<div class="lbi${isChamp?" champion":""}${isMe?" me":""}"><div class="lbr ${rankClass[i]||""}">${rankLabel}</div><div style="width:33px;height:33px;border-radius:50%;background:rgba(255,255,255,.06);color:${avatarColor};display:flex;align-items:center;justify-content:center;font-size:.64rem;font-weight:800;flex-shrink:0;border:1.5px solid ${avatarColor}44">${initials}</div><div style="flex:1;min-width:0"><div class="lbi-n">${r.name||"Reporter"} ${champBadge}${meBadge}</div><div class="lbi-a">${areaTag}${areaTag&&streakBit?" · ":""}${streakBit}</div></div><div class="lbi-c">${r.count}<small>report${r.count!==1?"s":""}</small></div></div>`;
+      }).join("");
+
+      /* ── Personal rank banner ── */
+      if(weeklyWrap){
+        if(CU&&myRank>0){
+          const champMsg=myRank===1?" 🏆 Weekly Champion!":"";
+          weeklyWrap.innerHTML=`<div class="weekly-rank-pill">${_ico("trophy",14,"#f59e0b")} You're ranked <strong>#${myRank}</strong> this week&nbsp;·&nbsp;${myCount} report${myCount!==1?"s":""}${champMsg}</div>${_weeklyResetNote()}`;
+          /* Award weekly_champion badge if user is #1 and doesn't have it yet */
+          if(myRank===1&&PR&&!(PR.badges||[]).includes("weekly_champion"))_awardWeeklyChampion();
+        }else if(CU){
+          weeklyWrap.innerHTML=`<div class="weekly-rank-pill zero">${_ico("signal",14,"#3b82f6")} No reports yet this week — join the competition!</div>${_weeklyResetNote()}`;
+        }else{
+          weeklyWrap.innerHTML=_weeklyResetNote();
+        }
       }
-      if(reporters.length>0){
-        const rankClass=["gold","silver","bronze","","",""];
-        document.getElementById("lbList").innerHTML=reporters.map((r,i)=>{
-          const isAI=r.isAI;
-          const initials=isAI?'AI':(r.name&&r.name!=='Reporter'?r.name.slice(0,2).toUpperCase():'?');
-          const avatarColor=isAI?'var(--p)':`hsl(${(r.uid||'').split('').reduce((a,c)=>a+c.charCodeAt(0),0)%360},55%,55%)`;
-          const avatarHtml=`<div style="width:32px;height:32px;border-radius:50%;background:${isAI?'var(--pp)':'rgba(255,255,255,.08)'};color:${avatarColor};display:flex;align-items:center;justify-content:center;font-size:.65rem;font-weight:800;flex-shrink:0;border:1.5px solid ${avatarColor}33">${initials}</div>`;
-          const nameHtml=isAI?`<span style="color:var(--p);font-weight:700">${IC.ai}&nbsp;${r.name}</span>`:`<span style="font-weight:600">${r.name}</span>`;
-          const subHtml=isAI?`<span style="color:var(--p);font-size:.6rem">AI auto-reporter</span>`:`<span style="font-size:.68rem;color:var(--ink3)">Community reporter</span>`;
-          return`<div class="lbi"><div class="lbr ${rankClass[i]||""}">${i+1}</div>${avatarHtml}<div style="flex:1;min-width:0"><div class="lbi-n">${nameHtml}</div><div class="lbi-a">${subHtml}</div></div><div class="lbi-c">${r.count}<small>report${r.count!==1?"s":""}</small></div></div>`;
-        }).join("");
-      }else{renderFallbackLeaderboard();}
-    }else{renderFallbackLeaderboard();}
-  }catch(e){renderFallbackLeaderboard();}
+    }else{
+      renderFallbackLeaderboard();
+      if(weeklyWrap)weeklyWrap.innerHTML=_weeklyResetNote();
+    }
+  }catch(e){
+    renderFallbackLeaderboard();
+    if(weeklyWrap)weeklyWrap.innerHTML=_weeklyResetNote();
+  }
 
   const areas=Object.keys(LAGOS).map(a=>{const aReps=reports.filter(r=>areaMatches(r.area,a));const outN=aReps.filter(r=>r.type==="out").length;const bckN=aReps.filter(r=>r.type==="bck").length;const total=aReps.length;if(total===0)return{name:a,score:null,reports:0};const score=Math.max(5,Math.min(98,80-(outN*15)+(bckN*10)));return{name:a,score,reports:total};}).sort((a,b)=>{if(a.score===null&&b.score===null)return 0;if(a.score===null)return 1;if(b.score===null)return-1;return b.score-a.score;});
   document.getElementById("areaRank").innerHTML=areas.slice(0,16).map((a,i)=>{const hasData=a.score!==null;const c=!hasData?"var(--ink3)":a.score>70?"var(--p)":a.score>45?"var(--am)":"var(--rd)";return`<div class="zc" style="animation:pgIn .2s ease ${i*20}ms both"><div style="font-size:.68rem;color:var(--ink3);font-weight:700;width:22px;flex-shrink:0;text-align:center">${i+1}</div><div class="zb"><div class="zn">${a.name}<span>${a.reports?a.reports+" report"+(a.reports!==1?"s":""):"No reports yet"}</span></div><div class="zt"><div class="zf" style="width:0%;background:${c}" data-w="${hasData?a.score:0}"></div></div></div><div class="zp" style="color:${c}">${hasData?`${a.score}%`:"—"}</div></div>`;}).join("");
   setTimeout(()=>{document.querySelectorAll("#areaRank .zf").forEach(bar=>{bar.style.width=bar.dataset.w+"%";});},80);
   document.getElementById("commNote").style.display="block";
+}
+
+function _weeklyResetNote(){
+  const dow=new Date(Date.now()+3600000).getUTCDay();
+  const daysUntil=dow===1?7:dow===0?1:8-dow;
+  const label=daysUntil===1?"tomorrow":daysUntil===7?"next Monday":`in ${daysUntil} days`;
+  return`<div class="weekly-reset-note">Leaderboard resets every Monday · Next reset ${label}</div>`;
+}
+
+async function _awardWeeklyChampion(){
+  if(!CU||!PR)return;
+  const newBadges=[...new Set([...(PR.badges||[]),"weekly_champion"])];
+  await sb.from("profiles").update({badges:newBadges}).eq("id",CU.id);
+  PR.badges=newBadges;
+  showBadgeCelebration("weekly_champion");
 }
 
 function renderFallbackLeaderboard(){document.getElementById("lbList").innerHTML=`<div class="empty" style="padding:24px 18px"><div class="empty-ico">${IC.user}</div><p>Be the first to report! Top reporters will appear here.</p></div>`;}
