@@ -2355,7 +2355,7 @@ async function initAuth(){
 }
 function _resetFormHTML(){return`<div class="auth-wrap"><div class="auth-logo"><div class="auth-logo-icon" style="background:var(--p)">${LOGO_IMG_TAG}</div><span class="auth-logo-name">NEPA<em>Watch</em></span></div><h2>Set new password</h2><p class="auth-sub">Choose a strong new password for your account.</p><div class="msg err" id="authErr"></div><div class="msg ok" id="authOk"></div><div class="fld"><label>New Password</label><input id="inp-newpass" type="password" placeholder="Min 6 characters" autocomplete="new-password"><button type="button" class="pw-eye-btn" onclick="appTogglePw(this)" tabindex="-1"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M1 8C2.5 5 5 3.5 8 3.5C11 3.5 13.5 5 15 8C13.5 11 11 12.5 8 12.5C5 12.5 2.5 11 1 8Z" stroke="currentColor" stroke-width="1.3"/><circle cx="8" cy="8" r="2.2" stroke="currentColor" stroke-width="1.3"/></svg></button></div><div class="fld"><label>Confirm Password</label><input id="inp-confpass" type="password" placeholder="Repeat password" autocomplete="new-password"><button type="button" class="pw-eye-btn" onclick="appTogglePw(this)" tabindex="-1"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M1 8C2.5 5 5 3.5 8 3.5C11 3.5 13.5 5 15 8C13.5 11 11 12.5 8 12.5C5 12.5 2.5 11 1 8Z" stroke="currentColor" stroke-width="1.3"/><circle cx="8" cy="8" r="2.2" stroke="currentColor" stroke-width="1.3"/></svg></button></div><button class="auth-btn" id="authBtn" onclick="doPasswordReset()">Update Password</button></div>`;}
 
-async function loadProfile(){if(!CU)return;try{const{data,error}=await sb.from("profiles").select("*").eq("id",CU.id).single();if(!error&&data){PR=data;if(PR.location_id){document.getElementById("locTag").classList.add("on");document.getElementById("locLabel").textContent=PR.location_label||PR.location_name;}}else if(error&&error.code==="PGRST116"){const name=CU.user_metadata?.name||CU.email.split("@")[0];await sb.from("profiles").upsert({id:CU.id,email:CU.email,name,notif_on:true},{onConflict:"id"});PR={id:CU.id,email:CU.email,name,notif_on:true,location_id:null};}if(PR){renderStreakBanner();renderHomeAchievements();setTimeout(_scheduleLocalNotifications,2000);}
+async function loadProfile(){if(!CU)return;try{const{data,error}=await sb.from("profiles").select("*").eq("id",CU.id).single();if(!error&&data){PR=data;if(PR.location_id){document.getElementById("locTag").classList.add("on");document.getElementById("locLabel").textContent=PR.location_label||PR.location_name;}}else if(error&&error.code==="PGRST116"){const name=CU.user_metadata?.name||CU.email.split("@")[0];await sb.from("profiles").upsert({id:CU.id,email:CU.email,name,notif_on:true},{onConflict:"id"});PR={id:CU.id,email:CU.email,name,notif_on:true,location_id:null};}if(PR){renderStreakBanner();renderHomeAchievements();renderRivalryCard();setTimeout(_scheduleLocalNotifications,2000);}
   }catch(e){}}
 
 async function doRegister(name,email,pass){const{data,error}=await sb.auth.signUp({email,password:pass,options:{data:{name},emailRedirectTo:APP_URL+"?mode=reset"}});if(error){if(error.message?.toLowerCase().includes("rate limit")||error.message?.toLowerCase().includes("over_email_send_rate_limit"))throw new Error("RATE_LIMIT");throw new Error(error.message);}if(data.user){await sb.from("profiles").upsert({id:data.user.id,email,name,notif_on:true},{onConflict:"id"});}if(data.session){CU=data.user;await loadProfile();renderAccount();updateBanner();toast(`Welcome, ${name}!`,"ok");_maybeStartTour();}sendEmail(email,"Welcome to NEPAWatch Nigeria",`Hi ${name},\n\nWelcome to NEPAWatch Nigeria!\n\nYou will receive real-time email alerts whenever power goes out or is restored near your street.\n\nOpen the app and set your location to activate alerts.\n\nStay powered,\nNEPAWatch Nigeria`,buildEmailHtml({type:'welcome',name,appUrl:APP_URL}));return data;}
@@ -2570,7 +2570,7 @@ function findNearbyPowerSpots(lat,lng,limit=5){return Object.entries(AREA_COORDS
 
 function clearLoc(){filterArea="";const sel=document.getElementById("areaFilter");if(sel)sel.value="";document.getElementById("locTag").classList.remove("on");document.getElementById("geoBtn").classList.remove("active");document.getElementById("geoBtnTxt").textContent="Locate Me";_nearbyAreas=[];_userLat=null;_userLng=null;userExactLat=userExactLng=null;_hideMap();if(_leafletUserMarker){_leafletUserMarker.remove();_leafletUserMarker=null;}_leafletPowerMarkers.forEach(m=>m.remove());_leafletPowerMarkers=[];if(_leafletMap){_leafletMap.remove();_leafletMap=null;}renderNearbyDashboard();renderFeed("liveFeed");if(CU&&PR){PR.location_id=null;PR.location_name=null;PR.location_area=null;PR.location_label=null;sb.from("profiles").update({location_id:null,location_name:null,location_area:null,location_label:null}).eq("id",CU.id).then(()=>{}).catch(()=>{});}}
 
-function renderNearbyDashboard(){const el=document.getElementById("nearbyDashboard");if(!_nearbyAreas.length){el.innerHTML="";return;}const cards=_nearbyAreas.slice(0,6).map(({area,dist})=>{const status=getPlaceStatus(area);const statusCls=status==="out"?"nb-status s-out":status==="on"?"nb-status s-on":"nb-status s-unk";const statusTxt=status==="out"?"Power Out":status==="on"?"Power On":"No reports";const statusIco=status==="out"?IC.out:status==="on"?IC.bck:IC.pin;const distStr=dist<1?`${Math.round(dist*1000)}m away`:`${dist.toFixed(1)}km away`;return`<div class="nb-card" onclick="jumpToArea('${area}')"><div class="nb-area">${area}</div><div class="nb-dist">${distStr}</div><div class="${statusCls}">${statusIco}&nbsp;${statusTxt}</div></div>`;}).join("");el.innerHTML=`<div class="slbl">Nearby Areas</div><div class="nearby-grid">${cards}</div>`;}
+function renderNearbyDashboard(){const el=document.getElementById("nearbyDashboard");if(!_nearbyAreas.length){el.innerHTML="";return;}const cards=_nearbyAreas.slice(0,10).map(({area,dist})=>{const status=getPlaceStatus(area);const statusCls=status==="out"?"nb-status s-out":status==="on"?"nb-status s-on":"nb-status s-unk";const statusTxt=status==="out"?"Power Out":status==="on"?"Power On":"No data";const statusIco=status==="out"?IC.out:status==="on"?IC.bck:IC.pin;const distStr=dist<1?`${Math.round(dist*1000)}m`:`${dist.toFixed(1)}km`;return`<div class="nb-card" onclick="jumpToArea('${area}')"><div class="nb-area">${area}</div><div class="nb-dist">${distStr} away</div><div class="${statusCls}">${statusIco}&nbsp;${statusTxt}</div></div>`;}).join("");el.innerHTML=`<div class="slbl">Nearby Areas</div><div class="nearby-scroll">${cards}</div>`;}
 
 async function loadUserCount(){try{const{count,error}=await sb.from("profiles").select("id",{count:"exact",head:true});if(!error&&count!=null){_userCount=count;const pill=document.getElementById("userCountPill");const num=document.getElementById("userCountNum");if(pill&&num&&count>=2){num.textContent=count.toLocaleString();pill.style.display="flex";}}}catch(e){}}
 
@@ -2639,6 +2639,7 @@ async function loadReports(){
     console.warn('[loadReports] failed:',e?.message);
   }
   render();
+  renderRivalryCard();
   if(_nearbyAreas.length) renderNearbyDashboard();
   /* Safety: re-render stats 300ms later so they always reflect final data
      even if a concurrent animation left them at an intermediate value.   */
@@ -3575,7 +3576,7 @@ function _renderBadgeGrid(earned){
     const bg=has?(def.gold?'rgba(245,158,11,.1)':`${def.color}18`):'var(--sf2)';
     const border=has?(def.gold?'rgba(245,158,11,.45)':`${def.color}30`):'var(--bd)';
     const glow=has&&def.gold?'box-shadow:0 0 14px rgba(245,158,11,.2);':'';
-    return`<div class="badge-item${has?has&&def.gold?' gold':' earned':' locked'}" style="background:${bg};border-color:${border};${glow}" title="${def.desc}" onclick="${has?`showBadgeCelebration('${key}')`:''}" >
+    return`<div class="badge-item${has?has&&def.gold?' gold':' earned':' locked'}" style="background:${bg};border-color:${border};${glow}" title="${def.desc}" onclick="${has?`showBadgeCelebration('${key}')`:`showBadgeHowTo('${key}')`}" >
       <div class="badge-ico">${_ico(def.iconKey,22,color)}</div>
       <div class="badge-name">${def.name}</div>
     </div>`;
@@ -3590,6 +3591,60 @@ function renderHomeAchievements(){
   const earnedMain=earned.filter(k=>BADGE_DISPLAY_ORDER.includes(k));
   el.style.display='block';
   el.innerHTML=`<div class="achiev-wrap"><div class="achiev-hd"><span class="achiev-hd-title">Your Achievements</span><span class="achiev-hd-count">${earnedMain.length}/${BADGE_DISPLAY_ORDER.length}</span></div><div class="badge-grid">${_renderBadgeGrid(earned)}</div></div>`;
+}
+
+function _getRival(area){
+  if(!AREA_COORDS[area])return null;
+  const{lat,lng}=AREA_COORDS[area];
+  const entry=Object.entries(AREA_COORDS)
+    .filter(([k])=>k!==area)
+    .map(([k,c])=>({area:k,dist:haversine(lat,lng,c.lat,c.lng)}))
+    .filter(e=>e.dist>=1.5&&e.dist<=15)
+    .sort((a,b)=>a.dist-b.dist)[0];
+  return entry?.area||null;
+}
+
+function _calcAreaWeeklyHours(area,weekStartMs){
+  const rpts=reports.filter(r=>areaMatches(r.area,area)&&r.time>=weekStartMs);
+  const outCount=rpts.filter(r=>r.type==='out').length;
+  const bckCount=rpts.filter(r=>r.type==='bck').length;
+  if(outCount+bckCount===0)return null;
+  const daysElapsed=Math.max(1,(Date.now()-weekStartMs)/86400000);
+  const avgOutHrs=bckCount>0?Math.max(2,5-bckCount*0.2):5;
+  const downHrs=Math.min(outCount*avgOutHrs,daysElapsed*20);
+  return parseFloat(Math.max(1,Math.min(23,(daysElapsed*24-downHrs)/daysElapsed)).toFixed(1));
+}
+
+function renderRivalryCard(){
+  const el=document.getElementById('rivalryCard');
+  if(!el)return;
+  if(!CU||!PR||!PR.location_area){el.style.display='none';return;}
+  const userArea=PR.location_area;
+  const rival=_getRival(userArea);
+  if(!rival){el.style.display='none';return;}
+  const watNow=new Date(Date.now()+3600000);
+  const dow=watNow.getUTCDay();
+  const daysBack=dow===0?6:dow-1;
+  const monMid=new Date(Date.now()+3600000-daysBack*86400000);
+  monMid.setUTCHours(0,0,0,0);
+  const weekStartMs=monMid.getTime()-3600000;
+  const myHrs=_calcAreaWeeklyHours(userArea,weekStartMs);
+  const rivalHrs=_calcAreaWeeklyHours(rival,weekStartMs);
+  el.style.display='block';
+  if(myHrs===null&&rivalHrs===null){
+    el.innerHTML=`<div class="rivalry-card"><div class="rv-header"><span class="rv-title">Area Rivalry</span><span class="rv-week">This week</span></div><div class="rv-matchup"><div class="rv-side"><div class="rv-area-name">${userArea}</div><div class="rv-score rv-nodata">—</div></div><div class="rv-vs">VS</div><div class="rv-side"><div class="rv-area-name">${rival}</div><div class="rv-score rv-nodata">—</div></div></div><div class="rv-status">Report power events to see ${userArea} vs ${rival} score</div></div>`;
+    return;
+  }
+  const myScore=myHrs??0;
+  const rivalScore=rivalHrs??0;
+  const myWin=myScore>rivalScore;
+  const tied=myScore===rivalScore&&myHrs!==null&&rivalHrs!==null;
+  const statusLine=tied
+    ?`${userArea} and ${rival} dey level this week`
+    :myWin
+    ?`${userArea} dey win — keep reporting!`
+    :`${rival} dey lead — ${userArea} needs more reports!`;
+  el.innerHTML=`<div class="rivalry-card"><div class="rv-header"><span class="rv-title">Area Rivalry</span><span class="rv-week">This week</span></div><div class="rv-matchup"><div class="rv-side${myWin?' rv-winning':''}"><div class="rv-area-name">${userArea}</div><div class="rv-score">${myHrs!==null?myHrs+'<span class="rv-unit">hrs/day</span>':'—'}</div>${myWin?`<div class="rv-badge">${_ico('crown',12,'#FFB800')} Winning</div>`:''}</div><div class="rv-vs">VS</div><div class="rv-side${!myWin&&!tied?' rv-winning':''}"><div class="rv-area-name">${rival}</div><div class="rv-score">${rivalHrs!==null?rivalHrs+'<span class="rv-unit">hrs/day</span>':'—'}</div>${!myWin&&!tied&&rivalHrs!==null?`<div class="rv-badge">${_ico('crown',12,'#FFB800')} Winning</div>`:''}</div></div><div class="rv-status">${statusLine}</div></div>`;
 }
 
 function renderFallbackLeaderboard(){document.getElementById("lbList").innerHTML=`<div class="empty" style="padding:24px 18px"><div class="empty-ico">${IC.user}</div><p>Be the first to report! Top reporters will appear here.</p></div>`;}
@@ -3865,6 +3920,22 @@ function _scheduleLocalNotifications(){
   if(watDay===0&&watHour>=19&&!localStorage.getItem(WSUM_KEY)){
     localStorage.setItem(WSUM_KEY,'1');
     _fireWeeklySummaryNotif();
+  }
+
+  // ── Monday rivalry nudge: fire once on Monday 8am–8pm WAT
+  if(watDay===1&&watHour>=8&&watHour<20&&PR.location_area){
+    const RIVAL_KEY='nw-rivalry-'+today;
+    if(!localStorage.getItem(RIVAL_KEY)){
+      const rival=_getRival(PR.location_area);
+      if(rival){
+        localStorage.setItem(RIVAL_KEY,'1');
+        _fireNotification(
+          `New week, new rivalry — ${PR.location_area} vs ${rival}`,
+          `Who go have more power this week? Start reporting to represent ${PR.location_area}.`,
+          'rivalry',PR.location_area,'/'
+        );
+      }
+    }
   }
 }
 
@@ -5018,18 +5089,18 @@ function _ico(key, size = 16, color = 'currentColor') {
 }
 
 const BADGE_DEFS = {
-  first_report:    { iconKey:'plant',   color:'#22c55e', name:'First Report',       desc:'Submitted your first report — the journey begins!',  shareMsg:(a)=>`I just submitted my first power report on NEPAWatch! Helping Nigeria stay informed about power in ${a||'my area'}. Join me: nepawatch.app` },
-  streak_3:        { iconKey:'flame',   color:'#f97316', name:'3-Day Streak',       desc:'Reported 3 days in a row',                            shareMsg:(a)=>`I just hit a 3-day reporting streak on NEPAWatch! Tracking power in ${a||'my area'} every day. Join me: nepawatch.app` },
-  streak_7:        { iconKey:'shield',  color:'#eab308', name:'Area Guardian',      desc:'7-day reporting streak — your area depends on you',   shareMsg:(a)=>`I just earned the Area Guardian badge on NEPAWatch for tracking power in ${a||'my area'} for 7 days straight! Join me: nepawatch.app` },
-  streak_14:       { iconKey:'star',    color:'#a855f7', name:'Power Tracker',      desc:'14-day reporting streak — two weeks strong',          shareMsg:(a)=>`14-day reporting streak on NEPAWatch! Tracking power outages in ${a||'my area'} every single day. Join me: nepawatch.app` },
-  streak_30:       { iconKey:'trophy',  color:'#22c55e', name:'NEPA Veteran',       desc:'30-day streak — one month of power watching',         shareMsg:(a)=>`I just earned the NEPA Veteran badge on NEPAWatch — 30 days straight tracking power in ${a||'my area'}! Join me: nepawatch.app` },
-  streak_100:      { iconKey:'crown',   color:'#f59e0b', name:'Grid Watcher',       desc:'100-day streak — ultra rare, gold tier',              shareMsg:(a)=>`100-day reporting streak on NEPAWatch. I am the Grid Watcher of ${a||'my area'} — ultra rare badge. Join me: nepawatch.app`, gold:true },
-  reports_10:      { iconKey:'chart',   color:'#10b981', name:'10 Reports',         desc:'10 total reports submitted',                          shareMsg:(a)=>`Just hit 10 reports on NEPAWatch — helping ${a||'my area'} stay informed about power. Join me: nepawatch.app` },
-  reports_25:      { iconKey:'lightning',color:'#6366f1',name:'Power Watcher',      desc:'25 total reports submitted',                          shareMsg:(a)=>`Just earned the Power Watcher badge on NEPAWatch — 25 reports from ${a||'my area'}! Join me: nepawatch.app` },
-  reports_50:      { iconKey:'medal',   color:'#ec4899', name:'Outage Hero',        desc:'50 total reports submitted',                          shareMsg:(a)=>`50 reports on NEPAWatch! Helping ${a||'my area'} stay informed about power. Join: nepawatch.app` },
-  reports_100:     { iconKey:'medal',   color:'#f43f5e', name:'Power General',      desc:'100 total reports submitted',                         shareMsg:(a)=>`100 reports on NEPAWatch — Power General status in ${a||'my area'}! Join me: nepawatch.app` },
-  weekly_champion: { iconKey:'gold',    color:'#f59e0b', name:'Weekly Champion',    desc:'Top reporter of the week — community leader',         shareMsg:(a)=>`I just won Weekly Champion on NEPAWatch — top reporter in ${a||'Lagos'} this week! Join me: nepawatch.app` },
-  referral_3:      { iconKey:'users',   color:'#06b6d4', name:'Community Builder',  desc:'Referred 3 friends who joined NEPAWatch',             shareMsg:(a)=>`I just earned the Community Builder badge on NEPAWatch for bringing 3 friends to track power in Nigeria! Join us: nepawatch.app` },
+  first_report:    { iconKey:'plant',    color:'#22c55e', name:'First Report',       desc:'Submitted your first report — the journey begins!',  howToEarn:'Submit your first power report from the Home tab.',                         shareMsg:(a)=>`I just submitted my first power report on NEPAWatch! Helping Nigeria stay informed about power in ${a||'my area'}. Join me: nepawatch.app` },
+  streak_3:        { iconKey:'flame',    color:'#f97316', name:'3-Day Streak',       desc:'Reported 3 days in a row',                           howToEarn:'Report power status on 3 consecutive days without skipping a day.',         shareMsg:(a)=>`I just hit a 3-day reporting streak on NEPAWatch! Tracking power in ${a||'my area'} every day. Join me: nepawatch.app` },
+  streak_7:        { iconKey:'shield',   color:'#eab308', name:'Area Guardian',      desc:'7-day reporting streak — your area depends on you',  howToEarn:'Keep your daily reporting streak alive for 7 days straight.',              shareMsg:(a)=>`I just earned the Area Guardian badge on NEPAWatch for tracking power in ${a||'my area'} for 7 days straight! Join me: nepawatch.app` },
+  streak_14:       { iconKey:'star',     color:'#a855f7', name:'Power Tracker',      desc:'14-day reporting streak — two weeks strong',         howToEarn:'Maintain a 14-day reporting streak without missing a single day.',         shareMsg:(a)=>`14-day reporting streak on NEPAWatch! Tracking power outages in ${a||'my area'} every single day. Join me: nepawatch.app` },
+  streak_30:       { iconKey:'trophy',   color:'#22c55e', name:'NEPA Veteran',       desc:'30-day streak — one month of power watching',        howToEarn:'Report every day for a full 30 days. Missing one day resets your streak.', shareMsg:(a)=>`I just earned the NEPA Veteran badge on NEPAWatch — 30 days straight tracking power in ${a||'my area'}! Join me: nepawatch.app` },
+  streak_100:      { iconKey:'crown',    color:'#f59e0b', name:'Grid Watcher',       desc:'100-day streak — ultra rare, gold tier',             howToEarn:'Achieve a 100-day daily reporting streak. Ultra rare — gold tier badge.', shareMsg:(a)=>`100-day reporting streak on NEPAWatch. I am the Grid Watcher of ${a||'my area'} — ultra rare badge. Join me: nepawatch.app`, gold:true },
+  reports_10:      { iconKey:'chart',    color:'#10b981', name:'10 Reports',         desc:'10 total reports submitted',                         howToEarn:'Submit a total of 10 power reports from any location.',                    shareMsg:(a)=>`Just hit 10 reports on NEPAWatch — helping ${a||'my area'} stay informed about power. Join me: nepawatch.app` },
+  reports_25:      { iconKey:'lightning',color:'#6366f1', name:'Power Watcher',      desc:'25 total reports submitted',                         howToEarn:'Submit a total of 25 power reports. Every report counts.',                 shareMsg:(a)=>`Just earned the Power Watcher badge on NEPAWatch — 25 reports from ${a||'my area'}! Join me: nepawatch.app` },
+  reports_50:      { iconKey:'medal',    color:'#ec4899', name:'Outage Hero',        desc:'50 total reports submitted',                         howToEarn:'Submit 50 total power reports to earn this badge.',                       shareMsg:(a)=>`50 reports on NEPAWatch! Helping ${a||'my area'} stay informed about power. Join: nepawatch.app` },
+  reports_100:     { iconKey:'medal',    color:'#f43f5e', name:'Power General',      desc:'100 total reports submitted',                        howToEarn:'Submit 100 total power reports. A serious commitment to the community.',  shareMsg:(a)=>`100 reports on NEPAWatch — Power General status in ${a||'my area'}! Join me: nepawatch.app` },
+  weekly_champion: { iconKey:'gold',     color:'#f59e0b', name:'Weekly Champion',    desc:'Top reporter of the week — community leader',        howToEarn:'Submit the most reports in a single week to top the leaderboard.',       shareMsg:(a)=>`I just won Weekly Champion on NEPAWatch — top reporter in ${a||'Lagos'} this week! Join me: nepawatch.app` },
+  referral_3:      { iconKey:'users',    color:'#06b6d4', name:'Community Builder',  desc:'Referred 3 friends who joined NEPAWatch',            howToEarn:'Share your referral link and get 3 friends to sign up and report.',       shareMsg:(a)=>`I just earned the Community Builder badge on NEPAWatch for bringing 3 friends to track power in Nigeria! Join us: nepawatch.app` },
 };
 
 // Badge display order for the 8 main badges shown in UI
@@ -5139,6 +5210,23 @@ function shareBadgeWhatsApp() {
   const area = PR?.location_area || PR?.location_name || 'my area';
   const msg = def.shareMsg ? def.shareMsg(area) : `I just earned the "${def.name}" badge on NEPAWatch! Join me: nepawatch.app`;
   window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
+}
+
+
+function showBadgeHowTo(key) {
+  const def = BADGE_DEFS[key];
+  if (!def) return;
+  const overlay = document.getElementById('badgeHowToOverlay');
+  if (!overlay) return;
+  document.getElementById('bht-icon').innerHTML = _ico(def.iconKey, 40, 'var(--ink3)');
+  document.getElementById('bht-name').textContent = def.name;
+  document.getElementById('bht-how').textContent = def.howToEarn || def.desc;
+  overlay.style.display = 'flex';
+}
+
+function closeBadgeHowTo() {
+  const el = document.getElementById('badgeHowToOverlay');
+  if (el) el.style.display = 'none';
 }
 
 function renderStreakBanner() {

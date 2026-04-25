@@ -226,12 +226,13 @@ body::after{content:"";display:block;position:fixed;bottom:0;left:0;right:0;heig
 .sp-edit-btn:hover{color:var(--p);background:var(--pp)}
 
 /* ===== NEARBY DASHBOARD ===== */
-.nearby-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px;padding:0 18px 4px}
-.nb-card{background:var(--sf);border-radius:18px;padding:13px 14px;border:1px solid var(--bd);cursor:pointer;transition:all .18s}
-.nb-card:hover{border-color:var(--p);background:var(--pp);transform:translateY(-2px)}
-.nb-area{font-size:.74rem;font-weight:700;color:var(--ink);margin-bottom:2px}
+.nearby-scroll{display:flex;overflow-x:auto;gap:9px;padding:0 18px 10px;-webkit-overflow-scrolling:touch;scroll-snap-type:x mandatory;scrollbar-width:none}
+.nearby-scroll::-webkit-scrollbar{display:none}
+.nb-card{flex-shrink:0;width:130px;scroll-snap-align:start;background:var(--sf);border-radius:16px;padding:12px 12px 11px;border:1px solid var(--bd);cursor:pointer;transition:all .18s}
+.nb-card:active{border-color:var(--p);background:var(--pp)}
+.nb-area{font-size:.73rem;font-weight:700;color:var(--ink);margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .nb-dist{font-size:.58rem;color:var(--ink3)}
-.nb-status{margin-top:7px;font-size:.64rem;font-weight:700;display:flex;align-items:center;gap:4px}
+.nb-status{margin-top:7px;font-size:.63rem;font-weight:700;display:flex;align-items:center;gap:4px}
 .nb-status.s-out{color:var(--rd)}.nb-status.s-on{color:var(--p)}.nb-status.s-unk{color:var(--ink3)}
 
 /* ===== FEED ===== */
@@ -858,3 +859,20 @@ body::after{content:"";display:block;position:fixed;bottom:0;left:0;right:0;heig
 /* ── Confetti particle ── */
 .confetti-piece{position:absolute;width:8px;height:8px;border-radius:1px;opacity:0;animation:confetti-fall 1.8s ease-in forwards}
 @keyframes confetti-fall{0%{opacity:1;transform:translateY(-20px) rotate(0deg)}100%{opacity:0;transform:translateY(200px) rotate(720deg)}}
+
+/* ── Area Rivalry Card ── */
+.rivalry-card{background:var(--sf);border:1px solid var(--bd);border-radius:var(--r);padding:14px 16px;box-shadow:var(--sh)}
+.rv-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.rv-title{font-size:.72rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--ink3)}
+.rv-week{font-size:.68rem;color:var(--ink3);background:var(--sf2);border:1px solid var(--bd);border-radius:20px;padding:2px 8px}
+.rv-matchup{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.rv-side{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px 8px;border-radius:10px;border:1px solid var(--bd);background:var(--sf2);transition:border-color .2s,background .2s;min-width:0}
+.rv-side.rv-winning{border-color:var(--p);background:var(--pp)}
+.rv-area-name{font-size:.75rem;font-weight:600;color:var(--ink);text-align:center;line-height:1.25;word-break:break-word}
+.rv-score{font-size:1.2rem;font-weight:800;color:var(--ink2);line-height:1;font-family:var(--font-display)}
+.rv-side.rv-winning .rv-score{color:var(--p)}
+.rv-score.rv-nodata{color:var(--ink3);font-size:.9rem}
+.rv-unit{font-size:.6rem;font-weight:500;color:var(--ink3);margin-left:1px}
+.rv-badge{display:flex;align-items:center;gap:3px;font-size:.65rem;font-weight:700;color:var(--am);margin-top:1px}
+.rv-vs{font-size:.72rem;font-weight:800;color:var(--ink3);letter-spacing:.05em;flex-shrink:0}
+.rv-status{font-size:.76rem;color:var(--ink2);text-align:center;padding-top:8px;border-top:1px solid var(--bd)}
