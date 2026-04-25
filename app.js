@@ -2660,7 +2660,7 @@ function startPolling(){
 async function pushReport(loc,type){
   if(!CU){toast("Sign in to submit a report","info");go("account");return;}
   // ── Rate limiting disabled for launch — no cap on reports ──
-  const tid="local-"+Date.now();reports.unshift({id:tid,name:loc.name,area:loc.area,type,time:Date.now(),confirms:1,userId:CU.id});if(reports.length>500){const di=reports.slice(400).findIndex(r=>!r.isAI&&r.userId!==AI_USER_ID&&!String(r.id).startsWith('local-')&&!String(r.id).startsWith('ai-'));if(di!==-1)reports.splice(400+di,1);else reports.pop();}render();try{const{data,error}=await sb.from("reports").insert({user_id:CU.id,location_name:loc.name,location_area:loc.area,type,confirms:1}).select().single();if(error){const idx=reports.findIndex(r=>r.id===tid);if(idx!==-1)reports.splice(idx,1);render();toast(`Could not save report: ${error.message}`,"err");return;}const idx=reports.findIndex(r=>r.id===tid);if(idx!==-1)reports[idx]={id:data.id,name:data.location_name,area:data.location_area,type:data.type,time:new Date(data.created_at).getTime(),confirms:data.confirms||1,userId:data.user_id};render();toast(type==="out"?`Outage reported — ${loc.name}`:`Power restored — ${loc.name}`,type==="out"?"err":"ok");updateStreak();if(PR&&!PR.location_id)await saveLocation(loc);await sendAreaAlerts(loc.name,loc.area,type);setTimeout(loadReports,2000);}catch(e){const idx=reports.findIndex(r=>r.id===tid);if(idx!==-1)reports.splice(idx,1);render();toast("Could not save report — check your connection","err");}}
+  const tid="local-"+Date.now();reports.unshift({id:tid,name:loc.name,area:loc.area,type,time:Date.now(),confirms:1,userId:CU.id});if(reports.length>500){const di=reports.slice(400).findIndex(r=>!r.isAI&&r.userId!==AI_USER_ID&&!String(r.id).startsWith('local-')&&!String(r.id).startsWith('ai-'));if(di!==-1)reports.splice(400+di,1);else reports.pop();}render();try{const{data,error}=await sb.from("reports").insert({user_id:CU.id,display_name:PR?.name?.split(" ")[0]||null,location_name:loc.name,location_area:loc.area,type,confirms:1}).select().single();if(error){const idx=reports.findIndex(r=>r.id===tid);if(idx!==-1)reports.splice(idx,1);render();toast(`Could not save report: ${error.message}`,"err");return;}const idx=reports.findIndex(r=>r.id===tid);if(idx!==-1)reports[idx]={id:data.id,name:data.location_name,area:data.location_area,type:data.type,time:new Date(data.created_at).getTime(),confirms:data.confirms||1,userId:data.user_id};render();toast(type==="out"?`Outage reported — ${loc.name}`:`Power restored — ${loc.name}`,type==="out"?"err":"ok");updateStreak();if(PR&&!PR.location_id)await saveLocation(loc);await sendAreaAlerts(loc.name,loc.area,type);setTimeout(loadReports,2000);}catch(e){const idx=reports.findIndex(r=>r.id===tid);if(idx!==-1)reports.splice(idx,1);render();toast("Could not save report — check your connection","err");}}
 
 async function addConfirm(repId) {
   const r = reports.find(x => x.id === repId);
@@ -3404,29 +3404,20 @@ function renderMyArea(){
 async function renderCommunity(){
   document.getElementById("lbList").innerHTML=`<div class="loading-row"><div class="spin w"></div>Loading leaderboard...</div>`;
   try{
-    const{data:repData,error:repErr}=await sb.from("reports").select("user_id,location_name,location_area,type,created_at").not("user_id","is",null).order("created_at",{ascending:false}).limit(1000);
+    const{data:repData,error:repErr}=await sb.from("reports").select("user_id,display_name,location_name,location_area,type,created_at").not("user_id","is",null).order("created_at",{ascending:false}).limit(1000);
     if(repErr)throw repErr;
     if(repData&&repData.length>0){
       const counts={};
-      repData.forEach(r=>{if(!r.user_id)return;if(!counts[r.user_id])counts[r.user_id]={uid:r.user_id,count:0};counts[r.user_id].count++;});
-      const uids=Object.keys(counts).filter(u=>u!==AI_USER_ID).slice(0,20);
-      /* Build name map — seed with known current user first */
       const profMap={};
       if(CU&&PR?.name) profMap[CU.id]=PR.name.split(" ")[0]||PR.name;
-      /* Run both in parallel — profiles direct query (after RLS fix) + RPC fallback */
-      await Promise.allSettled([
-        sb.from("profiles").select("id,name,email").in("id",uids).then(({data})=>{
-          (data||[]).forEach(p=>{
-            const n=(p.name&&p.name.trim())||p.email?.split("@")[0]||"";
-            if(n)profMap[p.id]=n.split(" ")[0]||n;
-          });
-        }),
-        sb.rpc("get_reporter_names",{user_ids:uids}).then(({data,error})=>{
-          if(!error&&data?.length)data.forEach(p=>{
-            if(p.first_name&&p.first_name!=="User")profMap[p.id]=p.first_name;
-          });
-        }),
-      ]);
+      /* Build counts + seed names directly from display_name stored on each report */
+      repData.forEach(r=>{
+        if(!r.user_id)return;
+        if(!counts[r.user_id])counts[r.user_id]={uid:r.user_id,count:0};
+        counts[r.user_id].count++;
+        if(r.display_name&&!profMap[r.user_id])profMap[r.user_id]=r.display_name;
+      });
+      const uids=Object.keys(counts).filter(u=>u!==AI_USER_ID).slice(0,20);
       const _displayName=(uid)=>{
         if(profMap[uid])return profMap[uid];
         if(uid===CU?.id&&PR?.name)return PR.name.split(" ")[0]||PR.name;
