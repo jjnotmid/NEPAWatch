@@ -3114,6 +3114,11 @@ function buildEmailHtml({type='info', name='', area='', street='', time='', plac
 </html>`;
 }
 
+function _buildNotifHtml(headline, rows, accent='#AAFF00'){
+  const rowsHtml=rows.map(([lbl,val])=>`<p style="margin:0 0 5px;color:#8FAE97;font-size:13px;text-transform:uppercase;letter-spacing:.08em;font-weight:600">${lbl}</p><p style="margin:0 0 16px;color:#E6EDE8;font-size:15px;font-weight:600">${val}</p>`).join('');
+  return`<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="margin:0;padding:0;background:#07090A;font-family:'Segoe UI',Helvetica,Arial,sans-serif"><div style="max-width:560px;margin:0 auto;padding:24px"><div style="background:#0F1511;border:1px solid #1C271E;border-radius:16px;overflow:hidden"><div style="padding:24px 28px 0;border-bottom:1px solid #1C271E;padding-bottom:20px"><span style="font-weight:900;font-size:17px;color:${accent};letter-spacing:-.01em">NEPA<em style="font-style:normal;color:#E6EDE8">Watch</em></span></div><div style="padding:28px"><h1 style="margin:0 0 20px;font-size:21px;font-weight:800;color:#E6EDE8;line-height:1.25">${headline}</h1><div style="background:#141C16;border:1px solid #1C271E;border-radius:12px;padding:20px;margin-bottom:20px">${rowsHtml}</div><a href="${APP_URL}" style="display:block;background:${accent};color:#07090A;text-align:center;padding:13px 20px;border-radius:12px;font-weight:700;font-size:15px;text-decoration:none">Open NEPAWatch</a></div><div style="padding:16px 28px;border-top:1px solid #1C271E;font-size:12px;color:#4A6A52">NEPAWatch Nigeria · <a href="${APP_URL}" style="color:#4A6A52">Unsubscribe</a></div></div></div></body></html>`;
+}
+
 async function sendEmail(to, subject, body, htmlBody) {
   if (!to || !subject) return;
   const html = htmlBody || null;
@@ -3763,23 +3768,40 @@ function _scheduleLocalNotifications(){
   const watNow=new Date(Date.now()+3600000);
   const watHour=watNow.getUTCHours();
   const watDay=watNow.getUTCDay(); // 0=Sun
+  const userName=PR.name?.split(' ')[0]||'';
+  const userEmail=CU.email;
 
-  // ── Inactivity re-engagement: 3+ days without opening app
+  // ── Inactivity re-engagement: 24+ hours without opening app (daily reminder)
   const LAST_KEY='nw-last-visit';
+  const INACT_KEY='nw-inact-'+today;
   const lastVisit=parseInt(localStorage.getItem(LAST_KEY)||'0');
-  if(lastVisit){
-    const daysSince=(Date.now()-lastVisit)/86400000;
-    if(daysSince>=3&&PR.location_area){
+  if(lastVisit&&!localStorage.getItem(INACT_KEY)){
+    const hoursSince=(Date.now()-lastVisit)/3600000;
+    if(hoursSince>=24&&PR.location_area){
+      localStorage.setItem(INACT_KEY,'1');
+      const daysNum=Math.floor(hoursSince/24);
+      const daysLabel=daysNum===1?'1 day':`${daysNum} days`;
       const outCnt=reports.filter(r=>areaMatches(r.area,PR.location_area)&&r.type==='out'&&r.time>lastVisit).length;
-      const body=outCnt>0
+      const notifBody=outCnt>0
         ?`${outCnt} outage${outCnt!==1?'s':''} hit ${PR.location_area} while you were away. Come see what happened.`
-        :`Your area ${PR.location_area} had activity while you were gone. Check what you missed.`;
-      _fireNotification(`NEPAWatch missed you — ${Math.floor(daysSince)} days away`,body,'inactivity',PR.location_area,'/');
+        :`${PR.location_area} had activity while you were gone — check what you missed.`;
+      _fireNotification(`NEPAWatch missed you — ${daysLabel} away`,notifBody,'inactivity',PR.location_area,'/');
+      // Email
+      if(userEmail&&PR.notif_on!==false){
+        const subject=`NEPAWatch missed you — ${daysLabel} away`;
+        const plainText=`Hi ${userName},\n\n${notifBody}\n\nOpen NEPAWatch to catch up: ${APP_URL}\n\n— NEPAWatch`;
+        const html=_buildNotifHtml(`NEPAWatch missed you — ${daysLabel} away`,[
+          outCnt>0?['Outages in your area',`${outCnt} outage${outCnt!==1?'s':''} while you were away`]:['Status',`Activity in ${PR.location_area} while you were away`],
+          ['Time away',daysLabel],
+          ['Your area',PR.location_area],
+        ],'#3b82f6');
+        sendEmail(userEmail,subject,plainText,html).catch(()=>{});
+      }
     }
   }
   localStorage.setItem(LAST_KEY,String(Date.now()));
 
-  // ── Streak danger: fire at 9pm WAT if streak active and not reported today
+  // ── Streak danger: fire once at 9pm WAT if streak active and not reported today
   const SNUDGE_KEY='nw-snudge-'+today;
   if(watHour>=21&&PR.current_streak>0&&PR.last_report_date!==today&&!localStorage.getItem(SNUDGE_KEY)){
     localStorage.setItem(SNUDGE_KEY,'1');
@@ -3789,6 +3811,17 @@ function _scheduleLocalNotifications(){
       `You haven't reported today. Open NEPAWatch before midnight to keep your ${s}-day streak alive.`,
       'streak','','/'
     );
+    // Email
+    if(userEmail&&PR.notif_on!==false){
+      const subject=`Your ${s}-day streak is at risk — report before midnight`;
+      const plainText=`Hi ${userName},\n\nYour ${s}-day reporting streak will reset at midnight if you don't report today.\n\nIt only takes 10 seconds — open NEPAWatch and report your area.\n\n${APP_URL}\n\n— NEPAWatch`;
+      const html=_buildNotifHtml(`Your ${s}-day streak is at risk`,[
+        ['Current streak',`${s} day${s!==1?'s':''}`],
+        ['Status','No report yet today'],
+        ['Deadline','Midnight tonight (WAT)'],
+      ],'#f97316');
+      sendEmail(userEmail,subject,plainText,html).catch(()=>{});
+    }
   }
 
   // ── Weekly summary: Sunday >= 7pm WAT
@@ -3810,20 +3843,46 @@ async function _fireWeeklySummaryNotif(){
     const wStart=new Date(monMid.getTime()-3600000).toISOString();
     const{data}=await sb.from('reports').select('user_id').gte('created_at',wStart).neq('user_id',AI_USER_ID).limit(500);
     if(!data)return;
+
+    /* Build real counts and rank from live DB data */
     const cm={};data.forEach(r=>{if(r.user_id)cm[r.user_id]=(cm[r.user_id]||0)+1;});
     const myCount=cm[CU.id]||0;
-    const myRank=Object.entries(cm).sort((a,b)=>b[1]-a[1]).findIndex(([uid])=>uid===CU.id)+1;
+    const sorted=Object.entries(cm).sort((a,b)=>b[1]-a[1]);
+    const myRank=sorted.findIndex(([uid])=>uid===CU.id)+1; // 0 if not found → +1=1 but we guard below
+    const hasRank=myCount>0&&myRank>0;
     const area=PR.location_area||'your area';
-    const rankTxt=myRank>0?` Ranked #${myRank} in Lagos this week.`:'';
-    const streakTxt=PR.current_streak>0?` ${PR.current_streak}-day streak.`:'';
-    const motivator=myCount>=5?'You are one of NEPAWatch\'s most active guardians this week.'
-      :myCount>=1?`You reported ${myCount} time${myCount!==1?'s':''} — every report helps your neighbors.`
-      :'We missed your reports this week. Your neighbors are counting on you. Come back!';
+    const streak=PR.current_streak||0;
+
+    const rankTxt=hasRank?` Ranked #${myRank} in Lagos this week.`:'';
+    const streakTxt=streak>0?` ${streak}-day streak.`:'';
+    const motivator=myCount>=5
+      ?`You are one of NEPAWatch's most active guardians this week. Nigeria sees your effort.`
+      :myCount>=1
+      ?`You reported ${myCount} time${myCount!==1?'s':''} this week — every report makes the map more accurate for your neighbors.`
+      :`We missed your reports this week. Your neighbors are counting on you. Come back!`;
+
+    /* Push notification */
     _fireNotification(
       `Your NEPAWatch Week — ${area}`,
       `${motivator}${rankTxt}${streakTxt}`,
       'weekly',area,'/?page=community'
     );
+
+    /* Email — only if user has email alerts on */
+    const userEmail=CU.email;
+    if(userEmail&&PR.notif_on!==false){
+      const subject=`Your NEPAWatch Weekly: ${area} — ${myCount} report${myCount!==1?'s':''} this week`;
+      const plainText=`Hi ${PR.name?.split(' ')[0]||''},\n\n${motivator}${rankTxt}${streakTxt}\n\nSee the full leaderboard: ${APP_URL}\n\n— NEPAWatch`;
+      const rows=[
+        ['Your area',area],
+        ['Your reports this week',String(myCount)],
+        ...(hasRank?[['Your rank',`#${myRank} in Lagos`]]:[] ),
+        ...(streak>0?[['Reporting streak',`${streak} day${streak!==1?'s':''}`]]:[] ),
+        ['Community','Total '+sorted.length+' reporter'+(sorted.length!==1?'s':'')+' this week'],
+      ];
+      const html=_buildNotifHtml(`Your NEPAWatch Week — ${area}`,rows,'#AAFF00');
+      sendEmail(userEmail,subject,plainText,html).catch(()=>{});
+    }
   }catch(e){}
 }
 
