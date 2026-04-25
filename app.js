@@ -2355,7 +2355,7 @@ async function initAuth(){
 }
 function _resetFormHTML(){return`<div class="auth-wrap"><div class="auth-logo"><div class="auth-logo-icon" style="background:var(--p)">${LOGO_IMG_TAG}</div><span class="auth-logo-name">NEPA<em>Watch</em></span></div><h2>Set new password</h2><p class="auth-sub">Choose a strong new password for your account.</p><div class="msg err" id="authErr"></div><div class="msg ok" id="authOk"></div><div class="fld"><label>New Password</label><input id="inp-newpass" type="password" placeholder="Min 6 characters" autocomplete="new-password"><button type="button" class="pw-eye-btn" onclick="appTogglePw(this)" tabindex="-1"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M1 8C2.5 5 5 3.5 8 3.5C11 3.5 13.5 5 15 8C13.5 11 11 12.5 8 12.5C5 12.5 2.5 11 1 8Z" stroke="currentColor" stroke-width="1.3"/><circle cx="8" cy="8" r="2.2" stroke="currentColor" stroke-width="1.3"/></svg></button></div><div class="fld"><label>Confirm Password</label><input id="inp-confpass" type="password" placeholder="Repeat password" autocomplete="new-password"><button type="button" class="pw-eye-btn" onclick="appTogglePw(this)" tabindex="-1"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M1 8C2.5 5 5 3.5 8 3.5C11 3.5 13.5 5 15 8C13.5 11 11 12.5 8 12.5C5 12.5 2.5 11 1 8Z" stroke="currentColor" stroke-width="1.3"/><circle cx="8" cy="8" r="2.2" stroke="currentColor" stroke-width="1.3"/></svg></button></div><button class="auth-btn" id="authBtn" onclick="doPasswordReset()">Update Password</button></div>`;}
 
-async function loadProfile(){if(!CU)return;try{const{data,error}=await sb.from("profiles").select("*").eq("id",CU.id).single();if(!error&&data){PR=data;if(PR.location_id){document.getElementById("locTag").classList.add("on");document.getElementById("locLabel").textContent=PR.location_label||PR.location_name;}}else if(error&&error.code==="PGRST116"){const name=CU.user_metadata?.name||CU.email.split("@")[0];await sb.from("profiles").upsert({id:CU.id,email:CU.email,name,notif_on:true},{onConflict:"id"});PR={id:CU.id,email:CU.email,name,notif_on:true,location_id:null};}if(PR){renderStreakBanner();setTimeout(_scheduleLocalNotifications,2000);}
+async function loadProfile(){if(!CU)return;try{const{data,error}=await sb.from("profiles").select("*").eq("id",CU.id).single();if(!error&&data){PR=data;if(PR.location_id){document.getElementById("locTag").classList.add("on");document.getElementById("locLabel").textContent=PR.location_label||PR.location_name;}}else if(error&&error.code==="PGRST116"){const name=CU.user_metadata?.name||CU.email.split("@")[0];await sb.from("profiles").upsert({id:CU.id,email:CU.email,name,notif_on:true},{onConflict:"id"});PR={id:CU.id,email:CU.email,name,notif_on:true,location_id:null};}if(PR){renderStreakBanner();renderHomeAchievements();setTimeout(_scheduleLocalNotifications,2000);}
   }catch(e){}}
 
 async function doRegister(name,email,pass){const{data,error}=await sb.auth.signUp({email,password:pass,options:{data:{name},emailRedirectTo:APP_URL+"?mode=reset"}});if(error){if(error.message?.toLowerCase().includes("rate limit")||error.message?.toLowerCase().includes("over_email_send_rate_limit"))throw new Error("RATE_LIMIT");throw new Error(error.message);}if(data.user){await sb.from("profiles").upsert({id:data.user.id,email,name,notif_on:true},{onConflict:"id"});}if(data.session){CU=data.user;await loadProfile();renderAccount();updateBanner();toast(`Welcome, ${name}!`,"ok");_maybeStartTour();}sendEmail(email,"Welcome to NEPAWatch Nigeria",`Hi ${name},\n\nWelcome to NEPAWatch Nigeria!\n\nYou will receive real-time email alerts whenever power goes out or is restored near your street.\n\nOpen the app and set your location to activate alerts.\n\nStay powered,\nNEPAWatch Nigeria`,buildEmailHtml({type:'welcome',name,appUrl:APP_URL}));return data;}
@@ -3498,7 +3498,12 @@ async function renderCommunity(){
         const streakBit=streak>=3?`${_ico("flame",11,"#f97316")}<span style="color:#f97316;font-weight:700">${streak}</span>`:"";
         const areaTag=r.area?`<span>${r.area}</span>`:"";
         const rankLabel=isChamp?_ico("crown",14,"#FFB800"):String(i+1);
-        return`<div class="lbi${isChamp?" champion":""}${isMe?" me":""}"><div class="lbr ${rankClass[i]||""}">${rankLabel}</div><div style="width:33px;height:33px;border-radius:50%;background:rgba(255,255,255,.06);color:${avatarColor};display:flex;align-items:center;justify-content:center;font-size:.64rem;font-weight:800;flex-shrink:0;border:1.5px solid ${avatarColor}44">${initials}</div><div style="flex:1;min-width:0"><div class="lbi-n">${r.name||"Reporter"} ${champBadge}${meBadge}</div><div class="lbi-a">${areaTag}${areaTag&&streakBit?" · ":""}${streakBit}</div></div><div class="lbi-c">${r.count}<small>report${r.count!==1?"s":""}</small></div></div>`;
+        /* Show top earned badge icon in leaderboard row */
+        const userBadges=streakMap[r.uid]?.badges||[];
+        const topBadgeKey=BADGE_PRIORITY.find(k=>userBadges.includes(k));
+        const topBadgeDef=topBadgeKey?BADGE_DEFS[topBadgeKey]:null;
+        const badgeBit=topBadgeDef?`<span class="lbi-badges" title="${topBadgeDef.name}">${_ico(topBadgeDef.iconKey,11,topBadgeDef.gold?'#f59e0b':topBadgeDef.color)}</span>`:'';
+        return`<div class="lbi${isChamp?" champion":""}${isMe?" me":""}"><div class="lbr ${rankClass[i]||""}">${rankLabel}</div><div style="width:33px;height:33px;border-radius:50%;background:rgba(255,255,255,.06);color:${avatarColor};display:flex;align-items:center;justify-content:center;font-size:.64rem;font-weight:800;flex-shrink:0;border:1.5px solid ${avatarColor}44">${initials}</div><div style="flex:1;min-width:0"><div class="lbi-n">${r.name||"Reporter"} ${champBadge}${meBadge}${badgeBit}</div><div class="lbi-a">${areaTag}${areaTag&&streakBit?" · ":""}${streakBit}</div></div><div class="lbi-c">${r.count}<small>report${r.count!==1?"s":""}</small></div></div>`;
       }).join("");
 
       /* ── Personal rank banner ── */
@@ -3560,6 +3565,33 @@ function _showChampToast(){
   setTimeout(()=>{t.classList.remove("show");setTimeout(()=>t.remove(),500);},4000);
 }
 
+/* ━━━ BADGE RENDERING HELPERS ━━━ */
+function _renderBadgeGrid(earned){
+  const earnedSet=new Set(earned||[]);
+  return BADGE_DISPLAY_ORDER.map(key=>{
+    const def=BADGE_DEFS[key];if(!def)return'';
+    const has=earnedSet.has(key);
+    const color=has?(def.gold?'#f59e0b':def.color):'var(--ink3)';
+    const bg=has?(def.gold?'rgba(245,158,11,.1)':`${def.color}18`):'var(--sf2)';
+    const border=has?(def.gold?'rgba(245,158,11,.45)':`${def.color}30`):'var(--bd)';
+    const glow=has&&def.gold?'box-shadow:0 0 14px rgba(245,158,11,.2);':'';
+    return`<div class="badge-item${has?has&&def.gold?' gold':' earned':' locked'}" style="background:${bg};border-color:${border};${glow}" title="${def.desc}" onclick="${has?`showBadgeCelebration('${key}')`:''}" >
+      <div class="badge-ico">${_ico(def.iconKey,22,color)}</div>
+      <div class="badge-name">${def.name}</div>
+    </div>`;
+  }).join('');
+}
+
+function renderHomeAchievements(){
+  const el=document.getElementById('homeAchievements');
+  if(!el)return;
+  if(!CU||!PR){el.style.display='none';return;}
+  const earned=(PR.badges||[]).filter(k=>BADGE_DEFS[k]);
+  const earnedMain=earned.filter(k=>BADGE_DISPLAY_ORDER.includes(k));
+  el.style.display='block';
+  el.innerHTML=`<div class="achiev-wrap"><div class="achiev-hd"><span class="achiev-hd-title">Your Achievements</span><span class="achiev-hd-count">${earnedMain.length}/${BADGE_DISPLAY_ORDER.length}</span></div><div class="badge-grid">${_renderBadgeGrid(earned)}</div></div>`;
+}
+
 function renderFallbackLeaderboard(){document.getElementById("lbList").innerHTML=`<div class="empty" style="padding:24px 18px"><div class="empty-ico">${IC.user}</div><p>Be the first to report! Top reporters will appear here.</p></div>`;}
 
 function renderAccount(){const el=document.getElementById("authWrap");if(CU&&PR){renderProfile(el);_maybeShowA2HSOnAccount();}else if(CU&&!PR)el.innerHTML=`<div class="loading-row"><div class="spin w"></div>Loading profile...</div>`;else renderAuthForm(el,"login");}
@@ -3584,7 +3616,11 @@ function renderProfile(el){const locText=PR.location_label||PR.location_name||"N
     pushSt==='ios-needs-install'?`<a href="https://support.apple.com/guide/iphone/bookmark-favorite-webpages-iph42ab2f3a7/ios" target="_blank" style="font-size:.65rem;font-weight:600;color:var(--p);background:var(--pp);border:1px solid var(--pb);border-radius:6px;padding:4px 9px;cursor:pointer;text-decoration:none">How?</a>`:
     `<button class="toggle ${pushSt==='enabled'?'on':''}" onclick="togglePushNotif()"></button>`;
 el.innerHTML=`<div class="ph"><h2>Account</h2><p>Manage your alerts and locations</p></div><div class="profile-card"><div class="pc-top"><div class="pc-av">${(PR.name||"?")[0].toUpperCase()}</div><div><div class="pc-name">${PR.name||"User"}</div><div class="pc-email">${PR.email||CU.email}</div></div></div><div class="pc-row"><div class="pc-rl-wrap"><div class="pc-ico"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1A3 3 0 0 0 4 4C4 7.5 7 12 7 12S10 7.5 10 4A3 3 0 0 0 7 1z" stroke="currentColor" stroke-width="1.3"/><circle cx="7" cy="4" r="1.2" fill="currentColor"/></svg></div><div><div class="pc-rl">Watching area</div><div class="pc-rs">${locText}</div></div></div>${PR.location_id?`<button onclick="clearLoc()" style="font-size:.65rem;font-weight:600;color:var(--ink3);background:none;border:1px solid var(--bd);border-radius:6px;padding:4px 9px;cursor:pointer">Clear</button>`:""}</div><div class="pc-row"><div class="pc-rl-wrap"><div class="pc-ico"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M1.5 7L7 1.5L12.5 7V12.5H9V9H5V12.5H1.5V7Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg></div><div><div class="pc-rl">Saved Places</div><div class="pc-rs">${savedCount} place${savedCount!==1?"s":""} saved</div></div></div><button onclick="go('myarea')" style="font-size:.65rem;font-weight:600;color:var(--p);background:var(--pp);border:1px solid var(--pb);border-radius:6px;padding:4px 9px;cursor:pointer">Manage</button></div><div class="pc-row"><div class="pc-rl-wrap"><div class="pc-ico"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="1" y="2.5" width="12" height="9" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M1 5L7 8.5L13 5" stroke="currentColor" stroke-width="1.3"/></svg></div><div><div class="pc-rl">Email Alerts</div><div class="pc-rs">${notifOn?"On — receiving alerts":"Off — tap to enable"}</div></div></div><button class="toggle ${notifOn?"on":""}" id="notifToggle" onclick="toggleNotif()"></button></div>
-<div class="pc-row"><div class="pc-rl-wrap"><div class="pc-ico"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1.5L5 5H2.5l2 2-1 3.5L7 8.5 9.5 10.5l-1-3.5 2-2H8L7 1.5z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg></div><div><div class="pc-rl">Push Notifications</div><div class="pc-rs" id="pushStatusTxt">${pushStatusText}</div></div></div>${pushBtn}</div><div class="pc-row"><div class="pc-rl-wrap"><div class="pc-ico"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="5" r="3" stroke="currentColor" stroke-width="1.3"/><path d="M1.5 13c0-3 2.5-4.5 5.5-4.5s5.5 1.5 5.5 4.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></div><div><div class="pc-rl">Alert address</div><div class="pc-rs">${CU.email}</div></div></div></div>${emailLog.length?`<div class="email-log"><div class="email-log-hd">Recent Alerts Sent</div>${emailLog.map(e=>`<div class="ei"><div class="ei-s">${e.subject}</div><div class="ei-m">${e.to} &middot; ${e.time}</div></div>`).join("")}</div>`:""}<button class="logout-btn" onclick="doLogout()">Sign Out</button></div>`;}
+<div class="pc-row"><div class="pc-rl-wrap"><div class="pc-ico"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1.5L5 5H2.5l2 2-1 3.5L7 8.5 9.5 10.5l-1-3.5 2-2H8L7 1.5z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg></div><div><div class="pc-rl">Push Notifications</div><div class="pc-rs" id="pushStatusTxt">${pushStatusText}</div></div></div>${pushBtn}</div><div class="pc-row"><div class="pc-rl-wrap"><div class="pc-ico"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="5" r="3" stroke="currentColor" stroke-width="1.3"/><path d="M1.5 13c0-3 2.5-4.5 5.5-4.5s5.5 1.5 5.5 4.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></div><div><div class="pc-rl">Alert address</div><div class="pc-rs">${CU.email}</div></div></div></div>${emailLog.length?`<div class="email-log"><div class="email-log-hd">Recent Alerts Sent</div>${emailLog.map(e=>`<div class="ei"><div class="ei-s">${e.subject}</div><div class="ei-m">${e.to} &middot; ${e.time}</div></div>`).join("")}</div>`:""}</div>
+<div class="slbl" style="margin-top:4px">Your Achievements</div>
+<div class="badge-grid" style="margin-bottom:12px">${_renderBadgeGrid(PR.badges||[])}</div>
+${PR.referral_code?`<div class="ref-pill"><div class="wrp-info"><div style="font-size:.62rem;color:var(--ink3);font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px">Refer a Friend</div><div class="ref-pill-link">${APP_URL}?ref=${PR.referral_code}</div></div><button class="ref-copy-btn" onclick="navigator.clipboard.writeText('${APP_URL}?ref=${PR.referral_code}').then(()=>toast('Link copied!','ok'))">Copy</button></div>`:''}
+<button class="logout-btn" style="margin:0 18px 24px" onclick="doLogout()">Sign Out</button>`;}
 
 /* ━━━ PATCH 3: go() — handles predict page + widget refresh ━━━ */
 function go(page){
@@ -4972,6 +5008,8 @@ const _SVG = {
   medal:     `<svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="8" cy="10" r="4" stroke="currentColor" stroke-width="1.4"/><path d="M5.5 2.5h5L9 6H7L5.5 2.5z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>`,
   gold:      `<svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="8" cy="10" r="4" stroke="currentColor" stroke-width="1.4"/><path d="M5.5 2.5h5L9 6H7L5.5 2.5z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><path d="M8 8.5v3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>`,
   warning:   `<svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M8 2L2 13h12L8 2z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><path d="M8 7v2.5M8 11v.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>`,
+  users:     `<svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="6" cy="5.5" r="2.5" stroke="currentColor" stroke-width="1.4"/><path d="M1 13.5c0-2.5 2.2-4 5-4s5 1.5 5 4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M11 3.5c1.5.3 2.5 1.5 2.5 3s-1 2.7-2.5 3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M13 11c1.5.5 2.5 1.7 2.5 3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>`,
+  plant:     `<svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M8 14V7" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M8 9C8 9 5 8.5 3.5 6.5S3 2.5 3 2.5S6.5 2 8 4c1.5-2 4.5-1.5 4.5-1.5S12.5 5 11 7S8 9 8 9z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>`,
 };
 
 // Returns the SVG string sized and coloured
@@ -4980,17 +5018,24 @@ function _ico(key, size = 16, color = 'currentColor') {
 }
 
 const BADGE_DEFS = {
-  first_report:    { iconKey: 'signal',    color: '#3b82f6', name: 'First Signal',     desc: 'Your first report — the journey begins!' },
-  streak_3:        { iconKey: 'flame',     color: '#f97316', name: 'On Fire',           desc: '3-day reporting streak' },
-  streak_7:        { iconKey: 'lightning', color: '#eab308', name: 'Power Watcher',     desc: '7-day reporting streak' },
-  streak_14:       { iconKey: 'star',      color: '#a855f7', name: 'NEPA Guardian',     desc: '14-day reporting streak' },
-  streak_30:       { iconKey: 'trophy',    color: '#f59e0b', name: 'Electricity Lord',  desc: '30-day reporting streak' },
-  streak_100:      { iconKey: 'crown',     color: '#f43f5e', name: 'Legend',            desc: '100-day reporting streak' },
-  reports_10:      { iconKey: 'chart',     color: '#10b981', name: 'Data Warrior',      desc: '10 total reports submitted' },
-  reports_50:      { iconKey: 'shield',    color: '#6366f1', name: 'Outage Hero',       desc: '50 total reports submitted' },
-  reports_100:     { iconKey: 'medal',     color: '#ec4899', name: 'Power General',     desc: '100 total reports submitted' },
-  weekly_champion: { iconKey: 'gold',      color: '#f59e0b', name: 'Weekly Champion',   desc: 'Top reporter in your area this week' },
+  first_report:    { iconKey:'plant',   color:'#22c55e', name:'First Report',       desc:'Submitted your first report — the journey begins!',  shareMsg:(a)=>`I just submitted my first power report on NEPAWatch! Helping Nigeria stay informed about power in ${a||'my area'}. Join me: nepawatch.app` },
+  streak_3:        { iconKey:'flame',   color:'#f97316', name:'3-Day Streak',       desc:'Reported 3 days in a row',                            shareMsg:(a)=>`I just hit a 3-day reporting streak on NEPAWatch! Tracking power in ${a||'my area'} every day. Join me: nepawatch.app` },
+  streak_7:        { iconKey:'shield',  color:'#eab308', name:'Area Guardian',      desc:'7-day reporting streak — your area depends on you',   shareMsg:(a)=>`I just earned the Area Guardian badge on NEPAWatch for tracking power in ${a||'my area'} for 7 days straight! Join me: nepawatch.app` },
+  streak_14:       { iconKey:'star',    color:'#a855f7', name:'Power Tracker',      desc:'14-day reporting streak — two weeks strong',          shareMsg:(a)=>`14-day reporting streak on NEPAWatch! Tracking power outages in ${a||'my area'} every single day. Join me: nepawatch.app` },
+  streak_30:       { iconKey:'trophy',  color:'#22c55e', name:'NEPA Veteran',       desc:'30-day streak — one month of power watching',         shareMsg:(a)=>`I just earned the NEPA Veteran badge on NEPAWatch — 30 days straight tracking power in ${a||'my area'}! Join me: nepawatch.app` },
+  streak_100:      { iconKey:'crown',   color:'#f59e0b', name:'Grid Watcher',       desc:'100-day streak — ultra rare, gold tier',              shareMsg:(a)=>`100-day reporting streak on NEPAWatch. I am the Grid Watcher of ${a||'my area'} — ultra rare badge. Join me: nepawatch.app`, gold:true },
+  reports_10:      { iconKey:'chart',   color:'#10b981', name:'10 Reports',         desc:'10 total reports submitted',                          shareMsg:(a)=>`Just hit 10 reports on NEPAWatch — helping ${a||'my area'} stay informed about power. Join me: nepawatch.app` },
+  reports_25:      { iconKey:'lightning',color:'#6366f1',name:'Power Watcher',      desc:'25 total reports submitted',                          shareMsg:(a)=>`Just earned the Power Watcher badge on NEPAWatch — 25 reports from ${a||'my area'}! Join me: nepawatch.app` },
+  reports_50:      { iconKey:'medal',   color:'#ec4899', name:'Outage Hero',        desc:'50 total reports submitted',                          shareMsg:(a)=>`50 reports on NEPAWatch! Helping ${a||'my area'} stay informed about power. Join: nepawatch.app` },
+  reports_100:     { iconKey:'medal',   color:'#f43f5e', name:'Power General',      desc:'100 total reports submitted',                         shareMsg:(a)=>`100 reports on NEPAWatch — Power General status in ${a||'my area'}! Join me: nepawatch.app` },
+  weekly_champion: { iconKey:'gold',    color:'#f59e0b', name:'Weekly Champion',    desc:'Top reporter of the week — community leader',         shareMsg:(a)=>`I just won Weekly Champion on NEPAWatch — top reporter in ${a||'Lagos'} this week! Join me: nepawatch.app` },
+  referral_3:      { iconKey:'users',   color:'#06b6d4', name:'Community Builder',  desc:'Referred 3 friends who joined NEPAWatch',             shareMsg:(a)=>`I just earned the Community Builder badge on NEPAWatch for bringing 3 friends to track power in Nigeria! Join us: nepawatch.app` },
 };
+
+// Badge display order for the 8 main badges shown in UI
+const BADGE_DISPLAY_ORDER = ['first_report','streak_3','streak_7','streak_30','streak_100','reports_25','weekly_champion','referral_3'];
+// Priority order for showing "best badge" in leaderboard (highest first)
+const BADGE_PRIORITY = ['streak_100','weekly_champion','streak_30','streak_14','streak_7','reports_100','reports_50','reports_25','streak_3','referral_3','first_report'];
 
 // WAT = UTC+1 (Africa/Lagos). Returns "YYYY-MM-DD".
 function getTodayWAT() {
@@ -5044,6 +5089,7 @@ function _checkBadges(profile, totalReports, streak) {
 
   if (totalReports >= 1   && !current.has('first_report'))  toAward.push('first_report');
   if (totalReports >= 10  && !current.has('reports_10'))    toAward.push('reports_10');
+  if (totalReports >= 25  && !current.has('reports_25'))    toAward.push('reports_25');
   if (totalReports >= 50  && !current.has('reports_50'))    toAward.push('reports_50');
   if (totalReports >= 100 && !current.has('reports_100'))   toAward.push('reports_100');
   if (streak >= 3   && !current.has('streak_3'))            toAward.push('streak_3');
@@ -5051,14 +5097,48 @@ function _checkBadges(profile, totalReports, streak) {
   if (streak >= 14  && !current.has('streak_14'))           toAward.push('streak_14');
   if (streak >= 30  && !current.has('streak_30'))           toAward.push('streak_30');
   if (streak >= 100 && !current.has('streak_100'))          toAward.push('streak_100');
+  if ((profile.referral_count || 0) >= 3 && !current.has('referral_3')) toAward.push('referral_3');
 
   if (!toAward.length) return;
 
   const newBadges = [...current, ...toAward];
   sb.from('profiles').update({ badges: newBadges }).eq('id', CU.id).then(() => {
     PR.badges = newBadges;
-    showBadgeCelebration(toAward[toAward.length - 1]);
+    // Show celebration for the highest-priority new badge
+    const celebrate = BADGE_PRIORITY.find(k => toAward.includes(k)) || toAward[toAward.length - 1];
+    showBadgeCelebration(celebrate);
+    renderHomeAchievements();
   });
+}
+
+let _celebBadgeKey = '';
+
+function showBadgeCelebration(badgeKey) {
+  const def = BADGE_DEFS[badgeKey];
+  if (!def) return;
+  _celebBadgeKey = badgeKey;
+  const overlay = document.getElementById('badgeCelebOverlay');
+  if (!overlay) return;
+  document.getElementById('badgeCelebIcon').innerHTML = _ico(def.iconKey, 60, def.gold ? '#f59e0b' : def.color);
+  document.getElementById('badgeCelebTitle').textContent = def.name;
+  document.getElementById('badgeCelebSub').textContent = def.desc;
+  const box = document.getElementById('badgeCelebBox');
+  if (box) box.style.borderColor = def.gold ? 'rgba(245,158,11,.5)' : 'var(--bd)';
+  overlay.style.display = 'flex';
+  spawnConfetti();
+}
+
+function closeBadgeCeleb() {
+  const overlay = document.getElementById('badgeCelebOverlay');
+  if (overlay) overlay.style.display = 'none';
+}
+
+function shareBadgeWhatsApp() {
+  const def = BADGE_DEFS[_celebBadgeKey];
+  if (!def) return;
+  const area = PR?.location_area || PR?.location_name || 'my area';
+  const msg = def.shareMsg ? def.shareMsg(area) : `I just earned the "${def.name}" badge on NEPAWatch! Join me: nepawatch.app`;
+  window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
 }
 
 function renderStreakBanner() {
@@ -5111,29 +5191,6 @@ function showStreakMilestone(days) {
   setTimeout(() => t.remove(), 4200);
 }
 
-function showBadgeCelebration(badgeKey) {
-  const def     = BADGE_DEFS[badgeKey];
-  if (!def) return;
-  const overlay = document.getElementById('badgeCelebOverlay');
-  if (!overlay) return;
-  document.getElementById('badgeCelebIcon').innerHTML    = _ico(def.iconKey, 60, def.color);
-  document.getElementById('badgeCelebTitle').textContent = def.name;
-  document.getElementById('badgeCelebSub').textContent   = def.desc;
-  overlay.style.display = 'flex';
-  spawnConfetti();
-}
-
-function closeBadgeCeleb() {
-  const overlay = document.getElementById('badgeCelebOverlay');
-  if (overlay) overlay.style.display = 'none';
-}
-
-function shareBadgeWhatsApp() {
-  const name   = document.getElementById('badgeCelebTitle')?.textContent || 'badge';
-  const streak = PR?.current_streak || 0;
-  const msg = `I just earned the "${name}" badge on NEPAWatch!${streak > 0 ? ` ${streak}-day reporting streak!` : ''}\n\nJoin me — track power outages in your area: https://nepawatch.app`;
-  window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
-}
 
 function spawnConfetti() {
   const canvas = document.getElementById('confettiCanvas');
