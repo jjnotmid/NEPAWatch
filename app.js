@@ -3413,13 +3413,20 @@ async function renderCommunity(){
       /* Build name map — seed with known current user first */
       const profMap={};
       if(CU&&PR?.name) profMap[CU.id]=PR.name.split(" ")[0]||PR.name;
-      /* RPC is SECURITY DEFINER — bypasses RLS, reads auth.users directly */
-      try{
-        const{data:rpcData,error:rpcErr}=await sb.rpc("get_reporter_names",{user_ids:uids});
-        if(!rpcErr&&rpcData?.length){
-          rpcData.forEach(p=>{ if(p.first_name)profMap[p.id]=p.first_name; });
-        }
-      }catch(e){}
+      /* Run both in parallel — profiles direct query (after RLS fix) + RPC fallback */
+      await Promise.allSettled([
+        sb.from("profiles").select("id,name,email").in("id",uids).then(({data})=>{
+          (data||[]).forEach(p=>{
+            const n=(p.name&&p.name.trim())||p.email?.split("@")[0]||"";
+            if(n)profMap[p.id]=n.split(" ")[0]||n;
+          });
+        }),
+        sb.rpc("get_reporter_names",{user_ids:uids}).then(({data,error})=>{
+          if(!error&&data?.length)data.forEach(p=>{
+            if(p.first_name&&p.first_name!=="User")profMap[p.id]=p.first_name;
+          });
+        }),
+      ]);
       const _displayName=(uid)=>{
         if(profMap[uid])return profMap[uid];
         if(uid===CU?.id&&PR?.name)return PR.name.split(" ")[0]||PR.name;
