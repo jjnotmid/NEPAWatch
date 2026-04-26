@@ -149,56 +149,93 @@ const PredictHistory = {
   },
 };
 
-/* ─── WEATHER MODULE (Open-Meteo, free, no API key) ─────────────────────── */
-const WeatherState = {
-  code: null,       // WMO weather code
-  rain: 0,          // mm precipitation
-  wind: 0,          // km/h wind
-  lastFetch: 0,
-  FETCH_INTERVAL: 15 * 60 * 1000, // every 15 min
+/* ─── WEATHER CACHE (Open-Meteo, free, no API key) ──────────────────────── */
+/* Per-area weather using 1-degree grid cells (~100 km × 100 km).            */
+/* Nigeria spans 14° of latitude — Lagos weather must NOT be used for Kano.  */
+const WeatherCache = {
+  _store: {},                         /* cellKey → { code, rain, wind, lastFetch } */
+  FETCH_INTERVAL: 20 * 60 * 1000,    /* re-fetch each cell at most every 20 min   */
 
-  async refresh(lat, lng) {
-    if (Date.now() - this.lastFetch < this.FETCH_INTERVAL) return;
-    /* Use provided coords or default to Nigeria centroid (approx Abuja) */
-    const la = lat ?? 9.0765;
-    const lo = lng ?? 7.3986;
-    try {
-      const url = `https://api.open-meteo.com/v1/forecast?latitude=${la}&longitude=${lo}&current=weathercode,precipitation,windspeed_10m&timezone=Africa%2FLagos`;
-      const res = await fetch(url);
-      const d = await res.json();
-      const c = d.current || {};
-      this.code = c.weathercode ?? null;
-      this.rain = c.precipitation ?? 0;
-      this.wind = c.windspeed_10m ?? 0;
-      this.lastFetch = Date.now();
-    } catch(e) { /* silent — model works without weather */ }
+  _key(lat, lng) {
+    return `${Math.round(lat)}|${Math.round(lng)}`;
   },
 
-  // Returns outage probability multiplier based on current weather
-  // WMO codes: 51-67 = rain, 80-82 = showers, 95-99 = thunderstorm
-  getRiskMultiplier() {
-    const c = this.code;
-    if (c === null) return 1.0;
-    if (c >= 95) return 1.85;             // thunderstorm — big spike
-    if (c >= 80 || (c >= 51 && c <= 67)) {
-      if (this.rain > 10) return 1.65;    // heavy rain
-      if (this.rain > 3)  return 1.40;    // moderate rain
-      return 1.20;                         // light rain
+  _coords(area) {
+    const c = (typeof AREA_COORDS !== 'undefined') ? AREA_COORDS[area] : null;
+    return c || { lat: 9.08, lng: 7.40 }; /* Nigeria centroid fallback (Abuja) */
+  },
+
+  _isStale(key) {
+    const e = this._store[key];
+    return !e || (Date.now() - e.lastFetch) >= this.FETCH_INTERVAL;
+  },
+
+  async _fetchCell(lat, lng) {
+    const key = this._key(lat, lng);
+    if (!this._isStale(key)) return;
+    try {
+      const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat.toFixed(1)}&longitude=${lng.toFixed(1)}&current=weathercode,precipitation,windspeed_10m&timezone=Africa%2FLagos`;
+      const res = await fetch(url);
+      const d   = await res.json();
+      const c   = d.current || {};
+      this._store[key] = {
+        code:      c.weathercode   ?? null,
+        rain:      c.precipitation ?? 0,
+        wind:      c.windspeed_10m ?? 0,
+        lastFetch: Date.now(),
+      };
+    } catch(e) {
+      /* Keep stale value — model degrades gracefully without weather */
+      if (!this._store[key]) this._store[key] = { code: null, rain: 0, wind: 0, lastFetch: Date.now() };
     }
-    if (this.wind > 40) return 1.30;      // high winds
+  },
+
+  /* Pre-fetch every unique 1-degree cell that covers the given area list.
+     Stale cells are fetched in parallel; fresh cells are skipped.           */
+  async prefetch(areas) {
+    const seen = new Set();
+    const fetches = [];
+    for (const area of areas) {
+      const { lat, lng } = this._coords(area);
+      const key = this._key(lat, lng);
+      if (!seen.has(key)) {
+        seen.add(key);
+        if (this._isStale(key)) fetches.push(this._fetchCell(lat, lng));
+      }
+    }
+    if (fetches.length) await Promise.allSettled(fetches);
+  },
+
+  /* Synchronous lookup — call prefetch() first so data is always available */
+  getFor(area) {
+    const { lat, lng } = this._coords(area);
+    return this._store[this._key(lat, lng)] || null;
+  },
+
+  /* WMO codes: 51-67 = rain, 80-82 = showers, 95-99 = thunderstorm */
+  getRiskMultiplier(wx) {
+    if (!wx || wx.code === null) return 1.0;
+    const c = wx.code;
+    if (c >= 95) return 1.85;
+    if (c >= 80 || (c >= 51 && c <= 67)) {
+      if (wx.rain > 10) return 1.65;
+      if (wx.rain > 3)  return 1.40;
+      return 1.20;
+    }
+    if (wx.wind > 40) return 1.30;
     return 1.0;
   },
 
-  getLabel() {
-    const c = this.code;
-    if (c === null) return null;
+  getLabel(wx) {
+    if (!wx || wx.code === null) return null;
+    const c = wx.code;
     if (c >= 95) return 'Thunderstorm';
     if (c >= 80) return 'Rain showers';
-    if (c >= 51 && c <= 67) return `Rain (${this.rain}mm)`;
+    if (c >= 51 && c <= 67) return `Rain (${wx.rain}mm)`;
     if (c >= 1 && c <= 3) return 'Cloudy';
     if (c === 0) return 'Clear';
     return null;
-  }
+  },
 };
 
 /* ─── GROUND TRUTH ENGINE ────────────────────────────────────────────────── */
@@ -278,10 +315,11 @@ function predictOutage(area, hour, dayOfWeek, statOnly = false) {
     statProb = base*0.45 + hProb*0.35 + (base*dAdj-base)*0.20; confidence = 'low';
   }
 
-  // Weather multiplier
-  const wx = WeatherState.getRiskMultiplier();
-  statProb = Math.min(0.97, statProb * wx);
-  if (wx > 1.3) confidence = confidence === 'low' ? 'medium' : 'high';
+  // Weather multiplier — area-specific, not a single global Lagos reading
+  const _wx = WeatherCache.getFor(area);
+  const wxFactor = WeatherCache.getRiskMultiplier(_wx);
+  statProb = Math.min(0.97, statProb * wxFactor);
+  if (wxFactor > 1.3) confidence = confidence === 'low' ? 'medium' : 'high';
 
   // Ground truth from live reports — dominates for current-day only
   // statOnly=true means we want the historical/day-of-week forecast without live override
@@ -302,7 +340,7 @@ function predictOutage(area, hour, dayOfWeek, statOnly = false) {
     confidence,
     band,
     bandSupplyHours: BAND_SUPPLY_HOURS[band],
-    weather: WeatherState.getLabel(),
+    weather: WeatherCache.getLabel(WeatherCache.getFor(area)),
     groundTruth: gt,
   };
 }
@@ -422,11 +460,9 @@ const AIReporter = {
   },
 
   async scan() {
-    /* Pass approximate coordinates for weather: default to Nigeria centroid */
-    const firstArea = Object.keys(AREA_BANDS)[0];
-    const coords = (typeof AREA_COORDS !== 'undefined' && AREA_COORDS[firstArea])
-      ? AREA_COORDS[firstArea] : null;
-    await WeatherState.refresh(coords?.lat, coords?.lng);
+    /* Pre-fetch weather for every unique 1-degree cell across all tracked areas.
+       Runs in parallel; each cell refreshes at most every 20 min.             */
+    await WeatherCache.prefetch(Object.keys(AREA_BANDS));
     this._rebuildState();
     const now=new Date(), h=now.getHours(), d=now.getDay();
     let firedCount = 0;
