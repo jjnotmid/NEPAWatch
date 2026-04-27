@@ -67,12 +67,45 @@ const BAND_BASELINE      = { A:0.18, B:0.28, C:0.42, D:0.58, E:0.74 };
 const BAND_SUPPLY_HOURS  = { A:22,   B:18,   C:14,   D:10,   E:6    };
 const BAND_COLOR         = { A:"#00E676", B:"#69F0AE", C:"#FFB300", D:"#FF7043", E:"#FF3D57" };
 
-/* Hourly demand-risk multipliers — Energy for Growth Hub (2025) dual peaks */
-const HOURLY_FACTOR = [
+
+/* ─── HOURLY DEMAND-RISK CURVES (region-specific) ────────────────────────
+   Nigeria spans 14° of latitude and three distinct demand cultures:
+
+   SOUTH  (lat ≤ 7.5°) — Lagos/SW/SS/SE — Energy for Growth Hub (2025)
+     Dual peaks: 5 am (water pumps, AC start) and 7 pm (cooking, lighting).
+
+   NORTH  (lat > 10°)  — Kano/KEDCO, Kaduna/KAEDCO
+     Earlier peaks: 5 am Fajr prayer + 6 pm Maghrib prayer/cooking.
+     Earlier bedtime, lower late-night demand, midday lull more pronounced.
+
+   CENTRAL (7.5° < lat ≤ 10°) — Abuja/AEDC, Jos/JED, Yola/YEDC, middle belt
+     Blends: small 5 am prayer spike + sustained 8 am–5 pm government-office
+     hump + 7 pm residential evening peak.                                   */
+
+const HOURLY_SOUTH = [              /* Lagos + South West / South South / South East */
   0.90,0.80,0.72,0.68,0.72,1.38,1.22,1.10,
   0.98,0.88,0.82,0.80,0.82,0.86,0.90,0.95,
   1.05,1.12,1.38,1.55,1.45,1.30,1.18,1.05,
 ];
+const HOURLY_NORTH = [              /* Kano / Kaduna — Fajr 5 am, Maghrib 6 pm peaks */
+  0.70,0.62,0.58,0.72,1.20,1.48,1.30,1.12,
+  0.98,0.90,0.88,0.90,0.95,1.02,1.05,1.00,
+  0.96,1.05,1.52,1.35,1.15,0.95,0.82,0.74,
+];
+const HOURLY_CENTRAL = [            /* Abuja / Jos / Yola / middle belt */
+  0.82,0.74,0.68,0.70,0.85,1.28,1.18,1.08,
+  1.05,1.02,0.98,0.95,0.95,0.96,0.98,1.02,
+  1.08,1.15,1.35,1.45,1.35,1.20,1.05,0.90,
+];
+
+function _getHourlyFactor(area) {
+  const c = (typeof AREA_COORDS !== 'undefined') ? AREA_COORDS[area] : null;
+  if (!c) return HOURLY_CENTRAL;
+  if (c.lat > 10.0) return HOURLY_NORTH;
+  if (c.lat <= 7.5)  return HOURLY_SOUTH;
+  return HOURLY_CENTRAL;
+}
+
 const DAY_FACTOR = [0.88,1.06,1.06,1.03,1.00,0.97,0.90]; /* 0=Sun */
 
 /* ─── HISTORY ENGINE ────────────────────────────────────────────────────── */
@@ -300,7 +333,7 @@ function getGroundTruth(area) {
 function predictOutage(area, hour, dayOfWeek, statOnly = false) {
   const band   = AREA_BANDS[area] || 'C';
   const base   = BAND_BASELINE[band];
-  const hProb  = Math.min(0.95, base * HOURLY_FACTOR[hour]);
+  const hProb  = Math.min(0.95, base * _getHourlyFactor(area)[hour]);
   const dAdj   = DAY_FACTOR[dayOfWeek];
   const hist   = PredictHistory.getRate(area, hour, dayOfWeek);
   const aHist  = PredictHistory.getAreaRate(area);
