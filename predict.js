@@ -63,9 +63,67 @@ const AREA_BANDS = {
   "Makurdi GRA":"B","Jos GRA":"B","Barnawa":"C","Mokola":"C",
 };
 
-const BAND_BASELINE      = { A:0.18, B:0.28, C:0.42, D:0.58, E:0.74 };
-const BAND_SUPPLY_HOURS  = { A:22,   B:18,   C:14,   D:10,   E:6    };
+const BAND_BASELINE      = { A:0.18, B:0.28, C:0.42, D:0.58, E:0.74 }; /* Lagos fallback */
+const BAND_SUPPLY_HOURS  = { A:22,   B:18,   C:14,   D:10,   E:6    }; /* Lagos fallback */
 const BAND_COLOR         = { A:"#00E676", B:"#69F0AE", C:"#FFB300", D:"#FF7043", E:"#FF3D57" };
+
+/* ─── PER-DISCO BAND BASELINES ────────────────────────────────────────────
+   Outage probability per NERC band, calibrated to each DISCO's actual
+   performance tier.  Source: NERC Annual Reports 2022-24 + SBT scorecards.
+
+   Key insight: Band A in Lagos (IE/EKEDC) averages ~21 h supply/day.
+   Band A in Kaduna (KAEDCO) averages ~11 h — nearly twice the outage rate.
+   A single flat baseline produces large systematic errors for non-Lagos areas. */
+const DISCO_BAND_BASELINE = {
+  'IE':     { A:0.18, B:0.28, C:0.42, D:0.58, E:0.74 }, /* Ikeja Electric  — Lagos North, best  */
+  'EKEDC':  { A:0.18, B:0.28, C:0.42, D:0.58, E:0.74 }, /* Eko Electric    — Lagos South        */
+  'AEDC':   { A:0.22, B:0.34, C:0.50, D:0.64, E:0.78 }, /* Abuja Electric  — above average      */
+  'IBEDC':  { A:0.32, B:0.44, C:0.57, D:0.70, E:0.82 }, /* Ibadan Electric — below average      */
+  'PHED':   { A:0.38, B:0.50, C:0.62, D:0.74, E:0.86 }, /* PHED Port Harcourt — poor            */
+  'EEDC':   { A:0.42, B:0.53, C:0.64, D:0.75, E:0.86 }, /* Enugu Electric  — poor               */
+  'BEDC':   { A:0.32, B:0.45, C:0.58, D:0.71, E:0.84 }, /* Benin Electric  — below average      */
+  'JED':    { A:0.45, B:0.56, C:0.67, D:0.77, E:0.88 }, /* Jos Electric    — poor               */
+  'KEDCO':  { A:0.40, B:0.52, C:0.64, D:0.76, E:0.88 }, /* Kano Electric   — poor, Northern     */
+  'KAEDCO': { A:0.48, B:0.59, C:0.70, D:0.81, E:0.92 }, /* Kaduna Electric — very poor          */
+  'YEDC':   { A:0.55, B:0.65, C:0.74, D:0.84, E:0.94 }, /* Yola Electric   — worst performer    */
+};
+
+/* Expected actual supply hours per band per DISCO (used in UI + duration model) */
+const DISCO_BAND_SUPPLY_HOURS = {
+  'IE':     { A:22, B:18, C:13, D:9,  E:7 },
+  'EKEDC':  { A:22, B:18, C:13, D:9,  E:7 },
+  'AEDC':   { A:20, B:16, C:12, D:8,  E:6 },
+  'IBEDC':  { A:17, B:13, C:10, D:7,  E:5 },
+  'PHED':   { A:14, B:11, C:9,  D:6,  E:3 },
+  'EEDC':   { A:14, B:11, C:9,  D:6,  E:3 },
+  'BEDC':   { A:17, B:13, C:10, D:7,  E:4 },
+  'JED':    { A:13, B:10, C:8,  D:6,  E:3 },
+  'KEDCO':  { A:14, B:11, C:9,  D:6,  E:3 },
+  'KAEDCO': { A:12, B:9,  C:7,  D:5,  E:2 },
+  'YEDC':   { A:10, B:8,  C:6,  D:4,  E:2 },
+};
+
+/* Area → DISCO lookup, built once on first use from NIGERIA_DISCOS.lgas */
+const _AREA_DISCO = {};
+let   _areaDiscoReady = false;
+function _buildAreaDiscoMap() {
+  if (_areaDiscoReady || typeof NIGERIA_DISCOS === 'undefined') return;
+  for (const d of NIGERIA_DISCOS)
+    for (const lga of (d.lgas || []))
+      _AREA_DISCO[lga] = d.shortName;
+  _areaDiscoReady = true;
+}
+
+function _getBandBaseline(area) {
+  _buildAreaDiscoMap();
+  const t = DISCO_BAND_BASELINE[_AREA_DISCO[area]];
+  return t || BAND_BASELINE;
+}
+function _getBandSupplyHours(area) {
+  _buildAreaDiscoMap();
+  const t = DISCO_BAND_SUPPLY_HOURS[_AREA_DISCO[area]];
+  return t || BAND_SUPPLY_HOURS;
+}
 
 
 /* ─── HOURLY DEMAND-RISK CURVES (region-specific) ────────────────────────
@@ -332,7 +390,7 @@ function getGroundTruth(area) {
 /* ─── CORE PREDICTION ────────────────────────────────────────────────────── */
 function predictOutage(area, hour, dayOfWeek, statOnly = false) {
   const band   = AREA_BANDS[area] || 'C';
-  const base   = BAND_BASELINE[band];
+  const base   = _getBandBaseline(area)[band];
   const hProb  = Math.min(0.95, base * _getHourlyFactor(area)[hour]);
   const dAdj   = DAY_FACTOR[dayOfWeek];
   const hist   = PredictHistory.getRate(area, hour, dayOfWeek);
@@ -372,7 +430,7 @@ function predictOutage(area, hour, dayOfWeek, statOnly = false) {
     prob: Math.min(0.97, Math.max(0.03, prob)),
     confidence,
     band,
-    bandSupplyHours: BAND_SUPPLY_HOURS[band],
+    bandSupplyHours: _getBandSupplyHours(area)[band],
     weather: WeatherCache.getLabel(WeatherCache.getFor(area)),
     groundTruth: gt,
   };
