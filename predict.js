@@ -19,6 +19,13 @@ const AI_RESTORE_THRESH     = 0.32;   /* restore more aggressively */
 const AI_MAX_PER_SCAN       = 6;      /* up to 6 reports per scan */
 const AI_MIN_REFIRE_MS      = 45 * 60 * 1000;  /* 45 min cooldown per area */
 
+/* Cold-start bootstrap — seeds new-DISCO cities before any human has reported.
+   Stricter than normal: higher threshold, 6 h cooldown, max 2 per scan, and
+   only for areas whose DISCO is mapped in NIGERIA_DISCOS.                   */
+const AI_BOOTSTRAP_THRESH       = 0.72;              /* well above normal 0.58   */
+const AI_BOOTSTRAP_COOLDOWN_MS  = 6 * 3600 * 1000;  /* 6 h vs normal 45 min     */
+const AI_MAX_BOOTSTRAP_PER_SCAN = 2;                 /* max 2 bootstrap fires/scan */
+
 /* Max time an AI outage can stay 'out' before auto-restoring if no human
    reports confirm it.  Based on typical Nigerian DISCO supply rotation cycles:
    Band A rotates every ~2h, Band E every ~12h.                               */
@@ -556,7 +563,7 @@ const AIReporter = {
     await WeatherCache.prefetch(Object.keys(AREA_BANDS));
     this._rebuildState();
     const now=new Date(), h=now.getHours(), d=now.getDay();
-    let firedCount = 0;
+    let firedCount = 0, bootstrapFired = 0;
     const areas = Object.keys(AREA_BANDS);
     // Shuffle to avoid always picking same areas first
     for (let i = areas.length - 1; i > 0; i--) {
@@ -574,9 +581,19 @@ const AIReporter = {
            a) Historical crowd data for this area (getAreaRate not null), OR
            b) Live ground truth from recent human reports, OR
            c) Strong weather signal AND at least area-level history           */
-      const hasHistory = PredictHistory.getAreaRate(area) !== null;
+      const hasHistory     = PredictHistory.getAreaRate(area) !== null;
       const hasGroundTruth = !!groundTruth && groundTruth.reportCount >= 1;
-      if (!hasHistory && !hasGroundTruth) continue; // pure speculation — skip
+      if (!hasHistory && !hasGroundTruth) {
+        /* Cold-start bootstrap: allow through only when the signal is very
+           strong, the DISCO is known, and we haven't already bootstrapped
+           2 areas this scan.  Cooldown is 6 h (vs normal 45 min) to avoid
+           flooding a city the AI has never seen a human confirm.             */
+        if (prob < AI_BOOTSTRAP_THRESH
+          || bootstrapFired >= AI_MAX_BOOTSTRAP_PER_SCAN
+          || !_AREA_DISCO[area]
+          || (Date.now() - (this._lastFired[area]||0)) < AI_BOOTSTRAP_COOLDOWN_MS
+        ) continue;
+      }
 
       const currentState = this._areaState[area];
       if (currentState === 'out') continue; // already reported out
@@ -600,6 +617,7 @@ const AIReporter = {
       if (firedCount > 0) await new Promise(res => setTimeout(res, 800));
       await this._fire(area, 'out', prob);
       firedCount++;
+      if (!hasHistory && !hasGroundTruth) bootstrapFired++;
     }
   },
 
