@@ -801,6 +801,8 @@ function initNigeriaData() {
   /* Merge AREA_BANDS */
   if (typeof AREA_BANDS !== 'undefined') {
     Object.assign(AREA_BANDS, NIGERIA_AREA_BANDS);
+  } else {
+    window.AREA_BANDS = Object.assign({}, NIGERIA_AREA_BANDS);
   }
   /* Merge AREA_COORDS */
   if (typeof AREA_COORDS !== 'undefined') {

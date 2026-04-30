@@ -32,43 +32,10 @@ const AI_MAX_BOOTSTRAP_PER_SCAN = 2;                 /* max 2 bootstrap fires/sc
 const AI_BAND_MAX_OUT_MS = { A:2*3600000, B:4*3600000, C:6*3600000, D:9*3600000, E:12*3600000 };
 
 /* ─── BAND CLASSIFICATION ────────────────────────────────────────────────── */
-const AREA_BANDS = {
-  "Victoria Island":"A","Ikoyi":"A","Lekki Phase 1":"A","Ikeja GRA":"A","Lekki Phase 2/Ikota":"A",
-  "Chevron/Lekki-Epe Expressway":"B","Igbo Efon/Ilasan":"B","Magodo":"B","Ojodu/Omole":"B","Gbagada":"B",
-  "Maryland/Anthony":"C","Kosofe/Ketu":"C","Surulere":"C","Yaba":"C","Ilupeju":"C",
-  "Shomolu/Bariga":"C","Ojota/Oregun":"C","Ebute Metta":"C","Ogba":"C",
-  "Agege":"D","Mushin":"D","Oshodi/Isolo":"D","Festac Town":"D","Amuwo Odofin":"D",
-  "Lagos Island":"D","Obalende/CMS":"D","Apapa":"D","Onikan/Lagos Mainland":"D","Ajah":"D",
-  "Alimosho/Ipaja":"E","Ikorodu":"E","Badagry":"E","Ojo/Alaba":"E","Ibeju-Lekki":"E","Epe":"E",
-  // Additional areas not previously in AREA_BANDS
-  "Ajah":"D","Sangotedo":"D","Abraham Adesanya":"D","Awoyaya":"D","Bogije":"E","Abijo":"E",
-  "Lekki Phase 2/Ikota":"B","Chevron/Lekki-Epe Expressway":"B","Igbo Efon/Ilasan":"B",
-  "Osapa London":"B","Agungi":"B","Jakande Estate Lekki":"B","VGC":"B",
-  "Obalende/CMS":"D","Onikan/Lagos Mainland":"D","Lagos Island":"D",
-  "Ebute Metta":"C","Oyingbo":"C","Makoko":"D","Iwaya":"C","Akoka":"C",
-  "FCE Akoka":"C","UNILAG":"C","YABATECH":"C","LUTH":"C",
-  "Festac Town":"D","Amuwo Odofin":"D","Mile 2":"D","Satellite Town":"D",
-  "Apapa":"D","Apapa GRA":"C","Tin Can Island":"D",
-  "Oshodi/Isolo":"D","Mushin":"D","Ilupeju":"C","Okota":"D",
-  "Ikorodu GRA":"D","Agric Ikorodu":"E",
-  // Abuja (AEDC) — bands aligned to supply patterns
-  "Maitama":"A","Asokoro":"A","Aso Rock":"A","Aso Villa":"A","Wuse 2":"A",
-  "Wuse":"B","Garki":"B","Central Area":"B","Three Arms Zone":"A","Jabi":"B",
-  "Utako":"B","Gudu":"B","Guzape":"B","Katampe":"B","Durumi":"C",
-  "Gwagwalada":"C","Karu":"C","Nyanya":"D","Lugbe":"D","Gwarinpa":"C",
-  "Kubwa":"D","Dutse":"D","Bwari":"E","Kwali":"E",
-  // Port Harcourt (PHED)
-  "Port Harcourt GRA Phase 1":"A","Port Harcourt GRA Phase 2":"A",
-  "D-Line":"B","Rumuola":"C","Trans Amadi":"C","Rumuigbo":"D","Rumuokoro":"D",
-  // Kano (KEDCO)
-  "Nassarawa GRA Kano":"A","Bompai":"B","Sabon Gari Kano":"C","Fagge":"D","Gwale":"E",
-  // Ibadan (IBEDC)
-  "Bodija":"B","GRA Ibadan":"A","Ring Road":"C","Mokola":"C","Challenge":"D",
-  // Other major cities
-  "Enugu GRA":"A","GRA Enugu":"A","Independence Layout":"B",
-  "Benin City GRA":"A","Warri GRA":"A","Uyo GRA":"A","Calabar GRA":"A",
-  "Makurdi GRA":"B","Jos GRA":"B","Barnawa":"C","Mokola":"C",
-};
+/* AREA_BANDS is populated by nigeria_data.js (NIGERIA_AREA_BANDS) which loads */
+/* immediately after this file.  This empty object is the merge target — never */
+/* add entries here.  NIGERIA_AREA_BANDS in nigeria_data.js is the sole source.*/
+const AREA_BANDS = {};
 
 const BAND_BASELINE      = { A:0.18, B:0.28, C:0.42, D:0.58, E:0.74 }; /* Lagos fallback */
 const BAND_SUPPLY_HOURS  = { A:22,   B:18,   C:14,   D:10,   E:6    }; /* Lagos fallback */
@@ -562,62 +529,55 @@ const AIReporter = {
        Runs in parallel; each cell refreshes at most every 20 min.             */
     await WeatherCache.prefetch(Object.keys(AREA_BANDS));
     this._rebuildState();
-    const now=new Date(), h=now.getHours(), d=now.getDay();
-    let firedCount = 0, bootstrapFired = 0;
-    const areas = Object.keys(AREA_BANDS);
-    // Shuffle to avoid always picking same areas first
-    for (let i = areas.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [areas[i], areas[j]] = [areas[j], areas[i]];
-    }
-    for (const area of areas) {
-      if (firedCount >= AI_MAX_PER_SCAN) break;
-      const { prob, confidence, groundTruth } = predictOutage(area, h, d);
+    const now = new Date(), h = now.getHours(), d = now.getDay();
+    const nowMs = Date.now();
+
+    /* Pass 1: evaluate ALL areas, collect candidates with their probability.
+       No early break here — every area gets assessed every scan cycle so
+       high-priority areas in new DISCOs are never starved by shuffle luck. */
+    const candidates = [];
+    for (const area of Object.keys(AREA_BANDS)) {
+      if (this._areaState[area] === 'out') continue;
+      if (nowMs - (this._lastFired[area] || 0) < AI_MIN_REFIRE_MS) continue;
+
+      const { prob, groundTruth } = predictOutage(area, h, d);
       if (prob < AI_CONFIDENCE_THRESH) continue;
 
-      /* ── SPECULATION GUARD ──────────────────────────────────────────────
-         Don't fire based purely on the band baseline with no real data.
-         Require at least one of:
-           a) Historical crowd data for this area (getAreaRate not null), OR
-           b) Live ground truth from recent human reports, OR
-           c) Strong weather signal AND at least area-level history           */
       const hasHistory     = PredictHistory.getAreaRate(area) !== null;
       const hasGroundTruth = !!groundTruth && groundTruth.reportCount >= 1;
+      let isBootstrap = false;
       if (!hasHistory && !hasGroundTruth) {
-        /* Cold-start bootstrap: allow through only when the signal is very
-           strong, the DISCO is known, and we haven't already bootstrapped
-           2 areas this scan.  Cooldown is 6 h (vs normal 45 min) to avoid
-           flooding a city the AI has never seen a human confirm.             */
+        /* Cold-start: only allow very high signal, known DISCO, 6-h cooldown */
         if (prob < AI_BOOTSTRAP_THRESH
-          || bootstrapFired >= AI_MAX_BOOTSTRAP_PER_SCAN
           || !_AREA_DISCO[area]
-          || (Date.now() - (this._lastFired[area]||0)) < AI_BOOTSTRAP_COOLDOWN_MS
+          || nowMs - (this._lastFired[area] || 0) < AI_BOOTSTRAP_COOLDOWN_MS
         ) continue;
+        isBootstrap = true;
       }
 
-      const currentState = this._areaState[area];
-      if (currentState === 'out') continue; // already reported out
-
-      /* Rate-limit — _lastFired persisted to localStorage across reloads */
-      const lastFiredAt = this._lastFired[area] || 0;
-      if (Date.now() - lastFiredAt < AI_MIN_REFIRE_MS) continue;
-
-      /* If ground truth says power is on, don't override it */
       if (groundTruth?.hasFreshHuman && groundTruth.prob < 0.4) continue;
 
-      /* If a human restoration was filed in last 45 min, power is back */
-      const recentRestore = (typeof reports!=='undefined') &&
+      const recentRestore = (typeof reports !== 'undefined') &&
         reports.some(r =>
-          (r.area===area || (typeof AREA_PARENT!=='undefined' && AREA_PARENT[r.area]===area))
-          && r.type==='bck' && !r.isAI && r.userId!==AI_USER_ID
-          && (now - r.time) < 45*60000);
+          (r.area === area || (typeof AREA_PARENT !== 'undefined' && AREA_PARENT[r.area] === area))
+          && r.type === 'bck' && !r.isAI && r.userId !== AI_USER_ID
+          && (now - r.time) < 45 * 60000);
       if (recentRestore) continue;
 
-      /* All checks passed — fire outage report */
+      candidates.push({ area, prob, isBootstrap });
+    }
+
+    /* Pass 2: sort highest-probability first, then fire top N.
+       Bootstrap slots are limited to AI_MAX_BOOTSTRAP_PER_SCAN within the run. */
+    candidates.sort((a, b) => b.prob - a.prob);
+    let firedCount = 0, bootstrapFired = 0;
+    for (const { area, prob, isBootstrap } of candidates) {
+      if (firedCount >= AI_MAX_PER_SCAN) break;
+      if (isBootstrap && bootstrapFired >= AI_MAX_BOOTSTRAP_PER_SCAN) continue;
       if (firedCount > 0) await new Promise(res => setTimeout(res, 800));
       await this._fire(area, 'out', prob);
       firedCount++;
-      if (!hasHistory && !hasGroundTruth) bootstrapFired++;
+      if (isBootstrap) bootstrapFired++;
     }
   },
 
