@@ -27,9 +27,25 @@ const AI_BOOTSTRAP_COOLDOWN_MS  = 6 * 3600 * 1000;  /* 6 h vs normal 45 min     
 const AI_MAX_BOOTSTRAP_PER_SCAN = 2;                 /* max 2 bootstrap fires/scan */
 
 /* Max time an AI outage can stay 'out' before auto-restoring if no human
-   reports confirm it.  Based on typical Nigerian DISCO supply rotation cycles:
-   Band A rotates every ~2h, Band E every ~12h.                               */
-const AI_BAND_MAX_OUT_MS = { A:2*3600000, B:4*3600000, C:6*3600000, D:9*3600000, E:12*3600000 };
+   confirms it.  Lagos DISCOs rotate every ~2-4 h; Northern DISCOs (KAEDCO,
+   YEDC) are out 8-30 h routinely — a flat table causes false restorations.  */
+const DISCO_BAND_MAX_OUT_MS = {
+  'IE':     { A: 2*3600000, B: 4*3600000, C: 6*3600000, D:  9*3600000, E: 12*3600000 },
+  'EKEDC':  { A: 2*3600000, B: 4*3600000, C: 6*3600000, D:  9*3600000, E: 12*3600000 },
+  'AEDC':   { A: 3*3600000, B: 5*3600000, C: 7*3600000, D: 10*3600000, E: 14*3600000 },
+  'IBEDC':  { A: 4*3600000, B: 6*3600000, C: 8*3600000, D: 11*3600000, E: 16*3600000 },
+  'PHED':   { A: 5*3600000, B: 7*3600000, C: 9*3600000, D: 12*3600000, E: 18*3600000 },
+  'EEDC':   { A: 5*3600000, B: 7*3600000, C: 9*3600000, D: 12*3600000, E: 18*3600000 },
+  'BEDC':   { A: 4*3600000, B: 6*3600000, C: 8*3600000, D: 11*3600000, E: 16*3600000 },
+  'JED':    { A: 6*3600000, B: 8*3600000, C:10*3600000, D: 13*3600000, E: 20*3600000 },
+  'KEDCO':  { A: 5*3600000, B: 7*3600000, C: 9*3600000, D: 12*3600000, E: 18*3600000 },
+  'KAEDCO': { A: 8*3600000, B:10*3600000, C:13*3600000, D: 18*3600000, E: 24*3600000 },
+  'YEDC':   { A:10*3600000, B:14*3600000, C:18*3600000, D: 22*3600000, E: 30*3600000 },
+};
+function _getBandMaxOutMs(area) {
+  _buildAreaDiscoMap();
+  return DISCO_BAND_MAX_OUT_MS[_AREA_DISCO[area]] || DISCO_BAND_MAX_OUT_MS['IE'];
+}
 
 /* ─── BAND CLASSIFICATION ────────────────────────────────────────────────── */
 /* AREA_BANDS is populated by nigeria_data.js (NIGERIA_AREA_BANDS) which loads */
@@ -99,6 +115,59 @@ function _getBandSupplyHours(area) {
   return t || BAND_SUPPLY_HOURS;
 }
 
+/* ─── FEEDER ROTATION MODEL ──────────────────────────────────────────────────
+   Nigerian DISCOs operate explicit feeder schedules — Feeder A gets power for
+   N hours, then it's cut and Feeder B gets it.  This creates a deterministic
+   cyclic pattern stronger than anything PredictHistory can learn from sparse
+   crowd data.  Rotation periods vary by DISCO culture and grid topology.
+
+   Typical values (field reports + NERC grid-code review 2024):
+     - Lagos DISCOs operate 12 h rotation blocks with better adherence
+     - Ibadan, PH, Enugu: strict 8 h feeder-switching regimes
+     - Northern DISCOs: 12 h blocks but often extended during high-load season  */
+const DISCO_ROTATION_MS = {
+  'IE':     12 * 3600000,
+  'EKEDC':  12 * 3600000,
+  'AEDC':   12 * 3600000,
+  'IBEDC':   8 * 3600000,
+  'PHED':    8 * 3600000,
+  'EEDC':    8 * 3600000,
+  'BEDC':   12 * 3600000,
+  'JED':    12 * 3600000,
+  'KEDCO':   8 * 3600000,
+  'KAEDCO': 12 * 3600000,
+  'YEDC':   12 * 3600000,
+};
+
+/* Returns a multiplier (0.5–1.35) based on where the area is in its feeder
+   rotation cycle, estimated from the last known restoration report.
+   < 1.0: still in supply window — reduce outage probability
+   > 1.0: supply window elapsed — area is due to go off                       */
+function _getFeederRotationFactor(area, nowMs) {
+  if (typeof reports === 'undefined') return 1.0;
+  _buildAreaDiscoMap();
+  const disco = _AREA_DISCO[area];
+  if (!disco) return 1.0;
+  const rotMs    = DISCO_ROTATION_MS[disco] || 12 * 3600000;
+  const band     = AREA_BANDS[area] || 'C';
+  const supplyMs = (_getBandSupplyHours(area)[band] || 10) * 3600000;
+
+  const lastBck = reports
+    .filter(r => r.area === area && r.type === 'bck')
+    .sort((a, b) => b.time - a.time)[0];
+  if (!lastBck) return 1.0;
+
+  const timeSince = nowMs - lastBck.time;
+  if (timeSince > rotMs * 2) return 1.0; // too stale — no meaningful phase info
+
+  if (timeSince <= supplyMs) {
+    // Still within expected supply window — lower outage probability
+    return Math.max(0.5, 1.0 - 0.4 * (1.0 - timeSince / supplyMs));
+  }
+  // Past supply window — rotation says this feeder is due to go dark
+  const offFraction = Math.min(1.0, (timeSince - supplyMs) / Math.max(1, rotMs - supplyMs));
+  return 1.0 + offFraction * 0.35;
+}
 
 /* ─── HOURLY DEMAND-RISK CURVES (region-specific) ────────────────────────
    Nigeria spans 14° of latitude and three distinct demand cultures:
@@ -380,6 +449,13 @@ function predictOutage(area, hour, dayOfWeek, statOnly = false) {
     statProb = base*0.45 + hProb*0.35 + (base*dAdj-base)*0.20; confidence = 'low';
   }
 
+  // Feeder rotation: phase-adjust outage probability based on estimated position
+  // in the DISCO's supply cycle, derived from the last known restoration time
+  if (!statOnly) {
+    const rotFactor = _getFeederRotationFactor(area, Date.now());
+    statProb = Math.min(0.97, statProb * rotFactor);
+  }
+
   // Weather multiplier — area-specific, not a single global Lagos reading
   const _wx = WeatherCache.getFor(area);
   const wxFactor = WeatherCache.getRiskMultiplier(_wx);
@@ -596,11 +672,16 @@ const AIReporter = {
       if (firedCount >= AI_MAX_PER_SCAN) break;
       if (!AREA_BANDS[area]) continue;
 
-      const alreadyRestored = reports.some(x => {
-        const outRep = [...reports].filter(r=>r.area===area&&r.type==='out').sort((a,b)=>b.time-a.time)[0];
-        return x.area===area && x.type==='bck' && (outRep ? x.time > outRep.time : true);
-      });
-      if (alreadyRestored) { this._areaState[area]='bck'; continue; }
+      // O(n) per area — anchor on last HUMAN 'out' only so an AI 'out' filed
+      // after a human 'bck' (race condition) doesn't invalidate the restoration
+      const lastHumanOut = reports
+        .filter(r => r.area === area && r.type === 'out' && !r.isAI && r.userId !== AI_USER_ID)
+        .sort((a, b) => b.time - a.time)[0];
+      const alreadyRestored = reports.some(x =>
+        x.area === area && x.type === 'bck'
+        && (lastHumanOut ? x.time > lastHumanOut.time : true)
+      );
+      if (alreadyRestored) { this._areaState[area] = 'bck'; continue; }
 
       const { prob, groundTruth } = predictOutage(area, h, d);
 
@@ -626,7 +707,7 @@ const AIReporter = {
          If AI said 'out' and zero humans have confirmed it in that window,
          the prediction was probably wrong — auto-restore to clean up the feed. */
       const band = AREA_BANDS[area] || 'C';
-      const maxOutMs = AI_BAND_MAX_OUT_MS[band];
+      const maxOutMs = _getBandMaxOutMs(area)[band];
       const humanConfirmsForOutage = reports.filter(r =>
         r.area===area && r.type==='out' && !r.isAI && r.userId!==AI_USER_ID &&
         (nowMs - r.time) < maxOutMs
