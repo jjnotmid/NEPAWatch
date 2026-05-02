@@ -321,6 +321,10 @@ tr:hover td{background:rgba(128,128,128,.04)}
         <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="1" y="2" width="12" height="10" rx="1.5" stroke="currentColor" stroke-width="1.3"/><circle cx="5" cy="6.5" r="1.5" stroke="currentColor" stroke-width="1.2"/><path d="M8 5.5h2.5M8 7.5h2.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><path d="M2.5 10c0-1.1.9-2 2-2h1c1.1 0 2 .9 2 2" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
         KYC Records
       </button>
+      <button class="sb-item" data-page="gridalerts" onclick="nav(this);loadGridAlerts()">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1.5L1 11.5h12L7 1.5z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M7 5.5v2.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><circle cx="7" cy="9.5" r=".6" fill="currentColor"/></svg>
+        Grid Alerts
+      </button>
     </div>
 
     <div class="sb-foot">
@@ -631,6 +635,29 @@ tr:hover td{background:rgba(128,128,128,.04)}
         <div style="font-size:.72rem;color:var(--ink3);margin-top:5px;line-height:1.6">These records are stored under your AML/KYC obligations per the VTpass SLA. Do not share or export without a valid legal reason. Users were notified at time of submission per the NEPAWatch Privacy Policy.</div>
       </div>
       <div class="card"><div class="tbl-wrap"><table><thead><tr><th>Date</th><th>Full Name</th><th>ID Type</th><th>ID Number</th><th>DOB</th><th>Email</th><th>Amount</th><th>Transaction Ref</th></tr></thead><tbody id="kycTable"><tr><td colspan="8" class="loading-row"><span class="spin"></span>Loading…</td></tr></tbody></table></div></div>
+    </div>
+
+    <!-- GRID ALERTS PAGE -->
+    <div class="page" id="page-gridalerts">
+      <div class="ph">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap">
+          <div><h2>Grid Alerts</h2><p>Adjust AI prediction multipliers per DISCO during declared emergencies or maintenance windows. Changes take effect for users on next page load.</p></div>
+          <button class="btn btn-ghost" onclick="clearAllDiscoAlerts()" style="flex-shrink:0;border-color:rgba(255,61,87,.3);color:var(--rd);font-size:.75rem">Clear All Alerts</button>
+        </div>
+      </div>
+      <div class="card" style="margin-bottom:16px;padding:13px 17px;background:rgba(255,180,0,.06);border:1px solid rgba(255,180,0,.2)">
+        <div style="display:flex;align-items:center;gap:8px;font-size:.76rem;color:#F5A623;font-weight:600">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1.5l5.5 10H1.5L7 1.5z" stroke="#F5A623" stroke-width="1.3" stroke-linejoin="round"/><path d="M7 6v3" stroke="#F5A623" stroke-width="1.4" stroke-linecap="round"/><circle cx="7" cy="10.5" r=".7" fill="#F5A623"/></svg>
+          Multiplier Guide
+        </div>
+        <div style="font-size:.71rem;color:var(--ink3);margin-top:5px;line-height:1.7">
+          <span style="color:var(--rd);font-weight:600">0.0</span> = Suppress AI alerts (planned maintenance / data gap) &nbsp;·&nbsp;
+          <span style="color:var(--ink2);font-weight:600">1.0</span> = Normal (default) &nbsp;·&nbsp;
+          <span style="color:var(--am);font-weight:600">2.0</span> = Elevated risk &nbsp;·&nbsp;
+          <span style="color:var(--rd);font-weight:600">3.0</span> = Declared emergency
+        </div>
+      </div>
+      <div class="card"><div class="tbl-wrap"><div id="gridAlertsTable"><tr><td class="loading-row"><span class="spin"></span>Loading…</td></tr></div></div></div>
     </div>
 
   </div>
@@ -1628,6 +1655,111 @@ async function markContactRead(id) {
     filterContactMessages();
     toast('Marked as read', 'ok');
   } catch(e) { toast('Failed: ' + e.message, 'err'); }
+}
+
+// ── GRID ALERTS ───────────────────────────────────────────────
+const DISCO_LIST = [
+  { code:'IKEDC',  name:'Ikeja Electric',       coverage:'Lagos North (Ikeja, Alimosho, Kosofe…)' },
+  { code:'EKEDC',  name:'Eko Electric',          coverage:'Lagos South (Ikoyi, VI, Apapa…)' },
+  { code:'AEDC',   name:'Abuja Electric',        coverage:'FCT, Niger, Nasarawa, Kogi' },
+  { code:'IBDC',   name:'Ibadan Electric',       coverage:'Oyo, Osun, Ogun, Kwara' },
+  { code:'EEDC',   name:'Enugu Electric',        coverage:'Enugu, Anambra, Imo, Abia, Ebonyi' },
+  { code:'PHED',   name:'Port Harcourt Disco',   coverage:'Rivers, Bayelsa, Cross River, Akwa Ibom' },
+  { code:'KAEDCO', name:'Kaduna Electric',        coverage:'Kaduna, Kebbi, Sokoto, Zamfara' },
+  { code:'KEDCO',  name:'Kano Electric',          coverage:'Kano, Jigawa, Katsina' },
+  { code:'BEDC',   name:'Benin Electric',         coverage:'Edo, Delta, Ondo, Ekiti' },
+  { code:'JED',    name:'Jos Electric',           coverage:'Plateau, Benue, Nasarawa' },
+  { code:'YEDC',   name:'Yola Electric',          coverage:'Adamawa, Taraba, Gombe, Bauchi' },
+];
+const DISCO_ALERT_KEY = 'nw-disco-alert';
+
+function _getDiscoAlerts() {
+  try { return JSON.parse(localStorage.getItem(DISCO_ALERT_KEY) || '{}'); } catch(e) { return {}; }
+}
+
+function loadGridAlerts() { renderGridAlertsTable(); }
+
+function renderGridAlertsTable() {
+  const alerts = _getDiscoAlerts();
+  const wrap = document.getElementById('gridAlertsTable');
+  if (!wrap) return;
+  const rows = DISCO_LIST.map(d => {
+    const entry = alerts[d.code];
+    const active = entry != null;
+    const mult = active ? (typeof entry === 'object' ? (entry.mult ?? 1) : entry) : 1.0;
+    const reason = active && typeof entry === 'object' && entry.reason ? entry.reason : '';
+    const statusColor = !active ? 'var(--ink3)' : mult === 0 ? 'var(--rd)' : mult > 1 ? 'var(--am)' : mult < 1 ? 'var(--bl)' : 'var(--p)';
+    const statusLabel = !active ? 'Normal' : mult === 0 ? 'Suppressed' : mult > 1 ? 'Elevated' : mult < 1 ? 'Reduced' : 'Active';
+    return `<tr style="${active ? 'background:rgba(255,180,0,.04)' : ''}">
+      <td><div style="font-weight:600;font-size:.8rem">${_escHtml(d.name)}</div><div style="font-size:.63rem;color:var(--ink3);font-family:monospace;margin-top:1px">${d.code}</div></td>
+      <td style="font-size:.71rem;color:var(--ink2)">${_escHtml(d.coverage)}</td>
+      <td style="width:100px"><input type="number" id="ga-mult-${d.code}" value="${mult}" min="0" max="3" step="0.1" style="width:78px;background:var(--bg3);border:1px solid var(--bd);border-radius:7px;padding:5px 8px;font-size:.82rem;color:var(--ink);outline:none" oninput="(function(el,code){const v=parseFloat(el.value);const s=document.getElementById('ga-status-'+code);if(!s)return;s.style.color=v===0?'var(--rd)':v>1?'var(--am)':v<1?'var(--bl)':'var(--p)';s.textContent=v===0?'Suppressed':v>1?'Elevated':v<1?'Reduced':'Active';})(this,'${d.code}')"></td>
+      <td><input type="text" id="ga-reason-${d.code}" value="${_escHtml(reason)}" placeholder="Optional note…" maxlength="100" style="width:100%;background:var(--bg3);border:1px solid var(--bd);border-radius:7px;padding:5px 8px;font-size:.75rem;color:var(--ink);outline:none"></td>
+      <td style="width:90px"><span id="ga-status-${d.code}" style="font-size:.72rem;font-weight:600;color:${statusColor}">${statusLabel}</span></td>
+      <td style="width:100px">
+        <div style="display:flex;gap:5px;align-items:center">
+          <button class="btn btn-primary" style="padding:4px 10px;font-size:.7rem" onclick="saveDiscoAlert('${d.code}')">Save</button>
+          ${active ? `<button class="btn btn-ghost" style="padding:4px 7px;font-size:.7rem;border-color:rgba(255,61,87,.3);color:var(--rd)" onclick="clearDiscoAlert('${d.code}')">✕</button>` : ''}
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+  wrap.innerHTML = `<table><thead><tr><th>DISCO</th><th>Coverage</th><th>Multiplier</th><th>Reason / Note</th><th>Status</th><th></th></tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+function saveDiscoAlert(code) {
+  const multEl = document.getElementById(`ga-mult-${code}`);
+  const reasonEl = document.getElementById(`ga-reason-${code}`);
+  if (!multEl) return;
+  const mult = parseFloat(multEl.value);
+  if (isNaN(mult) || mult < 0 || mult > 3) { toast('Multiplier must be 0–3', 'err'); return; }
+  const reason = (reasonEl?.value || '').trim().replace(/<[^>]*>/g, '').slice(0, 100);
+  const alerts = _getDiscoAlerts();
+  alerts[code] = { mult, reason, updated: new Date().toISOString() };
+  localStorage.setItem(DISCO_ALERT_KEY, JSON.stringify(alerts));
+  toast(`${code} alert saved (×${mult})`, 'ok');
+  renderGridAlertsTable();
+  _syncDiscoAlertToDb(alerts);
+}
+
+function clearDiscoAlert(code) {
+  const alerts = _getDiscoAlerts();
+  delete alerts[code];
+  localStorage.setItem(DISCO_ALERT_KEY, JSON.stringify(alerts));
+  toast(`${code} alert cleared`, 'ok');
+  renderGridAlertsTable();
+  _syncDiscoAlertToDb(alerts);
+}
+
+function clearAllDiscoAlerts() {
+  if (!confirm('Clear all DISCO alerts? All multipliers will reset to normal.')) return;
+  localStorage.removeItem(DISCO_ALERT_KEY);
+  toast('All grid alerts cleared', 'ok');
+  renderGridAlertsTable();
+  _syncDiscoAlertToDb({});
+}
+
+async function _syncDiscoAlertToDb(alerts) {
+  try {
+    const activeCodes = Object.keys(alerts);
+    for (const code of activeCodes) {
+      const e = alerts[code];
+      await sb.from('disco_alerts').upsert({
+        disco_code: code,
+        multiplier: typeof e === 'object' ? e.mult : e,
+        reason: (typeof e === 'object' && e.reason) ? e.reason : null,
+        active: true,
+        updated_at: (typeof e === 'object' && e.updated) ? e.updated : new Date().toISOString()
+      }, { onConflict: 'disco_code' });
+    }
+    if (activeCodes.length > 0) {
+      await sb.from('disco_alerts').update({ active: false }).not('disco_code', 'in', `(${activeCodes.map(c => `'${c}'`).join(',')})`);
+    } else {
+      await sb.from('disco_alerts').update({ active: false }).gte('id', 0);
+    }
+  } catch(e) {
+    console.warn('disco_alerts DB sync failed (localStorage is authoritative):', e.message);
+  }
 }
 
 // ── AUTO-LOGIN ────────────────────────────────────────────────

@@ -54,3 +54,25 @@ CREATE POLICY "push_sub_self" ON push_subscriptions
 -- Edge functions (service role) can read all for broadcasting
 CREATE POLICY "push_sub_service" ON push_subscriptions
   FOR SELECT USING (true);
+
+-- ─────────────────────────────────────────────────────────────────
+-- disco_alerts: admin-set per-DISCO AI prediction multipliers
+-- ─────────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS disco_alerts (
+  id          bigserial   PRIMARY KEY,
+  disco_code  text        NOT NULL UNIQUE,
+  multiplier  numeric(4,2) NOT NULL DEFAULT 1.0,
+  reason      text,
+  active      boolean     NOT NULL DEFAULT true,
+  updated_at  timestamptz DEFAULT now()
+);
+
+ALTER TABLE disco_alerts ENABLE ROW LEVEL SECURITY;
+
+-- Anyone can read (predict.js may want to fetch active multipliers from DB)
+CREATE POLICY "disco_alerts_select" ON disco_alerts FOR SELECT USING (true);
+
+-- Only authenticated admin writes; edge functions use service role key
+CREATE POLICY "disco_alerts_write" ON disco_alerts FOR ALL
+  USING (auth.email() = 'usifohjosh47@gmail.com')
+  WITH CHECK (auth.email() = 'usifohjosh47@gmail.com');

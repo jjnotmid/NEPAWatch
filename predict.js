@@ -24,6 +24,28 @@ const AI_MIN_REFIRE_MS      = 45 * 60 * 1000;  /* 45 min cooldown per area */
    Band A rotates every ~2h, Band E every ~12h.                               */
 const AI_BAND_MAX_OUT_MS = { A:2*3600000, B:4*3600000, C:6*3600000, D:9*3600000, E:12*3600000 };
 
+/* ─── DISCO ALERT MULTIPLIERS ────────────────────────────────────────────── */
+/* Admin-settable probability multipliers for declared grid emergencies.
+ * Set via admin.html Grid Alerts panel. Keys are DISCO short names.
+ * 1.0 = normal, 2.5 = declared emergency, 0.0 = suppress AI for this DISCO.
+ * Persisted to localStorage ('nw-disco-alert') and a Supabase disco_alerts table.
+ *
+ * Example: during total IKEDC collapse → DISCO_ALERT['IKEDC'] = 2.5
+ */
+const DISCO_ALERT = (()=>{try{return JSON.parse(localStorage.getItem('nw-disco-alert')||'{}');}catch(e){return {};}})();
+
+/* Maps Lagos areas to their DISCO for DISCO_ALERT lookup. */
+const _AREA_DISCO = {
+  "Victoria Island":"EKEDC","Ikoyi":"EKEDC","Lagos Island":"EKEDC","Obalende/CMS":"EKEDC",
+  "Apapa":"EKEDC","Festac Town":"EKEDC","Ajah":"EKEDC","Lekki Phase 1":"EKEDC",
+  "Lekki Phase 2/Ikota":"EKEDC","Chevron/Lekki-Epe Expressway":"EKEDC","Igbo Efon/Ilasan":"EKEDC",
+  "VGC":"EKEDC","Osapa London":"EKEDC","Agungi":"EKEDC","Sangotedo":"EKEDC",
+  "Abraham Adesanya":"EKEDC","Awoyaya":"EKEDC","Ibeju-Lekki":"EKEDC","Epe":"EKEDC",
+  "Badagry":"EKEDC","Ojo/Alaba":"EKEDC","Amuwo Odofin":"EKEDC","Onikan/Lagos Mainland":"EKEDC",
+};
+/* All other Lagos areas default to IKEDC — _getAreaDisco handles the fallback. */
+function _getAreaDisco(area){ return _AREA_DISCO[area] || 'IKEDC'; }
+
 /* ─── BAND CLASSIFICATION ────────────────────────────────────────────────── */
 const AREA_BANDS = {
   "Victoria Island":"A","Ikoyi":"A","Lekki Phase 1":"A","Ikeja GRA":"A","Lekki Phase 2/Ikota":"A",
@@ -295,6 +317,11 @@ function predictOutage(area, hour, dayOfWeek) {
   } else {
     prob = statProb;
   }
+
+  // Apply DISCO_ALERT multiplier last — admin-declared emergency overrides model
+  const _discoEntry = DISCO_ALERT[_getAreaDisco(area)];
+  const discoMult = _discoEntry != null ? (typeof _discoEntry === 'object' ? (_discoEntry.mult ?? null) : _discoEntry) : null;
+  if (discoMult != null) prob = Math.min(0.97, prob * discoMult);
 
   return {
     prob: Math.min(0.97, Math.max(0.03, prob)),
