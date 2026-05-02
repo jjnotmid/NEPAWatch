@@ -1,4 +1,4 @@
-/* ===== NEPAWatch Lagos — predict.js ===== */
+/* ===== NEPAWatch Nigeria — predict.js ===== */
 /* AI Auto-Reporter: predicts outages and auto-submits reports attributed to  */
 /* "NEPAWatch AI". No external APIs — pure statistical model, 100% free.      */
 /*                                                                             */
@@ -25,6 +25,18 @@ const AI_MIN_REFIRE_MS      = 45 * 60 * 1000;  /* 45 min cooldown per area */
 const AI_BOOTSTRAP_THRESH       = 0.72;              /* well above normal 0.58   */
 const AI_BOOTSTRAP_COOLDOWN_MS  = 6 * 3600 * 1000;  /* 6 h vs normal 45 min     */
 const AI_MAX_BOOTSTRAP_PER_SCAN = 2;                 /* max 2 bootstrap fires/scan */
+
+/* Per-area AI accuracy multipliers — adjusted by the 15-min feedback loop.
+   Persisted to localStorage so corrections survive page reloads.            */
+const _AI_ACCURACY_KEY = 'nw_ai_accuracy_v1';
+const _aiAreaAccuracy = (() => {
+  try { return JSON.parse(localStorage.getItem(_AI_ACCURACY_KEY)) || {}; }
+  catch(e) { return {}; }
+})();
+function _saveAiAccuracy() {
+  try { localStorage.setItem(_AI_ACCURACY_KEY, JSON.stringify(_aiAreaAccuracy)); }
+  catch(e) {}
+}
 
 /* Max time an AI outage can stay 'out' before auto-restoring if no human
    confirms it.  Lagos DISCOs rotate every ~2-4 h; Northern DISCOs (KAEDCO,
@@ -139,6 +151,18 @@ const DISCO_ROTATION_MS = {
   'YEDC':   12 * 3600000,
 };
 
+/* ─── DISCO OPERATIONAL STATE ───────────────────────────────────────────────
+   Admin (or a future admin-panel call) sets entries here to reflect declared
+   grid emergencies, force-majeure events, or planned restoration windows.
+   multiplier > 1.0 boosts outage probability (worse than normal).
+   multiplier < 1.0 suppresses it (e.g. announced maintenance complete).
+   Entries with `until` in the past are silently ignored.
+
+   Example — to activate from browser console / admin panel:
+     DISCO_ALERT['KAEDCO'] = { level:'emergency', multiplier:1.5, until: Date.now()+8*3600000 };
+     DISCO_ALERT['IE']     = { level:'maintenance', multiplier:0.7, until: Date.now()+2*3600000 }; */
+const DISCO_ALERT = {};
+
 /* Returns a multiplier (0.5–1.35) based on where the area is in its feeder
    rotation cycle, estimated from the last known restoration report.
    < 1.0: still in supply window — reduce outage probability
@@ -219,34 +243,44 @@ const PredictHistory = {
   _data: {},
   _liveAdded: 0,
 
-  /* Full re-ingest from DB — called on startup and every 2h */
+  /* Full re-ingest from DB — called on startup and every 2h.
+     Two-pass design: pass 1 computes raw weights + per-DISCO totals;
+     pass 2 applies a scale factor so no single DISCO (e.g. high-traffic
+     Lagos) drowns out sparse non-Lagos training data.                        */
   ingest(rows) {
     this._data = {};
     this._liveAdded = 0;
-    const nowMs = Date.now();
-    const HALF_LIFE_MS = 21 * 24 * 3600 * 1000; // 21-day half-life — recent matters more
+    const nowMs      = Date.now();
+    const HALF_LIFE  = 21 * 24 * 3600 * 1000;
+    const DISCO_CAP  = 500; /* max effective weight units per DISCO */
+    _buildAreaDiscoMap();
 
-    rows.forEach(r => {
-      if (!r.location_area) return;
-      const t = new Date(r.created_at || r.time);
-      const k = `${r.location_area}|${t.getHours()}|${t.getDay()}`;
-      if (!this._data[k]) this._data[k] = { out:0, total:0, confirms:0 };
-
-      /* Time decay: weight = 1 (today) → 0.5 (21 days ago) → ~0.1 (60 days ago) */
+    const processed = rows.map(r => {
+      if (!r.location_area) return null;
+      const t     = new Date(r.created_at || r.time);
       const ageMs = Math.max(0, nowMs - t.getTime());
-      const timeWeight = Math.max(0.1, Math.pow(0.5, ageMs / HALF_LIFE_MS));
+      const w     = Math.max(0.1, Math.pow(0.5, ageMs / HALF_LIFE))
+                    * Math.min(3.0, 1 + (r.confirms || 1) * 0.25)
+                    * Math.max(0.2, 1 - (r.wrong_votes || 0) * 0.35);
+      return {
+        k: `${r.location_area}|${t.getHours()}|${t.getDay()}`,
+        type: r.type,
+        confirms: r.confirms || 1,
+        disco: _AREA_DISCO[r.location_area] || '__unknown',
+        w,
+      };
+    }).filter(Boolean);
 
-      /* Confirmation boost: each community confirm = stronger evidence */
-      const confirmWeight = Math.min(3.0, 1 + (r.confirms || 1) * 0.25);
+    const discoTotals = {};
+    for (const { disco, w } of processed) discoTotals[disco] = (discoTotals[disco] || 0) + w;
 
-      /* Wrong-vote penalty: disputed reports carry less weight */
-      const wrongPenalty = Math.max(0.2, 1 - (r.wrong_votes || 0) * 0.35);
-
-      const w = timeWeight * confirmWeight * wrongPenalty;
-      this._data[k].total += w;
-      if (r.type === 'out') this._data[k].out += w;
-      this._data[k].confirms += (r.confirms || 1) * w;
-    });
+    for (const { k, type, confirms, disco, w } of processed) {
+      const sw = discoTotals[disco] > DISCO_CAP ? w * DISCO_CAP / discoTotals[disco] : w;
+      if (!this._data[k]) this._data[k] = { out:0, total:0, confirms:0 };
+      this._data[k].total    += sw;
+      if (type === 'out') this._data[k].out += sw;
+      this._data[k].confirms += confirms * sw;
+    }
   },
 
   /* Live-train from a single incoming report (real-time INSERT) */
@@ -281,7 +315,55 @@ const PredictHistory = {
       if (k.startsWith(area + '|')) { out += v.out; total += v.total; }
     return total >= 6 ? out / total : null;
   },
+
+  /* ── DATA EXTRACTION ────────────────────────────────────────────────────
+     Returns all accumulated outage-rate knowledge as a plain array.
+     Each row = one (area, hour, day) cell with outage_rate + data quality.
+     Call PredictHistory.downloadCSV() from browser console to get a file. */
+  export() {
+    const DAY_NAMES = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+    const rows = [];
+    for (const [k, v] of Object.entries(this._data)) {
+      if (v.total < 1) continue;
+      const [area, hour, day] = k.split('|');
+      rows.push({
+        area,
+        hour: +hour,
+        day:  +day,
+        day_name: DAY_NAMES[+day],
+        outage_rate: +(v.out / v.total).toFixed(4),
+        data_weight: +v.total.toFixed(2),
+        weighted_confirms: +v.confirms.toFixed(2),
+      });
+    }
+    return rows.sort((a, b) => a.area.localeCompare(b.area) || a.day - b.day || a.hour - b.hour);
+  },
+
+  exportCSV() {
+    const rows = this.export();
+    if (!rows.length) return '';
+    const header = Object.keys(rows[0]).join(',');
+    const body   = rows.map(r =>
+      Object.values(r).map(v => (typeof v === 'string' && v.includes(',') ? `"${v}"` : v)).join(',')
+    );
+    return [header, ...body].join('\n');
+  },
+
+  downloadCSV() {
+    const csv = this.exportCSV();
+    if (!csv) { console.warn('[NEPAWatch] No training data yet.'); return; }
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href = url; a.download = `nepawatch-reliability-${new Date().toISOString().slice(0,10)}.csv`;
+    a.click(); URL.revokeObjectURL(url);
+    console.log(`[NEPAWatch] Exported ${this.export().length} rows.`);
+  },
 };
+
+/* Console hook: PredictHistory.downloadCSV() triggers a CSV download of the
+   accumulated outage-rate heatmap — area × hour × day × outage_rate.       */
+window.NEPAWatchExport = () => PredictHistory.downloadCSV();
 
 /* ─── WEATHER CACHE (Open-Meteo, free, no API key) ──────────────────────── */
 /* Per-area weather using 1-degree grid cells (~100 km × 100 km).            */
@@ -456,6 +538,17 @@ function predictOutage(area, hour, dayOfWeek, statOnly = false) {
     statProb = Math.min(0.97, statProb * rotFactor);
   }
 
+  // DISCO operational alert: admin-declared grid emergency or restoration window
+  _buildAreaDiscoMap();
+  const _alert = DISCO_ALERT[_AREA_DISCO[area] || ''];
+  if (_alert && _alert.until > Date.now() && _alert.multiplier) {
+    statProb = Math.min(0.97, Math.max(0.03, statProb * _alert.multiplier));
+  }
+
+  // Per-area accuracy factor: self-corrects over time from wrong_votes / confirms
+  const _accFactor = _aiAreaAccuracy[area] || 1.0;
+  if (_accFactor !== 1.0) statProb = Math.min(0.97, Math.max(0.03, statProb * _accFactor));
+
   // Weather multiplier — area-specific, not a single global Lagos reading
   const _wx = WeatherCache.getFor(area);
   const wxFactor = WeatherCache.getRiskMultiplier(_wx);
@@ -577,20 +670,21 @@ const AIReporter = {
     this._loadFiredState(); // restore _lastFired from localStorage
     await this._seedFiredFromDB(); // merge DB state — prevents re-spam after cache clear
     try {
-      /* Load 5000 reports — includes confirms + wrong_votes so the decay model
-         can weight crowd-validated reports correctly.
+      /* Load up to 10 000 reports ordered by recency.  Per-DISCO weight caps
+         inside ingest() ensure high-traffic Lagos reports don't drown out
+         sparse non-Lagos training data.
          Falls back to base columns if wrong_votes column doesn't exist yet. */
       let res = await sb
         .from('reports')
         .select('location_area, type, created_at, confirms, wrong_votes')
         .order('created_at', { ascending:false })
-        .limit(5000);
+        .limit(10000);
       if (res.error && (res.error.code === '42703' || res.error.message?.includes('column'))) {
         res = await sb
           .from('reports')
           .select('location_area, type, created_at, confirms')
           .order('created_at', { ascending:false })
-          .limit(5000);
+          .limit(10000);
       }
       if (!res.error && res.data?.length) {
         PredictHistory.ingest(res.data);
@@ -919,6 +1013,29 @@ const AIReporter = {
           ? reports.find(r => String(r.id) === savedRepId)
           : null;
         if (savedRep) setTimeout(() => window.showAIFeedbackPopup(savedRep), 1200);
+      }
+
+      /* Accuracy feedback: 15 min after filing, check wrong_votes and confirms.
+         Adjust per-area multiplier so the model self-corrects from its mistakes. */
+      if (type === 'out') {
+        const _area = area, _id = savedRepId;
+        setTimeout(() => {
+          if (typeof reports === 'undefined' || !_id) return;
+          const r = reports.find(x => String(x.id) === _id);
+          if (!r) return;
+          const wrongVotes = r.wrong_votes || 0;
+          const humanConfirms = Math.max(0, (r.confirms || 1) - 1); // subtract AI's own +1
+          const cur = _aiAreaAccuracy[_area] || 1.0;
+          if (wrongVotes >= 2) {
+            _aiAreaAccuracy[_area] = Math.max(0.35, cur * 0.82);
+            console.log(`[NEPAWatch AI] Misfire: ${_area} (${wrongVotes} wrong votes) → accuracy factor ${_aiAreaAccuracy[_area].toFixed(2)}`);
+            _saveAiAccuracy();
+          } else if (humanConfirms >= 2) {
+            _aiAreaAccuracy[_area] = Math.min(1.25, cur * 1.06);
+            console.log(`[NEPAWatch AI] Confirmed: ${_area} (${humanConfirms} confirms) → accuracy factor ${_aiAreaAccuracy[_area].toFixed(2)}`);
+            _saveAiAccuracy();
+          }
+        }, 15 * 60 * 1000);
       }
     } else {
       console.warn('[NEPAWatch AI] Report not saved — notifications suppressed to avoid ghost alerts.');
