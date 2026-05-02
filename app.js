@@ -2355,7 +2355,7 @@ async function initAuth(){
 }
 function _resetFormHTML(){return`<div class="auth-wrap"><div class="auth-logo"><div class="auth-logo-icon" style="background:var(--p)">${LOGO_IMG_TAG}</div><span class="auth-logo-name">NEPA<em>Watch</em></span></div><h2>Set new password</h2><p class="auth-sub">Choose a strong new password for your account.</p><div class="msg err" id="authErr"></div><div class="msg ok" id="authOk"></div><div class="fld"><label>New Password</label><input id="inp-newpass" type="password" placeholder="Min 6 characters" autocomplete="new-password"><button type="button" class="pw-eye-btn" onclick="appTogglePw(this)" tabindex="-1"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M1 8C2.5 5 5 3.5 8 3.5C11 3.5 13.5 5 15 8C13.5 11 11 12.5 8 12.5C5 12.5 2.5 11 1 8Z" stroke="currentColor" stroke-width="1.3"/><circle cx="8" cy="8" r="2.2" stroke="currentColor" stroke-width="1.3"/></svg></button></div><div class="fld"><label>Confirm Password</label><input id="inp-confpass" type="password" placeholder="Repeat password" autocomplete="new-password"><button type="button" class="pw-eye-btn" onclick="appTogglePw(this)" tabindex="-1"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M1 8C2.5 5 5 3.5 8 3.5C11 3.5 13.5 5 15 8C13.5 11 11 12.5 8 12.5C5 12.5 2.5 11 1 8Z" stroke="currentColor" stroke-width="1.3"/><circle cx="8" cy="8" r="2.2" stroke="currentColor" stroke-width="1.3"/></svg></button></div><button class="auth-btn" id="authBtn" onclick="doPasswordReset()">Update Password</button></div>`;}
 
-async function loadProfile(){if(!CU)return;try{const{data,error}=await sb.from("profiles").select("*").eq("id",CU.id).single();if(!error&&data){PR=data;if(PR.location_id){document.getElementById("locTag").classList.add("on");document.getElementById("locLabel").textContent=PR.location_label||PR.location_name;}}else if(error&&error.code==="PGRST116"){const name=CU.user_metadata?.name||CU.email.split("@")[0];await sb.from("profiles").upsert({id:CU.id,email:CU.email,name,notif_on:true},{onConflict:"id"});PR={id:CU.id,email:CU.email,name,notif_on:true,location_id:null};}if(PR){renderStreakBanner();renderHomeAchievements();renderRivalryCard();setTimeout(_scheduleLocalNotifications,2000);}
+async function loadProfile(){if(!CU)return;try{const{data,error}=await sb.from("profiles").select("*").eq("id",CU.id).single();if(!error&&data){PR=data;if(PR.location_id){document.getElementById("locTag").classList.add("on");document.getElementById("locLabel").textContent=PR.location_label||PR.location_name;}}else if(error&&error.code==="PGRST116"){const name=CU.user_metadata?.name||CU.email.split("@")[0];await sb.from("profiles").upsert({id:CU.id,email:CU.email,name,notif_on:true},{onConflict:"id"});PR={id:CU.id,email:CU.email,name,notif_on:true,location_id:null};}if(PR){await _checkStreakExpiry();renderStreakBanner();renderHomeAchievements();renderRivalryCard();setTimeout(_scheduleLocalNotifications,2000);}
   }catch(e){}}
 
 async function doRegister(name,email,pass){const{data,error}=await sb.auth.signUp({email,password:pass,options:{data:{name},emailRedirectTo:APP_URL+"?mode=reset"}});if(error){if(error.message?.toLowerCase().includes("rate limit")||error.message?.toLowerCase().includes("over_email_send_rate_limit"))throw new Error("RATE_LIMIT");throw new Error(error.message);}if(data.user){await sb.from("profiles").upsert({id:data.user.id,email,name,notif_on:true},{onConflict:"id"});}if(data.session){CU=data.user;await loadProfile();renderAccount();updateBanner();toast(`Welcome, ${name}!`,"ok");_maybeStartTour();}sendEmail(email,"Welcome to NEPAWatch Nigeria",`Hi ${name},\n\nWelcome to NEPAWatch Nigeria!\n\nYou will receive real-time email alerts whenever power goes out or is restored near your street.\n\nOpen the app and set your location to activate alerts.\n\nStay powered,\nNEPAWatch Nigeria`,buildEmailHtml({type:'welcome',name,appUrl:APP_URL}));return data;}
@@ -2662,7 +2662,7 @@ function startPolling(){
 async function pushReport(loc,type){
   if(!CU){toast("Sign in to submit a report","info");go("account");return;}
   // ── Rate limiting disabled for launch — no cap on reports ──
-  const tid="local-"+Date.now();reports.unshift({id:tid,name:loc.name,area:loc.area,type,time:Date.now(),confirms:1,userId:CU.id});if(reports.length>500){const di=reports.slice(400).findIndex(r=>!r.isAI&&r.userId!==AI_USER_ID&&!String(r.id).startsWith('local-')&&!String(r.id).startsWith('ai-'));if(di!==-1)reports.splice(400+di,1);else reports.pop();}render();try{const firstName=PR?.name?.split(" ")[0]||null;const payload={user_id:CU.id,display_name:firstName,location_name:loc.name,location_area:loc.area,type,confirms:1};let{data,error}=await sb.from("reports").insert(payload).select().single();/* If display_name column doesn't exist yet, retry without it */if(error&&(error.message?.includes("display_name")||error.code==="PGRST204")){delete payload.display_name;({data,error}=await sb.from("reports").insert(payload).select().single());}if(error){const idx=reports.findIndex(r=>r.id===tid);if(idx!==-1)reports.splice(idx,1);render();toast(`Could not save report: ${error.message}`,"err");return;}const idx=reports.findIndex(r=>r.id===tid);if(idx!==-1)reports[idx]={id:data.id,name:data.location_name,area:data.location_area,type:data.type,time:new Date(data.created_at).getTime(),confirms:data.confirms||1,userId:data.user_id};render();toast(type==="out"?`Outage reported — ${loc.name}`:`Power restored — ${loc.name}`,type==="out"?"err":"ok");updateStreak();if(PR&&!PR.location_id)await saveLocation(loc);await sendAreaAlerts(loc.name,loc.area,type);setTimeout(loadReports,2000);}catch(e){const idx=reports.findIndex(r=>r.id===tid);if(idx!==-1)reports.splice(idx,1);render();toast("Could not save report — check your connection","err");}}
+  const tid="local-"+Date.now();reports.unshift({id:tid,name:loc.name,area:loc.area,type,time:Date.now(),confirms:1,userId:CU.id});if(reports.length>500){const di=reports.slice(400).findIndex(r=>!r.isAI&&r.userId!==AI_USER_ID&&!String(r.id).startsWith('local-')&&!String(r.id).startsWith('ai-'));if(di!==-1)reports.splice(400+di,1);else reports.pop();}render();try{const firstName=PR?.name?.split(" ")[0]||null;const payload={user_id:CU.id,display_name:firstName,location_name:loc.name,location_area:loc.area,type,confirms:1};let{data,error}=await sb.from("reports").insert(payload).select().single();/* If display_name column doesn't exist yet, retry without it */if(error&&(error.message?.includes("display_name")||error.code==="PGRST204")){delete payload.display_name;({data,error}=await sb.from("reports").insert(payload).select().single());}if(error){const idx=reports.findIndex(r=>r.id===tid);if(idx!==-1)reports.splice(idx,1);render();toast(`Could not save report: ${error.message}`,"err");return;}const idx=reports.findIndex(r=>r.id===tid);if(idx!==-1)reports[idx]={id:data.id,name:data.location_name,area:data.location_area,type:data.type,time:new Date(data.created_at).getTime(),confirms:data.confirms||1,userId:data.user_id};render();toast(type==="out"?`Outage reported — ${loc.name}`:`Power restored — ${loc.name}`,type==="out"?"err":"ok");updateStreak();_checkReportBadges(type);if(PR&&!PR.location_id)await saveLocation(loc);await sendAreaAlerts(loc.name,loc.area,type);setTimeout(loadReports,2000);}catch(e){const idx=reports.findIndex(r=>r.id===tid);if(idx!==-1)reports.splice(idx,1);render();toast("Could not save report — check your connection","err");}}
 
 async function addConfirm(repId) {
   const r = reports.find(x => x.id === repId);
@@ -3162,7 +3162,7 @@ async function sendAreaAlerts(repName,repArea,repType,isAI=false){if(!repArea)re
       :`Power restored near ${repName}. Tap to confirm.`;
   }
   _fireNotification(pushTitle,pushBody,pushNotifType,repArea,'/');
-const _aKey=repArea+'|'+repType;const _now=Date.now();if(_alertCooldowns[_aKey]&&(_now-_alertCooldowns[_aKey])<ALERT_COOLDOWN_MS)return;_alertCooldowns[_aKey]=_now;try{const _src=isAI?' · NEPAWatch AI':'';const subject=repType==="out"?`Power Outage — ${repArea}, Nigeria${_src}`:`Power Restored — ${repArea}, Nigeria${_src}`;const time=new Date().toLocaleTimeString("en-NG",{hour:"2-digit",minute:"2-digit"});const body=`${repType==="out"?"Power outage":"Power restored"} near ${repName}, ${repArea}.\n\nTime: ${time}\n\nSee live updates: ${APP_URL}\n\n— ${isAI?'NEPAWatch AI':'NEPAWatch'}`;const alertHtml=buildEmailHtml({type:repType,area:repArea,street:repName,time,appUrl:APP_URL});let edgeSent=false;try{const res=await fetch(EMAIL_FN,{method:"POST",headers:{"Content-Type":"application/json","apikey":SUPA_ANON,"Authorization":`Bearer ${SUPA_ANON}`},body:JSON.stringify({mode:"area_alert",area:repArea,repName,repType,subject,body,html:alertHtml,time,confirmRequest:true,isAI})});if(res.ok){const json=await res.json().catch(()=>({}));const count=json.sent||0;edgeSent=true;if(count>0){emailLog.unshift({subject,to:`${count} watcher${count!==1?"s":""} in ${repArea}`,time});if(emailLog.length>8)emailLog.pop();}}}catch(fe){}if(CU&&savedPlaces.length){const matchingPlaces=savedPlaces.filter(p=>strictAreaMatch(repArea,p.location_area)&&p.notif_on!==false);if(matchingPlaces.length&&CU.email&&!edgeSent){const placeNames=matchingPlaces.map(p=>getPlaceDisplayName(p)).join(", ");const placeHtml=buildEmailHtml({type:repType,area:repArea,street:repName,time,places:placeNames,appUrl:APP_URL});await sendEmail(CU.email,subject,body,placeHtml);emailLog.unshift({subject,to:CU.email+"  (saved place)",time});if(emailLog.length>8)emailLog.pop();toast("Alert sent for your saved place","ok");if(document.getElementById("page-account").classList.contains("active"))renderAccount();}}else if(!edgeSent&&CU&&PR&&strictAreaMatch(repArea,PR.location_area)&&PR.notif_on&&CU.email){const userHtml=buildEmailHtml({type:repType,area:repArea,street:repName,time,appUrl:APP_URL});await sendEmail(CU.email,subject,body,userHtml);emailLog.unshift({subject,to:CU.email,time});if(emailLog.length>8)emailLog.pop();toast("Alert sent to your email","ok");if(document.getElementById("page-account").classList.contains("active"))renderAccount();}}catch(e){}}
+const _aKey=repArea+'|'+repType;const _now=Date.now();if(_alertCooldowns[_aKey]&&(_now-_alertCooldowns[_aKey])<ALERT_COOLDOWN_MS)return;_alertCooldowns[_aKey]=_now;try{const _src=isAI?' · NEPAWatch AI':'';const subject=repType==="out"?`Power Outage — ${repArea}, Nigeria${_src}`:`Power Restored — ${repArea}, Nigeria${_src}`;const time=new Date().toLocaleTimeString("en-NG",{hour:"2-digit",minute:"2-digit"});const body=`${repType==="out"?"Power outage":"Power restored"} near ${repName}, ${repArea}.\n\nTime: ${time}\n\nSee live updates: ${APP_URL}\n\n— ${isAI?'NEPAWatch AI':'NEPAWatch'}`;const alertHtml=buildEmailHtml({type:repType,area:repArea,street:repName,time,appUrl:APP_URL});let edgeSent=false;try{const res=await fetch(EMAIL_FN,{method:"POST",headers:{"Content-Type":"application/json","apikey":SUPA_ANON,"Authorization":`Bearer ${SUPA_ANON}`},body:JSON.stringify({mode:"area_alert",area:repArea,repName,repType,subject,body,html:alertHtml,time,confirmRequest:true,isAI})});if(res.ok){const json=await res.json().catch(()=>({}));const count=json.sent||0;edgeSent=true;if(count>0){emailLog.unshift({subject,to:`${count} watcher${count!==1?"s":""} in ${repArea}`,time});if(emailLog.length>8)emailLog.pop();}}}catch(fe){}if(CU&&savedPlaces.length){const matchingPlaces=savedPlaces.filter(p=>strictAreaMatch(repArea,p.location_area)&&p.notif_on!==false);if(matchingPlaces.length&&CU.email){const placeNames=matchingPlaces.map(p=>getPlaceDisplayName(p)).join(", ");const placeHtml=buildEmailHtml({type:repType,area:repArea,street:repName,time,places:placeNames,appUrl:APP_URL});await sendEmail(CU.email,subject,body,placeHtml);emailLog.unshift({subject,to:CU.email+"  (saved place)",time});if(emailLog.length>8)emailLog.pop();toast("Alert sent for your saved place","ok");if(document.getElementById("page-account").classList.contains("active"))renderAccount();}}else if(!edgeSent&&CU&&PR&&strictAreaMatch(repArea,PR.location_area)&&PR.notif_on&&CU.email){const userHtml=buildEmailHtml({type:repType,area:repArea,street:repName,time,appUrl:APP_URL});await sendEmail(CU.email,subject,body,userHtml);emailLog.unshift({subject,to:CU.email,time});if(emailLog.length>8)emailLog.pop();toast("Alert sent to your email","ok");if(document.getElementById("page-account").classList.contains("active"))renderAccount();}}catch(e){}}
 
 function openModal(type){mType=type;mSel=null;document.getElementById("shTitle").textContent=type==="out"?"Report Power Outage":"Report Power Restored";document.getElementById("shDesc").textContent=type==="out"?"Search your street or area in Lagos.":"Great news! Tell your community.";const btn=document.getElementById("mBtn");btn.textContent=type==="out"?"Confirm Outage":"Confirm Restored";btn.className="mconfirm "+(type==="out"?"out":"bck");btn.disabled=true;document.getElementById("mSearch").value="";if(PR?.location_id){mSel=LOCS.find(l=>l.id===PR.location_id)||null;if(mSel){btn.disabled=false;btn.textContent=type==="out"?`Report — ${mSel.name}`:`Restored — ${mSel.name}`;}}renderMList(LOCS.slice(0,60));document.getElementById("repOverlay").classList.add("open");}
 function closeModal(){document.getElementById("repOverlay").classList.remove("open");mType=null;mSel=null;}
@@ -3592,8 +3592,8 @@ function renderHomeAchievements(){
   const earnedMain=earned.filter(k=>BADGE_DISPLAY_ORDER.includes(k));
   el.style.display='block';
 
-  // Layout constants
-  const R=26,sX=86,yHi=36,yLo=84,padX=18,H=150;
+  // Layout constants — 64 px nodes (R=32) across 18 badges
+  const R=32,sX=104,yHi=42,yLo=112,padX=20,H=185;
   const nd=BADGE_DISPLAY_ORDER.map((key,i)=>({key,cx:padX+R+i*sX,cy:i%2===0?yLo:yHi}));
   const W=nd[nd.length-1].cx+R+padX+4;
   const off=sX*0.4;
@@ -3622,7 +3622,7 @@ function renderHomeAchievements(){
     const glow=gold?'box-shadow:0 0 16px rgba(245,158,11,.28);':has?`box-shadow:0 0 8px ${def.color}2e;`:'';
     const check=has?`<div class="pn-check">${_ico('check',9,'#fff')}</div>`:'';
     const cls=`path-node${has?(gold?' pn-gold':' pn-on'):' pn-locked'}`;
-    return`<div class="${cls}" style="left:${cx-R}px;top:${cy-R}px;background:${bg};border-color:${bc};${glow}" onclick="${has?`showBadgeCelebration('${key}')`:`showBadgeHowTo('${key}')`}">${_ico(def.iconKey,20,color)}${check}</div><div class="pn-lbl" style="left:${cx}px;top:${cy+R+6}px${has?'':';opacity:.75'}">${def.name}</div>`;
+    return`<div class="${cls}" style="left:${cx-R}px;top:${cy-R}px;background:${bg};border-color:${bc};${glow}" onclick="${has?`showBadgeCelebration('${key}')`:`showBadgeHowTo('${key}')`}">${_ico(def.iconKey,26,color)}${check}</div><div class="pn-lbl" style="left:${cx}px;top:${cy+R+6}px${has?'':';opacity:.75'}">${def.name}</div>`;
   }).join('');
 
   el.innerHTML=`<div class="achiev-hd"><span class="achiev-hd-title">Achievements</span><span class="achiev-hd-count">${earnedMain.length}/${BADGE_DISPLAY_ORDER.length}</span></div><div class="path-scroll"><div class="path-track" style="width:${W}px;height:${H}px"><svg class="path-svg" width="${W}" height="${H}"><path d="${fp}" fill="none" stroke="var(--bd)" stroke-width="2.5" stroke-dasharray="5 4" stroke-linecap="round"/>${ep?`<path d="${ep}" fill="none" stroke="var(--p)" stroke-width="2.5" stroke-linecap="round" opacity=".65"/>`:''}</svg>${nodesHTML}</div></div>`;
@@ -5136,17 +5136,55 @@ const BADGE_DEFS = {
   reports_100:     { iconKey:'medal',    color:'#f43f5e', name:'Power General',      desc:'100 total reports submitted',                        howToEarn:'Submit 100 total power reports. A serious commitment to the community.',  shareMsg:(a)=>`100 reports on NEPAWatch — Power General status in ${a||'my area'}! Join me: nepawatch.app` },
   weekly_champion: { iconKey:'gold',     color:'#f59e0b', name:'Weekly Champion',    desc:'Top reporter of the week — community leader',        howToEarn:'Submit the most reports in a single week to top the leaderboard.',       shareMsg:(a)=>`I just won Weekly Champion on NEPAWatch — top reporter in ${a||'Lagos'} this week! Join me: nepawatch.app` },
   referral_3:      { iconKey:'users',    color:'#06b6d4', name:'Community Builder',  desc:'Referred 3 friends who joined NEPAWatch',            howToEarn:'Share your referral link and get 3 friends to sign up and report.',       shareMsg:(a)=>`I just earned the Community Builder badge on NEPAWatch for bringing 3 friends to track power in Nigeria! Join us: nepawatch.app` },
+  streak_60:       { iconKey:'star',     color:'#c084fc', name:'Consistent',         desc:'60-day reporting streak — two months of power watching', howToEarn:'Maintain a daily reporting streak for 60 consecutive days.',           shareMsg:(a)=>`60-day streak on NEPAWatch — two months tracking power in ${a||'my area'}! Join me: nepawatch.app` },
+  reports_200:     { iconKey:'chart',    color:'#34d399', name:'Data Champion',      desc:'200 total reports submitted',                        howToEarn:'Submit 200 total power reports.',                                          shareMsg:(a)=>`200 reports on NEPAWatch! I am a Data Champion for ${a||'my area'}. Join me: nepawatch.app` },
+  reports_500:     { iconKey:'crown',    color:'#fb923c', name:'Legend',             desc:'500 total reports — a living legend',                howToEarn:'Submit 500 total reports. You are a NEPAWatch legend.',                    shareMsg:(a)=>`500 reports on NEPAWatch — Legend status in ${a||'my area'}! Join me: nepawatch.app`, gold:true },
+  night_owl:       { iconKey:'signal',   color:'#818cf8', name:'Night Owl',          desc:'Reported a power outage in the dead of night',       howToEarn:'File a power report between midnight and 5am WAT.',                        shareMsg:(a)=>`I am a Night Owl on NEPAWatch — reporting power outages in the dark in ${a||'my area'}! Join me: nepawatch.app` },
+  early_bird:      { iconKey:'flame',    color:'#fb923c', name:'Early Bird',         desc:'Up before sunrise — first to report',               howToEarn:'File a power report before 7am WAT.',                                      shareMsg:(a)=>`Early Bird on NEPAWatch — first to report power in ${a||'my area'} at sunrise! Join: nepawatch.app` },
+  first_restore:   { iconKey:'plant',    color:'#4ade80', name:'Light Bringer',      desc:'Filed your first power restoration report',          howToEarn:'Report that power has been restored in your area.',                        shareMsg:(a)=>`I just reported power is back in ${a||'my area'} on NEPAWatch! Join me: nepawatch.app` },
 };
 
-// Badge display order for the 8 main badges shown in UI
-const BADGE_DISPLAY_ORDER = ['first_report','streak_3','streak_7','streak_30','streak_100','reports_25','weekly_champion','referral_3'];
+// All badges in path display order (18 total — scrollable wave)
+const BADGE_DISPLAY_ORDER = [
+  'first_report','first_restore','night_owl','early_bird',
+  'streak_3','reports_10','streak_7','reports_25',
+  'streak_14','reports_50','streak_30','reports_100',
+  'streak_60','reports_200','streak_100','weekly_champion',
+  'reports_500','referral_3',
+];
 // Priority order for showing "best badge" in leaderboard (highest first)
-const BADGE_PRIORITY = ['streak_100','weekly_champion','streak_30','streak_14','streak_7','reports_100','reports_50','reports_25','streak_3','referral_3','first_report'];
+const BADGE_PRIORITY = ['reports_500','streak_100','weekly_champion','streak_60','streak_30','streak_14','streak_7','reports_200','reports_100','reports_50','reports_25','reports_10','streak_3','referral_3','first_restore','night_owl','early_bird','first_report'];
 
 // WAT = UTC+1 (Africa/Lagos). Returns "YYYY-MM-DD".
 function getTodayWAT() {
   const now = new Date(Date.now() + 60 * 60 * 1000);
   return now.toISOString().slice(0, 10);
+}
+
+async function _checkStreakExpiry() {
+  if (!CU || !PR || !(PR.current_streak > 0)) return;
+  const yesterday = new Date(Date.now() + 60 * 60 * 1000 - 86400000).toISOString().slice(0, 10);
+  if (PR.last_report_date && PR.last_report_date < yesterday) {
+    try { await sb.from('profiles').update({ current_streak: 0 }).eq('id', CU.id); } catch(e) {}
+    PR.current_streak = 0;
+  }
+}
+
+function _checkReportBadges(type) {
+  if (!CU || !PR) return;
+  const current = new Set(PR.badges || []);
+  const toAward = [];
+  const watHour = new Date(Date.now() + 3600000).getUTCHours();
+  if (!current.has('night_owl')    && watHour >= 0 && watHour < 5)  toAward.push('night_owl');
+  if (!current.has('early_bird')   && watHour >= 4 && watHour < 7)  toAward.push('early_bird');
+  if (!current.has('first_restore') && type === 'bck')               toAward.push('first_restore');
+  if (!toAward.length) return;
+  const newBadges = [...current, ...toAward];
+  sb.from('profiles').update({ badges: newBadges }).eq('id', CU.id).then(() => {
+    PR.badges = newBadges;
+    renderHomeAchievements();
+    showBadgeCelebration(toAward[0]);
+  }).catch(() => {});
 }
 
 async function updateStreak() {
@@ -5183,7 +5221,7 @@ async function updateStreak() {
     PR.last_report_date = today;
     PR.total_reports    = totalReports;
 
-    if ([3, 7, 14, 30, 100].includes(newStreak)) showStreakMilestone(newStreak);
+    if ([3, 7, 14, 30, 60, 100].includes(newStreak)) showStreakMilestone(newStreak);
     _checkBadges(PR, totalReports, newStreak);
     renderStreakBanner();
   } catch(e) {}
@@ -5198,10 +5236,13 @@ function _checkBadges(profile, totalReports, streak) {
   if (totalReports >= 25  && !current.has('reports_25'))    toAward.push('reports_25');
   if (totalReports >= 50  && !current.has('reports_50'))    toAward.push('reports_50');
   if (totalReports >= 100 && !current.has('reports_100'))   toAward.push('reports_100');
+  if (totalReports >= 200 && !current.has('reports_200'))   toAward.push('reports_200');
+  if (totalReports >= 500 && !current.has('reports_500'))   toAward.push('reports_500');
   if (streak >= 3   && !current.has('streak_3'))            toAward.push('streak_3');
   if (streak >= 7   && !current.has('streak_7'))            toAward.push('streak_7');
   if (streak >= 14  && !current.has('streak_14'))           toAward.push('streak_14');
   if (streak >= 30  && !current.has('streak_30'))           toAward.push('streak_30');
+  if (streak >= 60  && !current.has('streak_60'))           toAward.push('streak_60');
   if (streak >= 100 && !current.has('streak_100'))          toAward.push('streak_100');
   if ((profile.referral_count || 0) >= 3 && !current.has('referral_3')) toAward.push('referral_3');
 
@@ -5272,18 +5313,21 @@ function renderStreakBanner() {
 
   const streak        = PR.current_streak || 0;
   const today         = getTodayWAT();
+  const yesterday     = new Date(Date.now() + 60 * 60 * 1000 - 86400000).toISOString().slice(0, 10);
   const reportedToday = PR.last_report_date === today;
+  const isExpired     = streak > 0 && !reportedToday && PR.last_report_date && PR.last_report_date < yesterday;
 
-  if (streak === 0 && !reportedToday) {
+  if (streak === 0 || isExpired) {
     inner.className = 'streak-zero';
-    inner.innerHTML = `${_ico('signal',16,'#3b82f6')} <span>Start your streak — report power now!</span>`;
+    inner.innerHTML = isExpired
+      ? `${_ico('flame',16,'#6b7280')} <span>Streak ended — start a new one today!</span>`
+      : `${_ico('signal',16,'#3b82f6')} <span>Start your streak — report power now!</span>`;
     el.style.display = 'block';
     return;
   }
 
-  const yesterday = new Date(Date.now() + 60 * 60 * 1000 - 86400000).toISOString().slice(0, 10);
-  const atRisk    = !reportedToday && PR.last_report_date === yesterday;
-  const hourWAT   = new Date(Date.now() + 60 * 60 * 1000).getUTCHours();
+  const atRisk  = !reportedToday && PR.last_report_date === yesterday;
+  const hourWAT = new Date(Date.now() + 60 * 60 * 1000).getUTCHours();
 
   if (atRisk && hourWAT >= 18) {
     inner.className = 'streak-nudge';
@@ -5305,6 +5349,7 @@ function showStreakMilestone(days) {
     7:   '7-day streak — one week of power watching!',
     14:  '14-day streak — two weeks strong!',
     30:  '30-day streak — one month of power watching!',
+    60:  '60-day streak — two months! You\'re a legend!',
     100: '100-day streak — unstoppable!',
   };
   const t = document.createElement('div');

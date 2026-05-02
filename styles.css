@@ -848,13 +848,13 @@ body::after{content:"";display:block;position:fixed;bottom:0;left:0;right:0;heig
 .path-scroll::-webkit-scrollbar{display:none}
 .path-track{position:relative;display:inline-block}
 .path-svg{position:absolute;top:0;left:0;pointer-events:none}
-.path-node{position:absolute;width:52px;height:52px;border-radius:50%;border:2px solid var(--bd);display:flex;align-items:center;justify-content:center;cursor:pointer;background:var(--sf2);transition:transform .12s,box-shadow .15s}
+.path-node{position:absolute;width:64px;height:64px;border-radius:50%;border:2px solid var(--bd);display:flex;align-items:center;justify-content:center;cursor:pointer;background:var(--sf2);transition:transform .12s,box-shadow .15s}
 .path-node:active{transform:scale(.86)}
 .path-node.pn-on{background:var(--pp);border-color:var(--pb)}
 .path-node.pn-gold{background:rgba(245,158,11,.13);border-color:rgba(245,158,11,.45)}
 .path-node.pn-locked{opacity:.78;filter:grayscale(.45)}
-.pn-check{position:absolute;top:1px;right:1px;width:15px;height:15px;border-radius:50%;background:var(--p);display:flex;align-items:center;justify-content:center;flex-shrink:0}
-.pn-lbl{position:absolute;font-size:.58rem;font-weight:600;color:var(--ink2);transform:translateX(-50%);text-align:center;white-space:nowrap;pointer-events:none;line-height:1.3}
+.pn-check{position:absolute;top:2px;right:2px;width:16px;height:16px;border-radius:50%;background:var(--p);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.pn-lbl{position:absolute;font-size:.60rem;font-weight:600;color:var(--ink2);transform:translateX(-50%);text-align:center;white-space:nowrap;pointer-events:none;line-height:1.3}
 .lbi-badges{display:flex;align-items:center;gap:3px;margin-left:2px}
 .ref-pill{margin:0 18px 14px;padding:11px 14px;border-radius:14px;background:var(--sf);border:1px solid var(--bd);display:flex;align-items:center;gap:10px}
 .ref-pill-link{font-size:.65rem;color:var(--p);font-weight:600;word-break:break-all;flex:1}
