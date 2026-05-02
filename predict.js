@@ -346,21 +346,30 @@ const AIReporter = {
   async _seedFiredFromDB() {
     if (typeof sb === 'undefined') return;
     try {
-      const cutoff = new Date(Date.now() - AI_MIN_REFIRE_MS).toISOString();
+      // Use 8h window — covers realistic browser restart gaps. Stamp _lastFired
+      // as Date.now() (not the actual report time) so the 45-min refire cooldown
+      // blocks immediate re-firing; _rebuildState() handles the long-term case
+      // once loadReports() has populated the reports array.
+      const SEED_WINDOW_MS = 8 * 60 * 60 * 1000;
+      const cutoff = new Date(Date.now() - SEED_WINDOW_MS).toISOString();
       const { data } = await sb.from('reports')
-        .select('location_area, created_at')
+        .select('location_area, type, created_at')
         .eq('user_id', AI_USER_ID)
         .gte('created_at', cutoff)
         .order('created_at', { ascending: false });
       if (data && data.length) {
+        // Only seed 'out' reports — 'bck' reports shouldn't block re-firing
+        const seenAreas = new Set();
         for (const row of data) {
-          const ts = new Date(row.created_at).getTime();
-          if (!this._lastFired[row.location_area] || ts > this._lastFired[row.location_area]) {
-            this._lastFired[row.location_area] = ts;
+          if (seenAreas.has(row.location_area)) continue;
+          seenAreas.add(row.location_area);
+          if (row.type === 'out') {
+            // Stamp now so the refire cooldown kicks in immediately after restart
+            this._lastFired[row.location_area] = Date.now();
           }
         }
         this._saveFiredState();
-        console.log(`[NEPAWatch AI] Seeded _lastFired from DB: ${data.length} recent AI report(s).`);
+        console.log(`[NEPAWatch AI] Seeded _lastFired from DB (8h window): ${seenAreas.size} area(s).`);
       }
     } catch(e) { /* localStorage state still in effect */ }
   },
