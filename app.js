@@ -2284,7 +2284,7 @@ const _SEED_REPORTS = [
   {id:'seed-30',name:'Jabi Lake Road',area:'Jabi',type:'bck',time:_SEED_NOW-96*60000,confirms:3,userId:'seed',isAI:false,isSeed:true},
 ];
 
-let reports=[],filterArea="",feedFilter="today",statusFilter="all",feedPage=1,FEED_PAGE_SIZE=100,mType=null,mSel=null,CU=null,PR=null,emailLog=[],_inResetFlow=false;
+let reports=[],filterArea="",feedFilter="today",statusFilter="all",feedPage=1,FEED_PAGE_SIZE=100,mType=null,mSel=null,CU=null,PR=null,emailLog=[],_inResetFlow=false,_reportsLoading=true;
 const _alertCooldowns={};
 const ALERT_COOLDOWN_MS=5*60*1000;
 const _aiAlertCooldowns={};
@@ -2321,7 +2321,18 @@ const SUN_SVG=`<circle cx="8" cy="8" r="3.5" stroke="currentColor" stroke-width=
 function toggleTheme(){const h=document.documentElement;const isDark=h.getAttribute("data-theme")==="dark";const next=isDark?"light":"dark";h.setAttribute("data-theme",next);document.getElementById("themeIcon").innerHTML=next==="dark"?MOON_SVG:SUN_SVG;try{localStorage.setItem("nw-theme",next);}catch(e){}}
 function initTheme(){let saved;try{saved=localStorage.getItem("nw-theme");}catch(e){}const pref=window.matchMedia("(prefers-color-scheme:dark)").matches?"dark":"light";const t=saved||pref;document.documentElement.setAttribute("data-theme",t);document.getElementById("themeIcon").innerHTML=t==="dark"?MOON_SVG:SUN_SVG;}
 
-function toast(msg,cls="ok"){const t=document.getElementById("toast");const ico={ok:IC.ok,err:IC.err,info:IC.inf}[cls]||"";t.innerHTML=ico+`<span>${msg}</span>`;t.className=`toast ${cls} show`;clearTimeout(t._tid);t._tid=setTimeout(()=>t.className="toast",cls==="err"?7000:3600);}
+const _toastQ=[];let _toastBusy=false;
+function toast(msg,cls="ok"){
+  if(_toastQ.length&&_toastQ[_toastQ.length-1].msg===msg)return;
+  _toastQ.push({msg,cls});if(!_toastBusy)_flushToast();
+}
+function _flushToast(){
+  if(!_toastQ.length){_toastBusy=false;return;}
+  _toastBusy=true;const{msg,cls}=_toastQ.shift();
+  const t=document.getElementById("toast");const ico={ok:IC.ok,err:IC.err,info:IC.inf}[cls]||"";
+  t.innerHTML=ico+`<span>${msg}</span>`;t.className=`toast ${cls} show`;
+  clearTimeout(t._tid);t._tid=setTimeout(()=>{t.className="toast";setTimeout(_flushToast,300);},cls==="err"?5000:2800);
+}
 
 async function initAuth(){
   try{const{data:{session}}=await sb.auth.getSession();CU=session?.user||null;if(CU)await loadProfile();}catch(e){}
@@ -2397,14 +2408,24 @@ function filterPlaceList(){
 }
 
 async function _runPlaceNominatim(q){
+  const ctrl=new AbortController();const nomTimer=setTimeout(()=>ctrl.abort(),5000);
   try{
     const url=`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q+', Nigeria')}&format=json&limit=8&addressdetails=1&countrycodes=ng`;
-    const res=await fetch(url,{headers:{"Accept-Language":"en","User-Agent":"NEPAWatch/1.0"}});
+    const res=await fetch(url,{headers:{"Accept-Language":"en","User-Agent":"NEPAWatch/1.0"},signal:ctrl.signal});
+    clearTimeout(nomTimer);
     const data=await res.json();
     _placeNomResults=data||[];
     const local=LOCS.filter(l=>l.label.toLowerCase().includes(q.toLowerCase())).slice(0,3);
     renderPlaceList(local,false,_placeNomResults);
-  }catch(e){}
+  }catch(e){
+    clearTimeout(nomTimer);
+    const local=LOCS.filter(l=>l.label.toLowerCase().includes(q.toLowerCase())).slice(0,5);
+    _placeNomResults=[];
+    const el=document.getElementById("placeList");if(!el)return;
+    let html=local.map(l=>`<div class="mopt ${_placeSel?.id===l.id?"sel":""}" onclick="selectPlaceLoc('${l.id}')"><span>${l.name}</span><span class="mopt-sub">${l.street?l.area:"Area"}</span></div>`).join("");
+    html+=`<div class="mopt" style="color:var(--ink3);cursor:default;font-size:.72rem;justify-content:center">Map search unavailable — try another name</div>`;
+    el.innerHTML=html;
+  }
 }
 
 // Place add form removed — Nominatim handles location discovery
@@ -2502,7 +2523,7 @@ function promptSaveArea(area){
 async function submitSavedPlace(){
   if(!CU){toast("Sign in to save places","info");closePlaceModal();go("account");return;}
   if(!_placeSel){toast("Select a location","info");return;}
-  const customLabel=document.getElementById("customPlaceName").value.trim()||null;
+  const customLabel=(document.getElementById("customPlaceName").value.trim().replace(/<[^>]*>/g,'').slice(0,40))||null;
   const btn=document.getElementById("placeBtn");
   btn.innerHTML=`Saving... <span class="spin"></span>`;btn.disabled=true;
 
@@ -2633,6 +2654,7 @@ async function loadReports(){
   }catch(e){
     console.warn('[loadReports] failed:',e?.message);
   }
+  _reportsLoading=false;_myAreaCache=null;
   render();
   renderRivalryCard();
   if(_nearbyAreas.length) renderNearbyDashboard();
@@ -3348,6 +3370,11 @@ function renderFeed(id="liveFeed", aF=null){
     data=data.filter(r=>r.type===statusFilter);
   }
   if(!data.length){
+    if(_reportsLoading&&id==="liveFeed"){
+      el.innerHTML=[1,2,3].map(()=>`<div class="fc sk-card"><div class="sk-dot"></div><div class="sk-body"><div class="sk-line sk-title"></div><div class="sk-line sk-sub"></div></div></div>`).join("");
+      const lmb=document.getElementById("loadMoreBtn");if(lmb)lmb.style.display="none";
+      return;
+    }
     el.innerHTML=`<div class="empty"><div class="empty-ico">${IC.bck}</div><p>${
       statusFilter!=="all"?`No "${statusFilter==="out"?"light out":"light restored"}" reports${feedFilter==="today"?" today":""} yet.`:
       id==="liveFeed"&&feedFilter==="today"?"No reports today yet — be the first!":
@@ -3387,8 +3414,12 @@ function renderFeed(id="liveFeed", aF=null){
 
 function renderDiscos(){const el=document.getElementById("discoZones");if(!el)return;el.innerHTML=DISCO.map(d=>{const outN=d.lgas.filter(a=>areaStatus(a)==="out").length;const rel=Math.max(10,Math.round(100-(outN/Math.max(d.lgas.length,1))*100));const c=rel>70?"var(--p)":rel>40?"var(--am)":"var(--rd)";const dot=outN>d.lgas.length*.5?"var(--rd)":outN>0?"var(--am)":"var(--p)";return`<div class="zc"><div class="zdot" style="background:${dot}"></div><div class="zb"><div class="zn">${d.name}<span>${d.lgas.slice(0,3).join(" · ")}...</span></div><div class="zt"><div class="zf" style="width:${rel}%;background:${c}"></div></div></div><div class="zp" style="color:${c}">${rel}%</div></div>`;}).join("");}
 
+let _myAreaCache=null,_myAreaCacheKey='';
 function renderMyArea(){
   const loc=PR?.location_id?LOCS.find(l=>l.id===PR.location_id):null;
+  const cacheKey=(loc?.area||'')+'|'+reports.length+'|'+(reports[0]?.id||'');
+  if(_myAreaCache&&_myAreaCacheKey===cacheKey){if(typeof renderMyAreaPredictWidget==='function')renderMyAreaPredictWidget();return;}
+  _myAreaCacheKey=cacheKey;
   const days7=["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
   const now=Date.now();const dayMs=86400000;
   let hrs=days7.map((_,i)=>{if(!loc)return null;const dayStart=now-(6-i)*dayMs;const dayEnd=dayStart+dayMs;const dayReps=reports.filter(r=>areaMatches(r.area,loc.area)&&r.time>=dayStart&&r.time<dayEnd);if(!dayReps.length)return null;const outage=dayReps.filter(r=>r.type==="out").length;const restored=dayReps.filter(r=>r.type==="bck").length;return Math.min(23,Math.max(1,12-(outage*3)+(restored*1.5)));});
@@ -3417,7 +3448,10 @@ async function renderCommunity(){
   renderCommFeed();
   document.getElementById("lbList").innerHTML=`<div class="loading-row"><div class="spin w"></div>Loading leaderboard...</div>`;
   try{
-    const{data:repData,error:repErr}=await sb.from("reports").select("user_id,location_name,location_area,type,created_at").not("user_id","is",null).order("created_at",{ascending:false}).limit(1000);
+    const _watNow=new Date(Date.now()+3600000);const _dow=_watNow.getUTCDay();
+    const _watMon=new Date(_watNow);_watMon.setUTCDate(_watMon.getUTCDate()-(_dow===0?6:_dow-1));_watMon.setUTCHours(0,0,0,0);
+    const _weekStartUtc=new Date(_watMon.getTime()-3600000).toISOString();
+    const{data:repData,error:repErr}=await sb.from("reports").select("user_id,location_name,location_area,type,created_at").not("user_id","is",null).gte("created_at",_weekStartUtc).order("created_at",{ascending:false}).limit(1000);
     if(repErr)throw repErr;
     if(repData&&repData.length>0){
       const counts={};
@@ -3553,7 +3587,7 @@ function renderRivalryCard(){
   if(!CU||!PR||!PR.location_area){el.style.display='none';return;}
   const userArea=PR.location_area;
   const rival=_getRival(userArea);
-  if(!rival){el.style.display='none';return;}
+  if(!rival){el.style.display='block';el.innerHTML=`<div class="rivalry-card"><div class="rv-header"><span class="rv-title">Area Rivalry</span></div><div class="rv-status" style="padding:16px 0 8px">No nearby rival area mapped yet — rivalry coming soon!</div></div>`;return;}
   const watNow=new Date(Date.now()+3600000);
   const dow=watNow.getUTCDay();
   const daysBack=dow===0?6:dow-1;
