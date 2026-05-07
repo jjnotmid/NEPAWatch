@@ -5359,7 +5359,6 @@ function renderStreakBanner() {
     el.style.display = 'block';
     return;
   }
-  const yesterday=getYesterdayWAT();
   const atRisk=!reportedToday&&PR.last_report_date===yesterday;
   const hourWAT=new Date(Date.now()+3600000).getUTCHours();
   if(atRisk&&hourWAT>=18){
