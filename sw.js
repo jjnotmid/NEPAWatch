@@ -1,10 +1,10 @@
 /* =====================================================
-   NEPAWatch Lagos — Service Worker v1.3.0
-   !! BUMP VERSION STRING ON EVERY DEPLOY !!
+   NEPAWatch Nigeria — Service Worker v2.4.0
+   To deploy: update version.json (one-line JSON file).
+   SW version here only needs bumping when SW logic changes.
    ===================================================== */
-const VERSION = 'v2.2.0';
+const VERSION = 'v2.4.0';
 const CACHE   = `nepawatch-${VERSION}`;
-const OFFLINE_KEY = 'nw-offline-state';
 
 const PRECACHE = [
   '/',
@@ -12,7 +12,6 @@ const PRECACHE = [
   '/styles.css',
   '/app.js',
   '/predict.js',
-  '/predict.css',
   '/logo.jpg',
   '/logo2.jpg',
   '/badge.png',
@@ -45,10 +44,11 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // JS/HTML — network-first so updated code always runs immediately
-  // Falls back to cache only when offline
   if (url.origin === self.location.origin) {
-    const isShell = /\.(js|html)$/.test(url.pathname) || url.pathname === '/';
+    // JS/HTML/JSON always network-first — updated code runs immediately; falls
+    // back to cache only when offline.  version.json MUST be in this group so
+    // the app can detect a new deployment while the user is offline-first.
+    const isShell = /\.(js|html|json)$/.test(url.pathname) || url.pathname === '/';
     if (isShell) {
       event.respondWith(
         fetch(request).then(response => {
@@ -57,7 +57,15 @@ self.addEventListener('fetch', event => {
             caches.open(CACHE).then(cache => cache.put(request, clone));
           }
           return response;
-        }).catch(() => caches.match(request))
+        }).catch(() => caches.match(request).then(r => r || caches.match('/index.html')))
+      );
+      return;
+    }
+    // Navigation requests (SPA deep links) — serve index.html as fallback so
+    // a stale cache never leaves the user on a broken partial render.
+    if (request.mode === 'navigate') {
+      event.respondWith(
+        fetch(request).catch(() => caches.match('/index.html'))
       );
       return;
     }

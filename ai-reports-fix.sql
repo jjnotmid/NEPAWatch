@@ -10,6 +10,17 @@
 --   2. Enable RLS and add a policy allowing the fixed AI UUID to insert without auth
 --   3. Add ai_prob column if it doesn't already exist
 
+-- ── Step 0: Insert permanent AI profile ──────────────────────────────────────
+-- The AI reporter inserts reports with this fixed UUID. A matching profiles row
+-- is required so FK checks (if re-added later) and leaderboard JOINs work.
+INSERT INTO profiles (id, email, name, notif_on)
+VALUES (
+  '00000000-0000-0000-0000-000000000001',
+  'ai@nepawatch.app',
+  'NEPAWatch AI',
+  false
+) ON CONFLICT (id) DO NOTHING;
+
 -- ── Step 1: Drop FK on reports.user_id ────────────────────────────────────────
 -- The AI inserts with a fixed UUID that has no matching auth.users row.
 -- Human user reports still work fine — Supabase auth guarantees their UUID exists.
