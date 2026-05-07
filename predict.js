@@ -69,17 +69,8 @@ function _getBandMaxOutMs(area) {
  */
 const DISCO_ALERT = (()=>{try{return JSON.parse(localStorage.getItem('nw-disco-alert')||'{}');}catch(e){return {};}})();
 
-/* Maps Lagos areas to their DISCO for DISCO_ALERT lookup. */
-const _AREA_DISCO = {
-  "Victoria Island":"EKEDC","Ikoyi":"EKEDC","Lagos Island":"EKEDC","Obalende/CMS":"EKEDC",
-  "Apapa":"EKEDC","Festac Town":"EKEDC","Ajah":"EKEDC","Lekki Phase 1":"EKEDC",
-  "Lekki Phase 2/Ikota":"EKEDC","Chevron/Lekki-Epe Expressway":"EKEDC","Igbo Efon/Ilasan":"EKEDC",
-  "VGC":"EKEDC","Osapa London":"EKEDC","Agungi":"EKEDC","Sangotedo":"EKEDC",
-  "Abraham Adesanya":"EKEDC","Awoyaya":"EKEDC","Ibeju-Lekki":"EKEDC","Epe":"EKEDC",
-  "Badagry":"EKEDC","Ojo/Alaba":"EKEDC","Amuwo Odofin":"EKEDC","Onikan/Lagos Mainland":"EKEDC",
-};
-/* All other Lagos areas default to IKEDC — _getAreaDisco handles the fallback. */
-function _getAreaDisco(area){ return _AREA_DISCO[area] || 'IKEDC'; }
+/* _AREA_DISCO is built dynamically from NIGERIA_DISCOS below; _getAreaDisco provides a safe accessor. */
+function _getAreaDisco(area){ _buildAreaDiscoMap(); return _AREA_DISCO[area] || 'IKEDC'; }
 
 /* ─── BAND CLASSIFICATION ────────────────────────────────────────────────── */
 /* AREA_BANDS is populated by nigeria_data.js (NIGERIA_AREA_BANDS) which loads */
@@ -183,7 +174,6 @@ const DISCO_ROTATION_MS = {
    Example — to activate from browser console / admin panel:
      DISCO_ALERT['KAEDCO'] = { level:'emergency', multiplier:1.5, until: Date.now()+8*3600000 };
      DISCO_ALERT['IE']     = { level:'maintenance', multiplier:0.7, until: Date.now()+2*3600000 }; */
-const DISCO_ALERT = {};
 
 /* Returns a multiplier (0.5–1.35) based on where the area is in its feeder
    rotation cycle, estimated from the last known restoration report.
