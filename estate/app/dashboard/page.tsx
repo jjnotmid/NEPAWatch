@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import type { Estate, PowerEvent, DieselLog, Resident } from '@/types'
+import AppShell from '@/components/AppShell'
 import LivePowerStatus from '@/components/panels/LivePowerStatus'
 import DieselTracker from '@/components/panels/DieselTracker'
 import OutageLog from '@/components/panels/OutageLog'
@@ -51,11 +52,6 @@ export default function DashboardPage() {
     return () => { supabase.removeChannel(ch) }
   }, [estate, load])
 
-  async function handleSignOut() {
-    await supabase.auth.signOut()
-    router.push('/login')
-  }
-
   if (loading) {
     return (
       <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg)' }}>
@@ -67,38 +63,22 @@ export default function DashboardPage() {
   if (!estate) return null
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
-      <nav style={{ position: 'sticky', top: 0, zIndex: 100, background: 'rgba(10,10,10,0.92)', backdropFilter: 'blur(12px)', borderBottom: '1px solid var(--border)', padding: '0 24px', height: '56px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <svg width="24" height="24" viewBox="0 0 32 32" fill="none"><rect width="32" height="32" rx="8" fill="var(--green)" /><path d="M18 5L10 17h8l-2 10 10-12h-8L18 5z" fill="#0A0A0A" /></svg>
-          <div>
-            <span style={{ fontFamily: 'Bricolage Grotesque', fontWeight: 800, fontSize: '0.95rem' }}>NEPA<span style={{ color: 'var(--green)' }}>Watch</span></span>
-            <span style={{ color: 'var(--text3)', fontSize: '12px', marginLeft: '8px' }}>{estate.name}</span>
-          </div>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <span style={{ color: 'var(--text3)', fontSize: '12px' }}>{estate.num_units} units</span>
-          <button className="btn-ghost" style={{ fontSize: '13px', padding: '6px 12px' }} onClick={handleSignOut}>Sign out</button>
-        </div>
-      </nav>
+    <AppShell estateName={estate.name}>
+      <div style={{ marginBottom: '24px' }}>
+        <h1 style={{ fontFamily: 'Bricolage Grotesque', fontWeight: 800, fontSize: '1.5rem', marginBottom: '2px' }}>{estate.name}</h1>
+        <p style={{ color: 'var(--text2)', fontSize: '13px' }}>{estate.address} · {estate.num_units} units</p>
+      </div>
 
-      <main style={{ maxWidth: '1200px', margin: '0 auto', padding: '24px 24px 48px' }}>
-        <div style={{ marginBottom: '24px' }}>
-          <h1 style={{ fontFamily: 'Bricolage Grotesque', fontWeight: 800, fontSize: '1.5rem', marginBottom: '2px' }}>{estate.name}</h1>
-          <p style={{ color: 'var(--text2)', fontSize: '13px' }}>{estate.address}</p>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '20px' }}>
+        <div style={{ gridColumn: '1 / -1' }}>
+          <LivePowerStatus estate={estate} events={events} userId={userId!} onRefresh={() => load(estate.id)} />
         </div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '20px' }}>
-          <div style={{ gridColumn: '1 / -1' }}>
-            <LivePowerStatus estate={estate} events={events} userId={userId!} onRefresh={() => load(estate.id)} />
-          </div>
-          <DieselTracker estate={estate} dieselLogs={dieselLogs} userId={userId!} onRefresh={() => load(estate.id)} />
-          <OutageLog events={events} />
-          <CostCalculator estate={estate} dieselLogs={dieselLogs} events={events} />
-          <ResidentAlerts estate={estate} residents={residents} events={events} userId={userId!} />
-          <MonthlyReport estate={estate} events={events} dieselLogs={dieselLogs} userId={userId!} />
-        </div>
-      </main>
-    </div>
+        <DieselTracker estate={estate} dieselLogs={dieselLogs} userId={userId!} onRefresh={() => load(estate.id)} />
+        <OutageLog events={events} />
+        <CostCalculator estate={estate} dieselLogs={dieselLogs} events={events} />
+        <ResidentAlerts estate={estate} residents={residents} events={events} userId={userId!} />
+        <MonthlyReport estate={estate} events={events} dieselLogs={dieselLogs} userId={userId!} />
+      </div>
+    </AppShell>
   )
 }

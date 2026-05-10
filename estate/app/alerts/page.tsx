@@ -3,10 +3,12 @@ import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import type { AlertSent } from '@/types'
+import AppShell from '@/components/AppShell'
 
 export default function AlertsPage() {
   const router = useRouter()
   const [alerts, setAlerts] = useState<AlertSent[]>([])
+  const [estateName, setEstateName] = useState('')
   const [loading, setLoading] = useState(true)
 
   const loadAlerts = useCallback(async (estateId: string) => {
@@ -19,6 +21,8 @@ export default function AlertsPage() {
       if (!data.user) { router.push('/login'); return }
       const { data: mgr } = await supabase.from('estate_managers').select('estate_id').eq('user_id', data.user.id).single()
       if (!mgr) { router.push('/onboarding'); return }
+      const { data: est } = await supabase.from('estates').select('id,name').eq('id', mgr.estate_id).single()
+      if (est) setEstateName(est.name)
       await loadAlerts(mgr.estate_id); setLoading(false)
     })
   }, [router, loadAlerts])
@@ -29,9 +33,8 @@ export default function AlertsPage() {
   if (loading) return <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg)' }}><p style={{ color: 'var(--text2)' }}>Loading…</p></div>
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg)', padding: '24px' }}>
+    <AppShell estateName={estateName}>
       <div style={{ maxWidth: '900px', margin: '0 auto' }}>
-        <button className="btn-ghost" style={{ fontSize: '12px', marginBottom: '16px' }} onClick={() => router.push('/dashboard')}>← Back to Dashboard</button>
         <h1 style={{ fontFamily: 'Bricolage Grotesque', fontWeight: 800, fontSize: '1.5rem', marginBottom: '6px' }}>Alert History</h1>
         <p style={{ color: 'var(--text2)', fontSize: '13px', marginBottom: '24px' }}>{alerts.length} alerts sent in total</p>
         <div className="card" style={{ padding: '0' }}>
@@ -46,6 +49,6 @@ export default function AlertsPage() {
           </div>
         </div>
       </div>
-    </div>
+    </AppShell>
   )
 }
