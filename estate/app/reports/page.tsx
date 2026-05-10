@@ -4,10 +4,12 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import type { MonthlyReport } from '@/types'
 import { formatNaira } from '@/lib/utils'
+import AppShell from '@/components/AppShell'
 
 export default function ReportsPage() {
   const router = useRouter()
   const [reports, setReports] = useState<MonthlyReport[]>([])
+  const [estateName, setEstateName] = useState('')
   const [loading, setLoading] = useState(true)
 
   const loadReports = useCallback(async (estateId: string) => {
@@ -20,6 +22,8 @@ export default function ReportsPage() {
       if (!data.user) { router.push('/login'); return }
       const { data: mgr } = await supabase.from('estate_managers').select('estate_id').eq('user_id', data.user.id).single()
       if (!mgr) { router.push('/onboarding'); return }
+      const { data: est } = await supabase.from('estates').select('id,name').eq('id', mgr.estate_id).single()
+      if (est) setEstateName(est.name)
       await loadReports(mgr.estate_id); setLoading(false)
     })
   }, [router, loadReports])
@@ -29,9 +33,8 @@ export default function ReportsPage() {
   if (loading) return <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg)' }}><p style={{ color: 'var(--text2)' }}>Loading…</p></div>
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg)', padding: '24px' }}>
+    <AppShell estateName={estateName}>
       <div style={{ maxWidth: '900px', margin: '0 auto' }}>
-        <button className="btn-ghost" style={{ fontSize: '12px', marginBottom: '16px' }} onClick={() => router.push('/dashboard')}>← Back to Dashboard</button>
         <h1 style={{ fontFamily: 'Bricolage Grotesque', fontWeight: 800, fontSize: '1.5rem', marginBottom: '6px' }}>Monthly Reports</h1>
         <p style={{ color: 'var(--text2)', fontSize: '13px', marginBottom: '24px' }}>Download and re-generate PDFs from the Monthly Report panel on the dashboard.</p>
         {reports.length === 0
@@ -53,6 +56,6 @@ export default function ReportsPage() {
             </div>
         }
       </div>
-    </div>
+    </AppShell>
   )
 }

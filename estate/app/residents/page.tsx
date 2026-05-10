@@ -3,11 +3,13 @@ import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import type { Resident } from '@/types'
+import AppShell from '@/components/AppShell'
 import Papa from 'papaparse'
 
 export default function ResidentsPage() {
   const router = useRouter()
   const [estateId, setEstateId] = useState<string | null>(null)
+  const [estateName, setEstateName] = useState('')
   const [residents, setResidents] = useState<Resident[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -27,6 +29,8 @@ export default function ResidentsPage() {
       if (!data.user) { router.push('/login'); return }
       const { data: mgr } = await supabase.from('estate_managers').select('estate_id').eq('user_id', data.user.id).single()
       if (!mgr) { router.push('/onboarding'); return }
+      const { data: est } = await supabase.from('estates').select('id,name').eq('id', mgr.estate_id).single()
+      if (est) setEstateName(est.name)
       setEstateId(mgr.estate_id)
       await loadResidents(mgr.estate_id)
       setLoading(false)
@@ -69,11 +73,10 @@ export default function ResidentsPage() {
   if (loading) return <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg)' }}><p style={{ color: 'var(--text2)' }}>Loading…</p></div>
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg)', padding: '24px' }}>
+    <AppShell estateName={estateName}>
       <div style={{ maxWidth: '900px', margin: '0 auto' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
           <div>
-            <button className="btn-ghost" style={{ fontSize: '12px', marginBottom: '8px' }} onClick={() => router.push('/dashboard')}>← Back to Dashboard</button>
             <h1 style={{ fontFamily: 'Bricolage Grotesque', fontWeight: 800, fontSize: '1.5rem' }}>Residents</h1>
             <p style={{ color: 'var(--text2)', fontSize: '13px' }}>{residents.length} active residents</p>
           </div>
@@ -113,6 +116,6 @@ export default function ResidentsPage() {
           </div>
         </div>
       </div>
-    </div>
+    </AppShell>
   )
 }

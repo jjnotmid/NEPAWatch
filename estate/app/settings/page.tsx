@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import type { Estate, EstateManager } from '@/types'
+import AppShell from '@/components/AppShell'
 
 export default function SettingsPage() {
   const router = useRouter()
@@ -35,9 +36,8 @@ export default function SettingsPage() {
   if (loading) return <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg)' }}><p style={{ color: 'var(--text2)' }}>Loading…</p></div>
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg)', padding: '24px' }}>
+    <AppShell estateName={estate?.name}>
       <div style={{ maxWidth: '640px', margin: '0 auto' }}>
-        <button className="btn-ghost" style={{ fontSize: '12px', marginBottom: '16px' }} onClick={() => router.push('/dashboard')}>← Back to Dashboard</button>
         <h1 style={{ fontFamily: 'Bricolage Grotesque', fontWeight: 800, fontSize: '1.5rem', marginBottom: '24px' }}>Settings</h1>
 
         <div className="card" style={{ padding: '24px', marginBottom: '20px' }}>
@@ -76,6 +76,6 @@ export default function SettingsPage() {
 
         <button className="btn-primary" style={{ width: '100%', justifyContent: 'center' }} disabled={saving} onClick={saveSettings}>{saving ? 'Saving…' : saved ? '✓ Settings Saved' : 'Save Settings'}</button>
       </div>
-    </div>
+    </AppShell>
   )
 }
