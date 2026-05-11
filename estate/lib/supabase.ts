@@ -1,9 +1,26 @@
 import { createBrowserClient } from '@supabase/ssr'
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+type Client = ReturnType<typeof createBrowserClient>
 
-export const supabase = createBrowserClient(supabaseUrl, supabaseAnonKey)
+let _client: Client | null = null
+
+function getClient(): Client {
+  if (!_client) {
+    _client = createBrowserClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    )
+  }
+  return _client
+}
+
+// Lazy proxy — client is only created on first method call (browser), not at import time (build/SSR).
+export const supabase = new Proxy({} as Client, {
+  get(_, prop: string | symbol) {
+    const val = Reflect.get(getClient(), prop)
+    return typeof val === 'function' ? (val as Function).bind(getClient()) : val
+  },
+})
 
 export async function getEstateForUser(userId: string) {
   const { data } = await supabase
