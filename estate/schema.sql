@@ -125,10 +125,10 @@ RETURNS boolean AS $$
 $$ LANGUAGE sql SECURITY DEFINER;
 
 CREATE POLICY "estates_select" ON estates FOR SELECT USING (user_manages_estate(id));
-CREATE POLICY "estates_insert" ON estates FOR INSERT WITH CHECK (true);
+CREATE POLICY "estates_insert" ON estates FOR INSERT TO authenticated WITH CHECK (true);
 CREATE POLICY "estates_update" ON estates FOR UPDATE USING (user_manages_estate(id));
 CREATE POLICY "managers_select" ON estate_managers FOR SELECT USING (user_id = auth.uid());
-CREATE POLICY "managers_insert" ON estate_managers FOR INSERT WITH CHECK (true);
+CREATE POLICY "managers_insert" ON estate_managers FOR INSERT TO authenticated WITH CHECK (true);
 CREATE POLICY "managers_update" ON estate_managers FOR UPDATE USING (user_id = auth.uid());
 CREATE POLICY "pevents_select" ON power_events FOR SELECT USING (user_manages_estate(estate_id));
 CREATE POLICY "pevents_insert" ON power_events FOR INSERT WITH CHECK (user_manages_estate(estate_id));
