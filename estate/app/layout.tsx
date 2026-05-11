@@ -10,7 +10,7 @@ const dmSans = DM_Sans({
 
 const bricolage = Bricolage_Grotesque({
   subsets: ['latin'],
-  weight: ['500', '700', '800', '900'],
+  weight: ['500', '700', '800'],
   variable: '--font-bricolage',
   display: 'swap',
 })
