@@ -1086,7 +1086,7 @@ function filterUsers() {
     <td style="font-size:.7rem;color:var(--ink2)">${u.location_name?`${u.location_name} (${u.location_area||''})`:'—'}</td>
     <td><span style="font-size:.7rem;color:${u.notif_on!==false?'var(--p)':'var(--ink3)'}">${u.notif_on!==false?'On':'Off'}</span></td>
     <td style="font-size:.68rem;color:var(--ink3)">${u.created_at?new Date(u.created_at).toLocaleDateString('en-NG',{day:'numeric',month:'short',year:'numeric'}):'—'}</td>
-    <td style="white-space:nowrap"><button class="email-btn" onclick="quickEmail('${u.email||''}','${(u.name||'').replace(/'/g,'')}')">Email</button> <button class="del-btn" style="margin-left:4px" onclick="confirmDeleteUser('${u.id}','${(u.email||'').replace(/'/g,'\\'\\'')}','${(u.name||'').replace(/'/g,'\\'\\'')}')">Delete</button></td>
+    <td style="white-space:nowrap"><button class="email-btn" onclick="quickEmail('${u.email||''}','${(u.name||'').replace(/'/g,'')}')">Email</button> <button class="del-btn" style="margin-left:4px" onclick="confirmDeleteUser('${u.id}','${(u.email||'').replace(/'/g,'')}','${(u.name||'').replace(/'/g,'')}')">Delete</button></td>
   </tr>`).join('');
 }
 function quickEmail(email,name) {
