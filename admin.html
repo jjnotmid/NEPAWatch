@@ -289,6 +289,11 @@ tr:hover td{background:rgba(128,128,128,.04)}
         <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="5" r="2.5" stroke="currentColor" stroke-width="1.3"/><path d="M2 13c0-3 2.5-4.5 5-4.5s5 1.5 5 4.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
         All Users
       </button>
+      <button class="sb-item" data-page="apikeys" onclick="nav(this)">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="1" y="4.5" width="12" height="7" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M4.5 4.5V3.5a2.5 2.5 0 0 1 5 0v1" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><circle cx="7" cy="8" r="1.2" fill="currentColor"/></svg>
+        API Keys
+        <span id="apiPendingBadge" style="display:none;margin-left:auto;background:rgba(255,180,0,.8);color:#07090A;font-size:.52rem;font-weight:700;padding:1px 6px;border-radius:10px"></span>
+      </button>
       <button class="sb-item" data-page="broadcast" onclick="nav(this)">
         <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M1.5 5h11v7a1 1 0 0 1-1 1h-9a1 1 0 0 1-1-1V5z" stroke="currentColor" stroke-width="1.3"/><path d="M1.5 5L7 1.5 12.5 5" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>
         Broadcast
@@ -660,6 +665,32 @@ tr:hover td{background:rgba(128,128,128,.04)}
       <div class="card"><div class="tbl-wrap"><div id="gridAlertsTable"><tr><td class="loading-row"><span class="spin"></span>Loading…</td></tr></div></div></div>
     </div>
 
+    <!-- API KEYS PAGE -->
+    <div class="page" id="page-apikeys">
+      <div class="ph-row">
+        <div class="ph"><h2>API Keys</h2><p>Manage developer API access to NEPAWatch data</p></div>
+        <button class="btn btn-ghost" onclick="loadApiKeys()">↻ Refresh</button>
+      </div>
+      <div class="stat-row">
+        <div class="stat-pill accent"><div class="sp-val" id="ak-total">—</div><div class="sp-lbl">Total Keys</div></div>
+        <div class="stat-pill amber"><div class="sp-val" id="ak-pending">—</div><div class="sp-lbl">Pending</div></div>
+        <div class="stat-pill"><div class="sp-val" id="ak-active">—</div><div class="sp-lbl">Active</div></div>
+        <div class="stat-pill blue"><div class="sp-val" id="ak-requests">—</div><div class="sp-lbl">Total Requests</div></div>
+      </div>
+      <div class="filter-bar">
+        <select id="ak-filter" onchange="renderApiKeys()">
+          <option value="">All keys</option>
+          <option value="pending">Pending only</option>
+          <option value="active">Active only</option>
+          <option value="revoked">Revoked</option>
+        </select>
+      </div>
+      <div class="card"><div class="tbl-wrap"><table>
+        <thead><tr><th>Developer</th><th>Email</th><th>App / Use Case</th><th>Status</th><th>Tier</th><th>Requests</th><th>Last Used</th><th>Applied</th><th></th></tr></thead>
+        <tbody id="apiKeysTable"><tr><td colspan="9" class="loading-row"><span class="spin"></span>Loading…</td></tr></tbody>
+      </table></div></div>
+    </div>
+
   </div>
 </div>
 
@@ -795,6 +826,7 @@ function nav(el) {
   document.getElementById(`page-${page}`).classList.add('active');
   if (window.innerWidth<=768) toggleSidebar(false);
   if (page === 'health') loadAreaHealth();
+  if (page === 'apikeys') loadApiKeys();
   if (page === 'contacts') loadContactMessages();
   if (page === 'kyc') loadKyc();
   if (page === 'announcements') loadAnnouncementsList();
@@ -1054,7 +1086,7 @@ function filterUsers() {
     <td style="font-size:.7rem;color:var(--ink2)">${u.location_name?`${u.location_name} (${u.location_area||''})`:'—'}</td>
     <td><span style="font-size:.7rem;color:${u.notif_on!==false?'var(--p)':'var(--ink3)'}">${u.notif_on!==false?'On':'Off'}</span></td>
     <td style="font-size:.68rem;color:var(--ink3)">${u.created_at?new Date(u.created_at).toLocaleDateString('en-NG',{day:'numeric',month:'short',year:'numeric'}):'—'}</td>
-    <td><button class="email-btn" onclick="quickEmail('${u.email||''}','${(u.name||'').replace(/'/g,'')}')">Email</button></td>
+    <td style="white-space:nowrap"><button class="email-btn" onclick="quickEmail('${u.email||''}','${(u.name||'').replace(/'/g,'')}')">Email</button> <button class="del-btn" style="margin-left:4px" onclick="confirmDeleteUser('${u.id}','${(u.email||'').replace(/'/g,'\\'\\'')}','${(u.name||'').replace(/'/g,'\\'\\'')}')">Delete</button></td>
   </tr>`).join('');
 }
 function quickEmail(email,name) {
@@ -1763,11 +1795,157 @@ async function _syncDiscoAlertToDb(alerts) {
   }
 }
 
+// ── API KEYS ──────────────────────────────────────────────────
+let allApiKeys = [];
+
+async function loadApiKeys() {
+  const tb = document.getElementById('apiKeysTable');
+  tb.innerHTML = '<tr><td colspan="9" class="loading-row"><span class="spin"></span>Loading…</td></tr>';
+  try {
+    const { data: { session } } = await sb.auth.getSession();
+    const jwt = session?.access_token || SUPA_ANON;
+    const res = await fetch(`${SUPA_URL}/functions/v1/admin-action`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'apikey': SUPA_ANON, 'Authorization': `Bearer ${jwt}` },
+      body: JSON.stringify({ action: 'list_api_keys', adminEmail: adminUser?.email })
+    });
+    // Fall back to direct query since anon with admin session can read if RLS allows
+    const { data, error } = await sb.from('api_keys').select('*').order('created_at', { ascending: false }).limit(500);
+    if (error) throw error;
+    allApiKeys = data || [];
+    const pending = allApiKeys.filter(k => k.status === 'pending').length;
+    const active = allApiKeys.filter(k => k.status === 'active').length;
+    const totalReq = allApiKeys.reduce((s, k) => s + (k.total_requests || 0), 0);
+    document.getElementById('ak-total').textContent = allApiKeys.length;
+    document.getElementById('ak-pending').textContent = pending;
+    document.getElementById('ak-active').textContent = active;
+    document.getElementById('ak-requests').textContent = totalReq.toLocaleString();
+    const badge = document.getElementById('apiPendingBadge');
+    if (badge) { badge.textContent = pending; badge.style.display = pending > 0 ? 'inline-block' : 'none'; }
+    renderApiKeys();
+  } catch(e) {
+    tb.innerHTML = `<tr><td colspan="9" class="empty-state">Failed to load API keys: ${e.message}<br><small style="color:var(--ink3)">Run api-schema.sql in your Supabase SQL Editor first, then add an RLS policy allowing admin reads.</small></td></tr>`;
+  }
+}
+
+function renderApiKeys() {
+  const filter = document.getElementById('ak-filter')?.value || '';
+  const f = allApiKeys.filter(k => !filter || k.status === filter);
+  const tb = document.getElementById('apiKeysTable');
+  if (!f.length) { tb.innerHTML = '<tr><td colspan="9" class="empty-state">No API keys found.</td></tr>'; return; }
+  tb.innerHTML = f.map(k => {
+    const statusColor = k.status === 'active' ? 'var(--p)' : k.status === 'pending' ? 'var(--am)' : 'var(--rd)';
+    const lastUsed = k.last_request_at ? ago(k.last_request_at) : '—';
+    const applied = k.created_at ? new Date(k.created_at).toLocaleDateString('en-NG', { day: 'numeric', month: 'short' }) : '—';
+    const keyMasked = k.key ? k.key.substring(0, 8) + '…' : '—';
+    return `<tr>
+      <td><div style="font-weight:600;font-size:.78rem">${k.developer_name || '—'}</div><div class="mono" style="font-size:.6rem;color:var(--ink3);margin-top:2px">${keyMasked}</div></td>
+      <td style="font-size:.72rem;color:var(--ink2)">${k.email || '—'}</td>
+      <td style="font-size:.7rem;color:var(--ink2);max-width:180px"><div style="font-weight:500">${k.app_name || '—'}</div><div style="color:var(--ink3);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:180px">${(k.use_case || '').substring(0, 60)}</div></td>
+      <td><span style="font-size:.68rem;font-weight:700;color:${statusColor}">${k.status}</span></td>
+      <td><span class="badge ${k.tier === 'pro' ? 'bck' : ''}" style="font-size:.6rem">${k.tier || 'free'}</span></td>
+      <td style="font-size:.72rem;color:var(--ink2)">${(k.total_requests || 0).toLocaleString()}<div style="font-size:.6rem;color:var(--ink3)">${k.requests_today || 0} today</div></td>
+      <td style="font-size:.68rem;color:var(--ink3)">${lastUsed}</td>
+      <td style="font-size:.68rem;color:var(--ink3)">${applied}</td>
+      <td style="white-space:nowrap">
+        ${k.status === 'pending' ? `<button class="btn btn-primary" style="font-size:.65rem;padding:4px 10px" onclick="approveApiKey('${k.id}')">Approve</button>` : ''}
+        ${k.status === 'active' ? `<button class="del-btn" onclick="revokeApiKey('${k.id}')">Revoke</button>` : ''}
+        ${k.status === 'revoked' ? `<button class="btn btn-ghost" style="font-size:.65rem;padding:4px 8px" onclick="approveApiKey('${k.id}')">Re-activate</button>` : ''}
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+async function approveApiKey(keyId) {
+  try {
+    const { data: { session } } = await sb.auth.getSession();
+    const jwt = session?.access_token || SUPA_ANON;
+    const res = await fetch(`${SUPA_URL}/functions/v1/admin-action`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'apikey': SUPA_ANON, 'Authorization': `Bearer ${jwt}` },
+      body: JSON.stringify({ action: 'approve_api_key', keyId, adminEmail: adminUser?.email })
+    });
+    if (!res.ok) {
+      // Fall back: direct update (requires admin RLS policy)
+      const { error } = await sb.from('api_keys').update({ status: 'active', approved_at: new Date().toISOString() }).eq('id', keyId);
+      if (error) throw error;
+    }
+    toast('API key approved', 'ok');
+    loadApiKeys();
+  } catch(e) { toast('Failed: ' + e.message, 'err'); }
+}
+
+async function revokeApiKey(keyId) {
+  if (!confirm('Revoke this API key? The developer will lose access immediately.')) return;
+  try {
+    const { data: { session } } = await sb.auth.getSession();
+    const jwt = session?.access_token || SUPA_ANON;
+    const res = await fetch(`${SUPA_URL}/functions/v1/admin-action`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'apikey': SUPA_ANON, 'Authorization': `Bearer ${jwt}` },
+      body: JSON.stringify({ action: 'revoke_api_key', keyId, adminEmail: adminUser?.email })
+    });
+    if (!res.ok) {
+      const { error } = await sb.from('api_keys').update({ status: 'revoked', revoked_at: new Date().toISOString() }).eq('id', keyId);
+      if (error) throw error;
+    }
+    toast('API key revoked', 'ok');
+    loadApiKeys();
+  } catch(e) { toast('Failed: ' + e.message, 'err'); }
+}
+
+// ── DELETE USER ────────────────────────────────────────────────
+function confirmDeleteUser(userId, email, name) {
+  document.getElementById('delUserName').textContent = name || email;
+  document.getElementById('delUserEmail').textContent = email;
+  document.getElementById('delUserId').value = userId;
+  document.getElementById('deleteUserModal').classList.add('open');
+}
+
+async function executeDeleteUser() {
+  const userId = document.getElementById('delUserId').value;
+  const email = document.getElementById('delUserEmail').textContent;
+  if (!userId) return;
+  const btn = document.getElementById('delUserBtn');
+  btn.textContent = 'Deleting…'; btn.disabled = true;
+  try {
+    const { data: { session } } = await sb.auth.getSession();
+    const jwt = session?.access_token || SUPA_ANON;
+    const res = await fetch(`${SUPA_URL}/functions/v1/admin-action`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'apikey': SUPA_ANON, 'Authorization': `Bearer ${jwt}` },
+      body: JSON.stringify({ action: 'delete_user', userId, adminEmail: adminUser?.email })
+    });
+    const j = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(j.error || res.status);
+    allUsers = allUsers.filter(u => u.id !== userId);
+    filterUsers(); loadStats();
+    document.getElementById('deleteUserModal').classList.remove('open');
+    toast('User deleted', 'ok');
+  } catch(e) {
+    toast('Delete failed: ' + e.message, 'err');
+  }
+  btn.textContent = 'Delete Account'; btn.disabled = false;
+}
+
 // ── AUTO-LOGIN ────────────────────────────────────────────────
 (async function(){
   const{data:{session}}=await sb.auth.getSession();
   if(session?.user&&ADMIN_EMAILS.includes(session.user.email.toLowerCase())){adminUser=session.user;boot();}
 })();
 </script>
+
+<!-- DELETE USER MODAL -->
+<div class="modal-bg" id="deleteUserModal">
+  <div class="modal">
+    <h3 style="color:var(--rd)">Delete Account</h3>
+    <p class="modal-p">Permanently delete <strong id="delUserName"></strong> (<span id="delUserEmail" style="color:var(--ink3)"></span>)?<br>All their reports and data will be removed. This cannot be undone.</p>
+    <input type="hidden" id="delUserId">
+    <div class="modal-btns">
+      <button class="btn btn-ghost" onclick="document.getElementById('deleteUserModal').classList.remove('open')">Cancel</button>
+      <button id="delUserBtn" class="btn" style="background:var(--rd);color:#fff;border-color:var(--rd)" onclick="executeDeleteUser()">Delete Account</button>
+    </div>
+  </div>
+</div>
 </body>
 </html>
