@@ -701,15 +701,17 @@ tr:hover td{background:rgba(128,128,128,.04)}
         <div class="ph"><h2>AI Intelligence</h2><p>Model accuracy, per-area corrections, and reliability scores</p></div>
         <div style="display:flex;gap:8px">
           <button class="btn btn-ghost" onclick="loadAiIntelligence()">↻ Refresh</button>
+          <button class="btn btn-ghost" id="checkOutcomesBtn" onclick="triggerCheckOutcomes()">Check Outcomes</button>
           <button class="btn btn-primary" id="computeRelBtn" onclick="triggerComputeReliability()">Recompute Scores</button>
         </div>
       </div>
       <div class="stat-row">
-        <div class="stat-pill accent"><div class="sp-val" id="ai-total-preds">—</div><div class="sp-lbl">Total Predictions</div></div>
+        <div class="stat-pill accent"><div class="sp-val" id="ai-total-preds">—</div><div class="sp-lbl">Predictions (30d)</div></div>
         <div class="stat-pill"><div class="sp-val" id="ai-resolved">—</div><div class="sp-lbl">Resolved</div></div>
         <div class="stat-pill"><div class="sp-val" id="ai-correct">—</div><div class="sp-lbl">Correct</div></div>
         <div class="stat-pill amber"><div class="sp-val" id="ai-wrong">—</div><div class="sp-lbl">Wrong</div></div>
         <div class="stat-pill blue"><div class="sp-val" id="ai-accuracy-pct">—</div><div class="sp-lbl">Overall Accuracy</div></div>
+        <div class="stat-pill red"><div class="sp-val" id="ai-pending">—</div><div class="sp-lbl">Pending Outcomes</div></div>
         <div class="stat-pill"><div class="sp-val" id="ai-weights-count">—</div><div class="sp-lbl">Calibrated Areas</div></div>
       </div>
 
@@ -722,6 +724,18 @@ tr:hover td{background:rgba(128,128,128,.04)}
         <div class="tbl-wrap"><table>
           <thead><tr><th>Area</th><th>Weight</th><th>Bias</th><th>Last Updated</th></tr></thead>
           <tbody id="aiWeightsTable"><tr><td colspan="4" class="loading-row"><span class="spin"></span>Loading…</td></tr></tbody>
+        </table></div>
+      </div>
+
+      <!-- Per-DISCO accuracy breakdown -->
+      <div class="card">
+        <div class="card-hd">
+          <div class="card-title">Accuracy by DISCO</div>
+          <span style="font-size:.64rem;color:var(--ink3)">Which distribution companies the AI predicts best</span>
+        </div>
+        <div class="tbl-wrap"><table>
+          <thead><tr><th>DISCO</th><th>Predictions</th><th>Accuracy</th><th>Bar</th></tr></thead>
+          <tbody id="aiDiscoTable"><tr><td colspan="4" class="loading-row"><span class="spin"></span>Loading…</td></tr></tbody>
         </table></div>
       </div>
 
@@ -1991,24 +2005,43 @@ async function executeDeleteUser() {
 // ── AI INTELLIGENCE ───────────────────────────────────────────
 async function loadAiIntelligence() {
   try {
-    const [predsRes, weightsRes, relRes] = await Promise.all([
+    const [predsRes, weightsRes, relRes, statusRes] = await Promise.all([
       sb.from('ai_predictions').select('area,disco,type,probability,outcome,human_confirms,human_wrong_votes,predicted_at').order('predicted_at',{ascending:false}).limit(100),
       sb.from('ai_accuracy_weights').select('area,weight,last_updated').order('weight'),
       sb.from('area_reliability').select('area,disco,total_predictions,correct_predictions,accuracy_pct,avg_hours_out_per_day,reliability_score,last_computed').order('accuracy_pct',{ascending:false}).limit(100),
+      fetch(`${SUPA_URL}/functions/v1/model-status`,{headers:{'apikey':SUPA_ANON}}).then(r=>r.ok?r.json():null).catch(()=>null),
     ]);
 
+    // Use model-status for the summary stats if available (covers all 30 days, not just last 100)
+    const ms = statusRes?.summary;
     const preds = predsRes.data || [];
     const resolved = preds.filter(p => p.outcome && p.outcome !== 'unresolved');
     const correct  = resolved.filter(p => p.outcome === 'correct');
     const wrong    = resolved.filter(p => p.outcome === 'wrong');
-    const accPct   = resolved.length ? ((correct.length/resolved.length)*100).toFixed(1)+'%' : '—';
 
-    document.getElementById('ai-total-preds').textContent  = preds.length;
-    document.getElementById('ai-resolved').textContent     = resolved.length;
-    document.getElementById('ai-correct').textContent      = correct.length;
-    document.getElementById('ai-wrong').textContent        = wrong.length;
-    document.getElementById('ai-accuracy-pct').textContent = accPct;
-    document.getElementById('ai-weights-count').textContent= (weightsRes.data||[]).length;
+    document.getElementById('ai-total-preds').textContent  = ms?.total_predictions_30d ?? preds.length;
+    document.getElementById('ai-resolved').textContent     = ms?.resolved_30d ?? resolved.length;
+    document.getElementById('ai-correct').textContent      = ms?.correct_30d  ?? correct.length;
+    document.getElementById('ai-wrong').textContent        = ms?.wrong_30d    ?? wrong.length;
+    document.getElementById('ai-accuracy-pct').textContent = ms?.accuracy_pct != null ? ms.accuracy_pct+'%' : (resolved.length ? ((correct.length/resolved.length)*100).toFixed(1)+'%' : '—');
+    document.getElementById('ai-pending').textContent      = ms?.pending_outcomes ?? '—';
+    document.getElementById('ai-weights-count').textContent= ms?.calibrated_areas ?? (weightsRes.data||[]).length;
+
+    // Per-DISCO table
+    const dt = document.getElementById('aiDiscoTable');
+    const discos = statusRes?.discos || [];
+    dt.innerHTML = !discos.length
+      ? `<tr><td colspan="4" class="empty-state">No DISCO data yet — predictions appear here after outcomes are checked.</td></tr>`
+      : discos.map(d => {
+          const barW = Math.round(d.accuracy);
+          const barColor = d.accuracy >= 70 ? 'var(--p)' : d.accuracy >= 50 ? 'var(--am)' : 'var(--rd)';
+          return `<tr>
+            <td style="font-weight:600">${d.disco}</td>
+            <td style="color:var(--ink2)">${d.total}</td>
+            <td style="color:${barColor};font-weight:600">${d.accuracy}%</td>
+            <td><div style="background:var(--bg3);border-radius:3px;height:6px;width:100px"><div style="background:${barColor};height:6px;width:${barW}px;border-radius:3px"></div></div></td>
+          </tr>`;
+        }).join('');
 
     // Weights table
     const wt = document.getElementById('aiWeightsTable');
@@ -2069,6 +2102,27 @@ async function loadAiIntelligence() {
         }).join('');
 
   } catch(e) { toast('AI data load failed: '+e.message,'err'); }
+}
+
+async function triggerCheckOutcomes() {
+  const btn = document.getElementById('checkOutcomesBtn');
+  btn.textContent = 'Checking…'; btn.disabled = true;
+  try {
+    const { data: { session } } = await sb.auth.getSession();
+    const jwt = session?.access_token || SUPA_ANON;
+    const res = await fetch(`${SUPA_URL}/functions/v1/check-prediction-outcomes`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'apikey': SUPA_ANON, 'Authorization': `Bearer ${jwt}` },
+    });
+    const j = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(j.error || res.status);
+    const msg = j.checked === 0
+      ? 'No pending predictions to check.'
+      : `Checked ${j.checked}: ${j.correct} correct, ${j.wrong} wrong, ${j.unresolved} unresolved. Updated ${j.weights_updated} area weights.`;
+    toast(msg, 'ok');
+    loadAiIntelligence();
+  } catch(e) { toast('Outcome check failed: '+e.message,'err'); }
+  btn.textContent = 'Check Outcomes'; btn.disabled = false;
 }
 
 async function triggerComputeReliability() {

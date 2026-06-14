@@ -33,6 +33,23 @@ const _aiAreaAccuracy = (() => {
   try { return JSON.parse(localStorage.getItem(_AI_ACCURACY_KEY)) || {}; }
   catch(e) { return {}; }
 })();
+
+/* Cached model-status response from the server — populated on start(), used
+   to show live accuracy % in the AI banner without additional fetches.      */
+let _modelStatus = null;
+async function loadModelStatus() {
+  if (typeof SUPA_URL === 'undefined') return;
+  try {
+    const res = await fetch(`${SUPA_URL}/functions/v1/model-status`, {
+      headers: { 'apikey': typeof SUPA_ANON !== 'undefined' ? SUPA_ANON : '' },
+    });
+    if (res.ok) {
+      _modelStatus = await res.json();
+      if (typeof renderPredictPage === 'function') renderPredictPage();
+      console.log(`[NEPAWatch AI] Model status: ${_modelStatus?.summary?.accuracy_pct ?? '—'}% accuracy (30d).`);
+    }
+  } catch(e) {}
+}
 function _saveAiAccuracy() {
   try { localStorage.setItem(_AI_ACCURACY_KEY, JSON.stringify(_aiAreaAccuracy)); }
   catch(e) {}
@@ -1131,6 +1148,8 @@ const AIReporter = {
         console.log(`[NEPAWatch AI] Periodic re-training complete. Live updates since last ingest: ${PredictHistory._liveAdded}`);
       });
     }, 2 * 60 * 60 * 1000);
+    // Fetch live model accuracy once on start (non-blocking) — shown in AI banner
+    loadModelStatus();
     console.log('[NEPAWatch AI] Auto-reporter started. Model trains on every live report.');
   },
 };
@@ -1354,7 +1373,7 @@ function renderPredictPage() {
       <div class="pred-ai-icon"><svg width="12" height="12" viewBox="0 0 12 12" fill="none"><circle cx="6" cy="6" r="4.5" stroke="currentColor" stroke-width="1.1"/><path d="M4 7.5L5.5 5 7 7.5M4.7 6.5h2.6" stroke="currentColor" stroke-width="1" stroke-linecap="round"/></svg></div>
       <div class="pred-ai-body">
         <div class="pred-ai-title">NEPAWatch AI is active</div>
-        <div class="pred-ai-sub">Auto-reports when probability exceeds ${Math.round(AI_CONFIDENCE_THRESH*100)}% · <strong style="color:var(--p)">${aiCount} AI report${aiCount!==1?'s':''}</strong> filed</div>
+        <div class="pred-ai-sub">Auto-reports above ${Math.round(AI_CONFIDENCE_THRESH*100)}% · <strong style="color:var(--p)">${aiCount} AI report${aiCount!==1?'s':''}</strong> filed${_modelStatus?.summary?.accuracy_pct != null ? ` · <strong style="color:var(--p)">${_modelStatus.summary.accuracy_pct}%</strong> accurate (30d)` : ''}</div>
       </div>
       <div class="pred-ai-dot"></div>
     </div>
