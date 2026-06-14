@@ -36,6 +36,27 @@ const _aiAreaAccuracy = (() => {
 function _saveAiAccuracy() {
   try { localStorage.setItem(_AI_ACCURACY_KEY, JSON.stringify(_aiAreaAccuracy)); }
   catch(e) {}
+  _syncAccuracyToSupabase();
+}
+async function _syncAccuracyToSupabase() {
+  if (typeof sb === 'undefined') return;
+  try {
+    const upserts = Object.entries(_aiAreaAccuracy).map(([area, weight]) => ({
+      area, weight: parseFloat(weight.toFixed(4)), last_updated: new Date().toISOString(),
+    }));
+    if (upserts.length) await sb.from('ai_accuracy_weights').upsert(upserts, { onConflict: 'area' });
+  } catch(e) {}
+}
+async function _loadAccuracyFromSupabase() {
+  if (typeof sb === 'undefined') return;
+  try {
+    const { data, error } = await sb.from('ai_accuracy_weights').select('area, weight');
+    if (!error && data?.length) {
+      for (const row of data) _aiAreaAccuracy[row.area] = parseFloat(row.weight);
+      try { localStorage.setItem(_AI_ACCURACY_KEY, JSON.stringify(_aiAreaAccuracy)); } catch(e2) {}
+      console.log(`[NEPAWatch AI] Loaded ${data.length} accuracy weights from Supabase.`);
+    }
+  } catch(e) {}
 }
 
 /* Max time an AI outage can stay 'out' before auto-restoring if no human
@@ -694,6 +715,7 @@ const AIReporter = {
 
   async loadHistory() {
     this._loadFiredState(); // restore _lastFired from localStorage
+    await _loadAccuracyFromSupabase(); // merge global accuracy corrections from Supabase
     await this._seedFiredFromDB(); // merge DB state — prevents re-spam after cache clear
     try {
       /* Load up to 10 000 reports ordered by recency.  Per-DISCO weight caps
@@ -932,6 +954,7 @@ const AIReporter = {
     const _anonKey = typeof SUPA_ANON !== 'undefined' ? SUPA_ANON : '';
     let saved = false;
     let savedRepId = null;
+    let _predPromise = null; // resolves to ai_predictions row id after DB log
 
     if (typeof sb !== 'undefined') {
       try {
@@ -967,6 +990,10 @@ const AIReporter = {
           savedRepId = String(dbRow.id);
           saved = true;
           console.log('[NEPAWatch AI] Report saved to DB, id:', dbRow.id);
+          _predPromise = sb.from('ai_predictions').insert({
+            report_id: savedRepId, area, disco: _getAreaDisco(area),
+            type, probability: parseFloat(prob.toFixed(4)),
+          }).select('id').single().then(r => r.data?.id ?? null).catch(() => null);
         } else if (insertRes.error) {
           const ec = insertRes.error.code;
           if (ec === '22P02') {
@@ -1044,22 +1071,34 @@ const AIReporter = {
       /* Accuracy feedback: 15 min after filing, check wrong_votes and confirms.
          Adjust per-area multiplier so the model self-corrects from its mistakes. */
       if (type === 'out') {
-        const _area = area, _id = savedRepId;
-        setTimeout(() => {
+        const _area = area, _id = savedRepId, _pp = _predPromise;
+        setTimeout(async () => {
           if (typeof reports === 'undefined' || !_id) return;
           const r = reports.find(x => String(x.id) === _id);
           if (!r) return;
           const wrongVotes = r.wrong_votes || 0;
           const humanConfirms = Math.max(0, (r.confirms || 1) - 1); // subtract AI's own +1
           const cur = _aiAreaAccuracy[_area] || 1.0;
+          let outcome = 'unresolved';
           if (wrongVotes >= 2) {
             _aiAreaAccuracy[_area] = Math.max(0.35, cur * 0.82);
             console.log(`[NEPAWatch AI] Misfire: ${_area} (${wrongVotes} wrong votes) → accuracy factor ${_aiAreaAccuracy[_area].toFixed(2)}`);
             _saveAiAccuracy();
+            outcome = 'wrong';
           } else if (humanConfirms >= 2) {
             _aiAreaAccuracy[_area] = Math.min(1.25, cur * 1.06);
             console.log(`[NEPAWatch AI] Confirmed: ${_area} (${humanConfirms} confirms) → accuracy factor ${_aiAreaAccuracy[_area].toFixed(2)}`);
             _saveAiAccuracy();
+            outcome = 'correct';
+          }
+          if (typeof sb !== 'undefined' && _pp) {
+            const predId = await _pp;
+            if (predId) {
+              sb.from('ai_predictions').update({
+                outcome, human_confirms: humanConfirms, human_wrong_votes: wrongVotes,
+                outcome_checked_at: new Date().toISOString(),
+              }).eq('id', predId).then(() => {}).catch(() => {});
+            }
           }
         }, 15 * 60 * 1000);
       }

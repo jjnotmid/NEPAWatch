@@ -330,6 +330,10 @@ tr:hover td{background:rgba(128,128,128,.04)}
         <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1.5L1 11.5h12L7 1.5z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M7 5.5v2.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><circle cx="7" cy="9.5" r=".6" fill="currentColor"/></svg>
         Grid Alerts
       </button>
+      <button class="sb-item" data-page="aiintelligence" onclick="nav(this)">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="5.5" stroke="currentColor" stroke-width="1.3"/><path d="M5 5.5c0-.83.67-1.5 1.5-1.5h1C8.33 4 9 4.67 9 5.5c0 .68-.44 1.25-1.05 1.45L7 7.5V9" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><circle cx="7" cy="10.5" r=".6" fill="currentColor"/></svg>
+        AI Intelligence
+      </button>
     </div>
 
     <div class="sb-foot">
@@ -691,6 +695,61 @@ tr:hover td{background:rgba(128,128,128,.04)}
       </table></div></div>
     </div>
 
+    <!-- AI INTELLIGENCE -->
+    <div class="page" id="page-aiintelligence">
+      <div class="ph-row">
+        <div class="ph"><h2>AI Intelligence</h2><p>Model accuracy, per-area corrections, and reliability scores</p></div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-ghost" onclick="loadAiIntelligence()">↻ Refresh</button>
+          <button class="btn btn-primary" id="computeRelBtn" onclick="triggerComputeReliability()">Recompute Scores</button>
+        </div>
+      </div>
+      <div class="stat-row">
+        <div class="stat-pill accent"><div class="sp-val" id="ai-total-preds">—</div><div class="sp-lbl">Total Predictions</div></div>
+        <div class="stat-pill"><div class="sp-val" id="ai-resolved">—</div><div class="sp-lbl">Resolved</div></div>
+        <div class="stat-pill"><div class="sp-val" id="ai-correct">—</div><div class="sp-lbl">Correct</div></div>
+        <div class="stat-pill amber"><div class="sp-val" id="ai-wrong">—</div><div class="sp-lbl">Wrong</div></div>
+        <div class="stat-pill blue"><div class="sp-val" id="ai-accuracy-pct">—</div><div class="sp-lbl">Overall Accuracy</div></div>
+        <div class="stat-pill"><div class="sp-val" id="ai-weights-count">—</div><div class="sp-lbl">Calibrated Areas</div></div>
+      </div>
+
+      <!-- Per-area accuracy weights -->
+      <div class="card">
+        <div class="card-hd">
+          <div class="card-title">Per-Area Accuracy Weights</div>
+          <span style="font-size:.64rem;color:var(--ink3)">Correction multipliers the model learns from feedback. &lt;1 = AI over-predicts; &gt;1 = AI under-predicts</span>
+        </div>
+        <div class="tbl-wrap"><table>
+          <thead><tr><th>Area</th><th>Weight</th><th>Bias</th><th>Last Updated</th></tr></thead>
+          <tbody id="aiWeightsTable"><tr><td colspan="4" class="loading-row"><span class="spin"></span>Loading…</td></tr></tbody>
+        </table></div>
+      </div>
+
+      <!-- Area reliability scores -->
+      <div class="card">
+        <div class="card-hd">
+          <div class="card-title">Area Reliability Scores</div>
+          <span style="font-size:.64rem;color:var(--ink3)">Computed from last 30 days of logged predictions</span>
+        </div>
+        <div class="tbl-wrap"><table>
+          <thead><tr><th>Area</th><th>DISCO</th><th>Predictions</th><th>Accuracy</th><th>Avg h/day out</th><th>Score</th><th>Last Computed</th></tr></thead>
+          <tbody id="aiReliabilityTable"><tr><td colspan="7" class="loading-row"><span class="spin"></span>Loading…</td></tr></tbody>
+        </table></div>
+      </div>
+
+      <!-- Recent prediction log -->
+      <div class="card">
+        <div class="card-hd">
+          <div class="card-title">Recent Prediction Log</div>
+          <span style="font-size:.64rem;color:var(--ink3)">Last 100 AI predictions with outcomes</span>
+        </div>
+        <div class="tbl-wrap"><table>
+          <thead><tr><th>Area</th><th>DISCO</th><th>Type</th><th>Prob</th><th>Outcome</th><th>Confirms</th><th>Wrong Votes</th><th>Predicted</th></tr></thead>
+          <tbody id="aiPredictionsTable"><tr><td colspan="8" class="loading-row"><span class="spin"></span>Loading…</td></tr></tbody>
+        </table></div>
+      </div>
+    </div>
+
   </div>
 </div>
 
@@ -830,6 +889,7 @@ function nav(el) {
   if (page === 'contacts') loadContactMessages();
   if (page === 'kyc') loadKyc();
   if (page === 'announcements') loadAnnouncementsList();
+  if (page === 'aiintelligence') loadAiIntelligence();
 }
 function toggleSidebar(force) {
   const s=document.getElementById('sidebar'), o=document.getElementById('sbOverlay');
@@ -1926,6 +1986,107 @@ async function executeDeleteUser() {
     toast('Delete failed: ' + e.message, 'err');
   }
   btn.textContent = 'Delete Account'; btn.disabled = false;
+}
+
+// ── AI INTELLIGENCE ───────────────────────────────────────────
+async function loadAiIntelligence() {
+  try {
+    const [predsRes, weightsRes, relRes] = await Promise.all([
+      sb.from('ai_predictions').select('area,disco,type,probability,outcome,human_confirms,human_wrong_votes,predicted_at').order('predicted_at',{ascending:false}).limit(100),
+      sb.from('ai_accuracy_weights').select('area,weight,last_updated').order('weight'),
+      sb.from('area_reliability').select('area,disco,total_predictions,correct_predictions,accuracy_pct,avg_hours_out_per_day,reliability_score,last_computed').order('accuracy_pct',{ascending:false}).limit(100),
+    ]);
+
+    const preds = predsRes.data || [];
+    const resolved = preds.filter(p => p.outcome && p.outcome !== 'unresolved');
+    const correct  = resolved.filter(p => p.outcome === 'correct');
+    const wrong    = resolved.filter(p => p.outcome === 'wrong');
+    const accPct   = resolved.length ? ((correct.length/resolved.length)*100).toFixed(1)+'%' : '—';
+
+    document.getElementById('ai-total-preds').textContent  = preds.length;
+    document.getElementById('ai-resolved').textContent     = resolved.length;
+    document.getElementById('ai-correct').textContent      = correct.length;
+    document.getElementById('ai-wrong').textContent        = wrong.length;
+    document.getElementById('ai-accuracy-pct').textContent = accPct;
+    document.getElementById('ai-weights-count').textContent= (weightsRes.data||[]).length;
+
+    // Weights table
+    const wt = document.getElementById('aiWeightsTable');
+    const weights = weightsRes.data || [];
+    wt.innerHTML = !weights.length
+      ? `<tr><td colspan="4" class="empty-state">No weights yet — weights appear after the AI's first predictions are confirmed or contradicted by humans.</td></tr>`
+      : weights.map(w => {
+          const bias = w.weight >= 1.05 ? '<span style="color:var(--p)">Under-predicts</span>'
+                     : w.weight <= 0.95 ? '<span style="color:var(--rd)">Over-predicts</span>'
+                     : '<span style="color:var(--ink3)">Calibrated</span>';
+          const wClass = w.weight < 0.7 ? 'color:var(--rd)' : w.weight > 1.15 ? 'color:var(--p)' : 'color:var(--ink)';
+          return `<tr>
+            <td>${w.area}</td>
+            <td style="${wClass};font-weight:600">${parseFloat(w.weight).toFixed(3)}×</td>
+            <td>${bias}</td>
+            <td style="color:var(--ink3);font-size:.7rem">${w.last_updated ? ago(w.last_updated) : '—'}</td>
+          </tr>`;
+        }).join('');
+
+    // Reliability table
+    const rt = document.getElementById('aiReliabilityTable');
+    const rel = relRes.data || [];
+    rt.innerHTML = !rel.length
+      ? `<tr><td colspan="7" class="empty-state">No reliability scores yet — click "Recompute Scores" to generate.</td></tr>`
+      : rel.map(r => {
+          const score = parseFloat(r.reliability_score||0);
+          const scoreColor = score >= 0.7 ? 'var(--p)' : score >= 0.5 ? 'var(--am)' : 'var(--rd)';
+          return `<tr>
+            <td>${r.area}</td>
+            <td style="color:var(--ink2)">${r.disco||'—'}</td>
+            <td>${r.total_predictions||0}</td>
+            <td>${r.accuracy_pct != null ? r.accuracy_pct+'%' : '—'}</td>
+            <td>${r.avg_hours_out_per_day != null ? r.avg_hours_out_per_day+'h' : '—'}</td>
+            <td style="color:${scoreColor};font-weight:600">${(score*100).toFixed(0)}%</td>
+            <td style="color:var(--ink3);font-size:.7rem">${r.last_computed ? ago(r.last_computed) : '—'}</td>
+          </tr>`;
+        }).join('');
+
+    // Predictions log
+    const pt = document.getElementById('aiPredictionsTable');
+    pt.innerHTML = !preds.length
+      ? `<tr><td colspan="8" class="empty-state">No predictions logged yet.</td></tr>`
+      : preds.map(p => {
+          const outcomeHtml = !p.outcome ? '<span style="color:var(--ink3)">Pending</span>'
+            : p.outcome === 'correct' ? '<span style="color:var(--p)">✓ Correct</span>'
+            : p.outcome === 'wrong'   ? '<span style="color:var(--rd)">✗ Wrong</span>'
+            : '<span style="color:var(--ink3)">Unresolved</span>';
+          return `<tr>
+            <td>${p.area}</td>
+            <td style="color:var(--ink2)">${p.disco||'—'}</td>
+            <td><span class="badge ${p.type}">${p.type==='out'?'Outage':'Restored'}</span></td>
+            <td>${(parseFloat(p.probability||0)*100).toFixed(0)}%</td>
+            <td>${outcomeHtml}</td>
+            <td style="color:var(--ink2)">${p.human_confirms??'—'}</td>
+            <td style="color:var(--ink2)">${p.human_wrong_votes??'—'}</td>
+            <td style="color:var(--ink3);font-size:.7rem">${ago(p.predicted_at)}</td>
+          </tr>`;
+        }).join('');
+
+  } catch(e) { toast('AI data load failed: '+e.message,'err'); }
+}
+
+async function triggerComputeReliability() {
+  const btn = document.getElementById('computeRelBtn');
+  btn.textContent = 'Computing…'; btn.disabled = true;
+  try {
+    const { data: { session } } = await sb.auth.getSession();
+    const jwt = session?.access_token || SUPA_ANON;
+    const res = await fetch(`${SUPA_URL}/functions/v1/compute-reliability`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'apikey': SUPA_ANON, 'Authorization': `Bearer ${jwt}` },
+    });
+    const j = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(j.error || res.status);
+    toast(`Recomputed: ${j.areas_computed} areas. Overall accuracy: ${j.overall_accuracy ?? '—'}%`, 'ok');
+    loadAiIntelligence();
+  } catch(e) { toast('Compute failed: '+e.message,'err'); }
+  btn.textContent = 'Recompute Scores'; btn.disabled = false;
 }
 
 // ── AUTO-LOGIN ────────────────────────────────────────────────
