@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>AI Accuracy — NEPAWatch</title>
+<meta name="description" content="How accurate is NEPAWatch AI at predicting electricity outages in Nigeria? Live accuracy data, per-DISCO breakdown, and methodology.">
+<link rel="canonical" href="https://nepawatch.com/accuracy">
+<link rel="icon" type="image/png" href="/icon-192.png">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Bricolage+Grotesque:wght@700;800&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:#07090A;color:#e8edf2;font-family:'DM Sans',sans-serif;-webkit-font-smoothing:antialiased;line-height:1.6}
+a{color:inherit;text-decoration:none}
+
+/* ── NAV ── */
+nav{position:sticky;top:0;z-index:100;background:rgba(7,9,10,.85);backdrop-filter:blur(12px);border-bottom:1px solid rgba(255,255,255,.06);padding:0 24px;height:56px;display:flex;align-items:center;justify-content:space-between}
+.nav-logo{font-family:'Bricolage Grotesque',sans-serif;font-size:1rem;font-weight:800;letter-spacing:-.02em}
+.nav-logo span{color:#AAFF00}
+.nav-links{display:flex;gap:24px;font-size:.8rem;color:rgba(255,255,255,.5)}
+.nav-links a:hover{color:#fff}
+.nav-cta{background:#AAFF00;color:#07090A;font-weight:700;font-size:.78rem;border-radius:8px;padding:7px 16px}
+.nav-cta:hover{opacity:.9}
+
+/* ── HERO ── */
+.hero{text-align:center;padding:80px 24px 60px;max-width:720px;margin:0 auto}
+.hero-eyebrow{font-size:.7rem;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:#AAFF00;margin-bottom:16px}
+.hero h1{font-family:'Bricolage Grotesque',sans-serif;font-size:clamp(2rem,5vw,3.2rem);font-weight:800;line-height:1.1;letter-spacing:-.03em;margin-bottom:16px}
+.hero h1 em{color:#AAFF00;font-style:normal}
+.hero p{font-size:1rem;color:rgba(255,255,255,.55);max-width:520px;margin:0 auto}
+
+/* ── ACCURACY NUMBER ── */
+.accuracy-hero{display:flex;flex-direction:column;align-items:center;gap:6px;margin:48px auto 0;padding:40px 32px;background:rgba(170,255,0,.04);border:1px solid rgba(170,255,0,.15);border-radius:20px;max-width:400px}
+.acc-number{font-family:'Bricolage Grotesque',sans-serif;font-size:5rem;font-weight:800;line-height:1;color:#AAFF00}
+.acc-label{font-size:.8rem;color:rgba(255,255,255,.5);text-align:center}
+.acc-sub{font-size:.72rem;color:rgba(255,255,255,.3)}
+.acc-caveat{font-size:.68rem;color:rgba(255,255,255,.25);margin-top:4px;text-align:center}
+
+/* ── STATS ROW ── */
+.stats-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;max-width:800px;margin:48px auto 0;padding:0 24px}
+.stat-card{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:14px;padding:20px;text-align:center}
+.stat-val{font-family:'Bricolage Grotesque',sans-serif;font-size:1.8rem;font-weight:800;color:#e8edf2}
+.stat-val.green{color:#AAFF00}
+.stat-val.red{color:#FF3D57}
+.stat-val.amber{color:#FFB400}
+.stat-lbl{font-size:.68rem;color:rgba(255,255,255,.35);text-transform:uppercase;letter-spacing:.1em;margin-top:4px}
+
+/* ── SECTION ── */
+section{max-width:800px;margin:64px auto 0;padding:0 24px}
+.sec-title{font-family:'Bricolage Grotesque',sans-serif;font-size:1.3rem;font-weight:800;letter-spacing:-.02em;margin-bottom:4px}
+.sec-sub{font-size:.82rem;color:rgba(255,255,255,.4);margin-bottom:24px}
+
+/* ── DISCO TABLE ── */
+.disco-list{display:flex;flex-direction:column;gap:10px}
+.disco-row{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:12px;padding:16px 20px;display:flex;align-items:center;gap:16px}
+.disco-name{font-weight:700;font-size:.9rem;width:72px;flex-shrink:0}
+.disco-bar-wrap{flex:1;background:rgba(255,255,255,.06);border-radius:4px;height:6px}
+.disco-bar{height:6px;border-radius:4px;transition:width .6s ease}
+.disco-pct{font-weight:700;font-size:.85rem;width:44px;text-align:right;flex-shrink:0}
+.disco-count{font-size:.7rem;color:rgba(255,255,255,.3);width:80px;text-align:right;flex-shrink:0}
+
+/* ── AREA TABLE ── */
+.area-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media(max-width:540px){.area-grid{grid-template-columns:1fr}}
+.area-card{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:12px;padding:14px 16px;display:flex;justify-content:space-between;align-items:center}
+.area-name{font-size:.82rem;font-weight:600}
+.area-disco{font-size:.68rem;color:rgba(255,255,255,.3)}
+.area-pct{font-weight:700;font-size:.9rem}
+
+/* ── METHODOLOGY ── */
+.method-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
+.method-card{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:14px;padding:20px}
+.method-icon{width:32px;height:32px;background:rgba(170,255,0,.1);border-radius:8px;display:flex;align-items:center;justify-content:center;margin-bottom:12px}
+.method-title{font-weight:700;font-size:.85rem;margin-bottom:6px}
+.method-text{font-size:.75rem;color:rgba(255,255,255,.4);line-height:1.5}
+
+/* ── FOOTER ── */
+footer{border-top:1px solid rgba(255,255,255,.06);padding:32px 24px;text-align:center;margin-top:80px}
+footer p{font-size:.75rem;color:rgba(255,255,255,.25)}
+footer a{color:rgba(255,255,255,.4)}
+footer a:hover{color:#AAFF00}
+
+/* ── SPINNER ── */
+.spin{display:inline-block;width:18px;height:18px;border:2px solid rgba(255,255,255,.1);border-top-color:#AAFF00;border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-state{text-align:center;padding:40px;color:rgba(255,255,255,.3)}
+.pending{color:rgba(255,255,255,.25);font-style:italic}
+</style>
+</head>
+<body>
+
+<nav>
+  <a href="/" class="nav-logo"><span>NEPA</span>Watch</a>
+  <div class="nav-links">
+    <a href="/">Live Feed</a>
+    <a href="/api">API</a>
+    <a href="/accuracy" style="color:#fff">Accuracy</a>
+  </div>
+  <a href="/" class="nav-cta">Open App</a>
+</nav>
+
+<div class="hero">
+  <div class="hero-eyebrow">Model Transparency</div>
+  <h1>How accurate is <em>NEPAWatch AI?</em></h1>
+  <p>We measure every prediction against human reports. No cherry-picking — all outcomes tracked automatically, updated hourly.</p>
+
+  <div class="accuracy-hero" id="heroAccuracy">
+    <div class="loading-state"><span class="spin"></span></div>
+  </div>
+</div>
+
+<div class="stats-row" id="statsRow"></div>
+
+<!-- Per-DISCO -->
+<section>
+  <div class="sec-title">Accuracy by distribution company</div>
+  <div class="sec-sub">Averaged across all areas served by each DISCO, last 30 days</div>
+  <div class="disco-list" id="discoList"><div class="loading-state"><span class="spin"></span></div></div>
+</section>
+
+<!-- Top areas -->
+<section>
+  <div class="sec-title">Best and worst predicted areas</div>
+  <div class="sec-sub">Minimum 3 resolved predictions required</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:0">
+    <div>
+      <div style="font-size:.72rem;color:#AAFF00;font-weight:700;text-transform:uppercase;letter-spacing:.1em;margin-bottom:12px">Most Accurate</div>
+      <div class="area-grid" id="topAreas"><div class="loading-state"><span class="spin"></span></div></div>
+    </div>
+    <div>
+      <div style="font-size:.72rem;color:#FF3D57;font-weight:700;text-transform:uppercase;letter-spacing:.1em;margin-bottom:12px">Least Accurate</div>
+      <div class="area-grid" id="worstAreas"><div class="loading-state"><span class="spin"></span></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- Methodology -->
+<section>
+  <div class="sec-title">How we measure accuracy</div>
+  <div class="sec-sub">The system is fully automated — no human curates these numbers</div>
+  <div class="method-cards">
+    <div class="method-card">
+      <div class="method-icon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6.5" stroke="#AAFF00" stroke-width="1.3"/><path d="M5 8.5L7 10.5L11 6" stroke="#AAFF00" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+      <div class="method-title">1. AI files a report</div>
+      <div class="method-text">When NEPAWatch AI predicts an outage above 58% probability, it files a report tagged "NEPAWatch AI" and logs the prediction with timestamp and probability.</div>
+    </div>
+    <div class="method-card">
+      <div class="method-icon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8h10M8 3v10" stroke="#AAFF00" stroke-width="1.3" stroke-linecap="round"/></svg></div>
+      <div class="method-title">2. Humans respond</div>
+      <div class="method-text">Other users in the same area confirm or mark it wrong. 2+ confirms = correct. 2+ wrong-votes = wrong. These votes are crowd-sourced and unweighted.</div>
+    </div>
+    <div class="method-card">
+      <div class="method-icon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="2" y="9" width="3" height="5" rx="1" fill="#AAFF00"/><rect x="6.5" y="6" width="3" height="8" rx="1" fill="#AAFF00"/><rect x="11" y="3" width="3" height="11" rx="1" fill="#AAFF00"/></svg></div>
+      <div class="method-title">3. Outcome recorded</div>
+      <div class="method-text">3 hours after each prediction, a server-side function checks the human votes and writes correct/wrong/unresolved. This runs hourly via pg_cron.</div>
+    </div>
+    <div class="method-card">
+      <div class="method-icon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M4 8l2.5 2.5L12 5" stroke="#AAFF00" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><path d="M2 13.5h12" stroke="#AAFF00" stroke-width="1" stroke-linecap="round" opacity=".4"/></svg></div>
+      <div class="method-title">4. Model corrects itself</div>
+      <div class="method-text">Wrong predictions reduce the area's accuracy weight (×0.82). Correct ones increase it (×1.06). These weights are applied to future predictions globally.</div>
+    </div>
+  </div>
+</section>
+
+<!-- Last updated -->
+<section style="margin-top:48px;margin-bottom:0">
+  <div style="background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.06);border-radius:14px;padding:20px 24px;display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap">
+    <div>
+      <div style="font-size:.82rem;font-weight:600">Data freshness</div>
+      <div style="font-size:.72rem;color:rgba(255,255,255,.35);margin-top:2px" id="freshness">Loading…</div>
+    </div>
+    <a href="/api" style="background:rgba(170,255,0,.08);border:1px solid rgba(170,255,0,.2);color:#AAFF00;font-size:.75rem;font-weight:700;padding:8px 16px;border-radius:8px">Access via API →</a>
+  </div>
+</section>
+
+<footer>
+  <p>NEPAWatch · Nigeria electricity data infrastructure · <a href="/">Live Feed</a> · <a href="/api">API</a> · <a href="/contact">Contact</a></p>
+  <p style="margin-top:6px">Accuracy data updates every hour. Predictions with fewer than 2 human votes are marked unresolved.</p>
+</footer>
+
+<script>
+const SUPA_URL  = 'https://djurokbkkqrmpafcxlez.supabase.co';
+const SUPA_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRqdXJva2Jra3FybXBhZmN4bGV6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM4NjUyODcsImV4cCI6MjA1OTQ0MTI4N30.jBNzjHFzVlFzCiZQz4I0vMU2DXtBKUJPkRFI8tBVROY';
+
+async function loadAccuracy() {
+  try {
+    const res = await fetch(`${SUPA_URL}/functions/v1/model-status`, {
+      headers: { 'apikey': SUPA_ANON }
+    });
+    if (!res.ok) throw new Error('Failed to load');
+    const data = await res.json();
+    const s = data.summary;
+
+    // Hero accuracy number
+    const heroEl = document.getElementById('heroAccuracy');
+    const accPct = s.accuracy_pct;
+    const accColor = accPct == null ? '#fff' : accPct >= 70 ? '#AAFF00' : accPct >= 50 ? '#FFB400' : '#FF3D57';
+    heroEl.innerHTML = `
+      <div class="acc-number" style="color:${accColor}">${accPct != null ? accPct+'%' : '—'}</div>
+      <div class="acc-label">Overall prediction accuracy<br><span class="acc-sub">Last 30 days · ${s.resolved_30d?.toLocaleString() ?? 0} resolved predictions</span></div>
+      <div class="acc-caveat">${s.pending_outcomes ?? 0} predictions still pending human votes</div>
+    `;
+
+    // Stats row
+    document.getElementById('statsRow').innerHTML = [
+      { val: (s.total_predictions_30d ?? 0).toLocaleString(), label: 'Total Predictions', cls: '' },
+      { val: (s.correct_30d ?? 0).toLocaleString(), label: 'Correct', cls: 'green' },
+      { val: (s.wrong_30d ?? 0).toLocaleString(), label: 'Wrong', cls: 'red' },
+      { val: s.calibrated_areas ?? 0, label: 'Calibrated Areas', cls: '' },
+      { val: (s.predictions_last_24h ?? 0).toLocaleString(), label: 'Predictions (24h)', cls: '' },
+    ].map(c => `
+      <div class="stat-card">
+        <div class="stat-val ${c.cls}">${c.val}</div>
+        <div class="stat-lbl">${c.label}</div>
+      </div>
+    `).join('');
+
+    // DISCO breakdown
+    const discos = data.discos || [];
+    const maxAcc = Math.max(...discos.map(d => d.accuracy), 1);
+    document.getElementById('discoList').innerHTML = !discos.length
+      ? '<div class="pending">No DISCO data yet — check back after the model accumulates predictions.</div>'
+      : discos.map(d => {
+          const color = d.accuracy >= 70 ? '#AAFF00' : d.accuracy >= 50 ? '#FFB400' : '#FF3D57';
+          return `<div class="disco-row">
+            <div class="disco-name">${d.disco}</div>
+            <div class="disco-bar-wrap"><div class="disco-bar" style="width:${Math.round(d.accuracy/maxAcc*100)}%;background:${color}"></div></div>
+            <div class="disco-pct" style="color:${color}">${d.accuracy}%</div>
+            <div class="disco-count">${d.total.toLocaleString()} predictions</div>
+          </div>`;
+        }).join('');
+
+    // Top/worst areas
+    const topAreas   = data.top_areas   || [];
+    const worstAreas = data.worst_areas || [];
+    const renderAreas = (areas, colorFn) => !areas.length
+      ? '<div class="pending">No area data yet.</div>'
+      : areas.map(a => {
+          const color = colorFn(a.accuracy);
+          return `<div class="area-card">
+            <div><div class="area-name">${a.area}</div><div class="area-disco">${a.disco || ''} · ${a.total} predictions</div></div>
+            <div class="area-pct" style="color:${color}">${a.accuracy}%</div>
+          </div>`;
+        }).join('');
+    document.getElementById('topAreas').innerHTML   = renderAreas(topAreas,   a => a >= 70 ? '#AAFF00' : '#FFB400');
+    document.getElementById('worstAreas').innerHTML = renderAreas(worstAreas, a => a < 50 ? '#FF3D57' : '#FFB400');
+
+    // Freshness
+    document.getElementById('freshness').textContent = data.generated_at
+      ? `Last updated: ${new Date(data.generated_at).toLocaleString('en-NG', { timeZone: 'Africa/Lagos', hour: '2-digit', minute: '2-digit', day: 'numeric', month: 'short' })} (WAT) · Updates every hour`
+      : 'Updated hourly via pg_cron';
+
+  } catch(e) {
+    document.getElementById('heroAccuracy').innerHTML = '<div class="pending">Could not load accuracy data. The model-status API may not be deployed yet.</div>';
+  }
+}
+
+loadAccuracy();
+</script>
+</body>
+</html>

@@ -75,6 +75,21 @@ async function _loadAccuracyFromSupabase() {
     }
   } catch(e) {}
 }
+async function _loadNercBaselines() {
+  if (typeof sb === 'undefined') return;
+  try {
+    const { data, error } = await sb.from('nerc_baselines').select('disco, band, outage_prob, supply_hours');
+    if (!error && data?.length) {
+      for (const row of data) {
+        if (!DISCO_BAND_BASELINE[row.disco]) DISCO_BAND_BASELINE[row.disco] = {};
+        if (!DISCO_BAND_SUPPLY_HOURS[row.disco]) DISCO_BAND_SUPPLY_HOURS[row.disco] = {};
+        DISCO_BAND_BASELINE[row.disco][row.band]      = parseFloat(row.outage_prob);
+        DISCO_BAND_SUPPLY_HOURS[row.disco][row.band]  = parseFloat(row.supply_hours);
+      }
+      console.log(`[NEPAWatch AI] Loaded ${data.length} NERC baselines from Supabase.`);
+    }
+  } catch(e) {}
+}
 
 /* Max time an AI outage can stay 'out' before auto-restoring if no human
    confirms it.  Lagos DISCOs rotate every ~2-4 h; Northern DISCOs (KAEDCO,
@@ -450,6 +465,18 @@ const WeatherCache = {
         wind:      c.windspeed_10m ?? 0,
         lastFetch: Date.now(),
       };
+      // Persist to weather_log for ML training history (non-blocking)
+      if (typeof sb !== 'undefined') {
+        const latKey = parseFloat(lat.toFixed(1));
+        const lonKey = parseFloat(lng.toFixed(1));
+        sb.from('weather_log').insert({
+          lat_key:      latKey,
+          lon_key:      lonKey,
+          weather_code: c.weathercode ?? null,
+          rain_mm:      c.precipitation ?? 0,
+          wind_kmh:     c.windspeed_10m ?? 0,
+        }).then(() => {}).catch(() => {});
+      }
     } catch(e) {
       /* Keep stale value — model degrades gracefully without weather */
       if (!this._store[key]) this._store[key] = { code: null, rain: 0, wind: 0, lastFetch: Date.now() };
@@ -732,7 +759,10 @@ const AIReporter = {
 
   async loadHistory() {
     this._loadFiredState(); // restore _lastFired from localStorage
-    await _loadAccuracyFromSupabase(); // merge global accuracy corrections from Supabase
+    await Promise.all([
+      _loadAccuracyFromSupabase(), // merge global accuracy corrections from Supabase
+      _loadNercBaselines(),         // override DISCO baselines from DB (admin-editable)
+    ]);
     await this._seedFiredFromDB(); // merge DB state — prevents re-spam after cache clear
     try {
       /* Load up to 10 000 reports ordered by recency.  Per-DISCO weight caps
