@@ -675,9 +675,29 @@ function getRiskLevel(prob) {
   return              { label:'Critical',  short:'CRIT', color:'#FF3D57' };
 }
 
-/* ─── AI AUTO-REPORTER ───────────────────────────────────────────────────── */
-const _AI_FIRED_KEY = 'nw_ai_lastfired_v2';
+/* ─── SERVER PREDICTIONS CACHE ───────────────────────────────────────────
+   Populated by loadAreaPredictions() on startup.
+   Stores server-precomputed probabilities and AI status per area.
+   Browser reads area_predictions table (~40 KB) instead of 10 000 training rows.
+   ─────────────────────────────────────────────────────────────────────── */
+let _areaStatusCache = {};
 
+async function loadAreaPredictions() {
+  if (typeof sb === 'undefined') return;
+  try {
+    const { data, error } = await sb.from('area_predictions')
+      .select('area, disco, band, current_prob, forecast_24h, ai_status, last_ai_out_at, computed_at');
+    if (!error && data?.length) {
+      _areaStatusCache = {};
+      for (const row of data) _areaStatusCache[row.area] = row;
+      console.log(`[NEPAWatch] Loaded ${data.length} server predictions from area_predictions.`);
+    }
+  } catch(e) {}
+  // Load accuracy weights for display (tiny: ~160 rows, improves local predict charts)
+  await _loadAccuracyFromSupabase();
+}
+
+/* Legacy stub — kept so any residual callers don't throw. Does nothing now. */
 const AIReporter = {
   _timer: null,
 
@@ -758,35 +778,8 @@ const AIReporter = {
   },
 
   async loadHistory() {
-    this._loadFiredState(); // restore _lastFired from localStorage
-    await Promise.all([
-      _loadAccuracyFromSupabase(), // merge global accuracy corrections from Supabase
-      _loadNercBaselines(),         // override DISCO baselines from DB (admin-editable)
-    ]);
-    await this._seedFiredFromDB(); // merge DB state — prevents re-spam after cache clear
-    try {
-      /* Load up to 10 000 reports ordered by recency.  Per-DISCO weight caps
-         inside ingest() ensure high-traffic Lagos reports don't drown out
-         sparse non-Lagos training data.
-         Falls back to base columns if wrong_votes column doesn't exist yet. */
-      let res = await sb
-        .from('reports')
-        .select('location_area, type, created_at, confirms, wrong_votes')
-        .order('created_at', { ascending:false })
-        .limit(10000);
-      if (res.error && (res.error.code === '42703' || res.error.message?.includes('column'))) {
-        res = await sb
-          .from('reports')
-          .select('location_area, type, created_at, confirms')
-          .order('created_at', { ascending:false })
-          .limit(10000);
-      }
-      if (!res.error && res.data?.length) {
-        PredictHistory.ingest(res.data);
-        console.log(`[NEPAWatch AI] History loaded: ${res.data.length} reports ingested (with time decay + confirm weighting).`);
-      }
-    } catch(e) { console.warn('[NEPAWatch AI] History load failed, using baseline model.'); }
-    this._rebuildState();
+    // AI engine now runs server-side. Use loadAreaPredictions() instead.
+    await loadAreaPredictions();
   },
 
   async scan() {
@@ -1168,19 +1161,9 @@ const AIReporter = {
   },
 
   start() {
-    if (this._timer) clearInterval(this._timer);
-    if (this._retrainTimer) clearInterval(this._retrainTimer);
-    setTimeout(()=>{ this.scan(); this.scanRestorations(); }, 5000); /* launch: fire quickly on boot */
-    this._timer = setInterval(()=>{ this.scan(); this.scanRestorations(); }, AI_SCAN_INTERVAL_MS);
-    // Re-ingest full history every 2 hours so model stays fresh with all DB reports
-    this._retrainTimer = setInterval(()=>{
-      this.loadHistory().then(()=>{
-        console.log(`[NEPAWatch AI] Periodic re-training complete. Live updates since last ingest: ${PredictHistory._liveAdded}`);
-      });
-    }, 2 * 60 * 60 * 1000);
-    // Fetch live model accuracy once on start (non-blocking) — shown in AI banner
+    // AI runs server-side now. No browser timers needed.
+    // loadAreaPredictions() is called directly from app.js on boot.
     loadModelStatus();
-    console.log('[NEPAWatch AI] Auto-reporter started. Model trains on every live report.');
   },
 };
 
@@ -1403,7 +1386,7 @@ function renderPredictPage() {
       <div class="pred-ai-icon"><svg width="12" height="12" viewBox="0 0 12 12" fill="none"><circle cx="6" cy="6" r="4.5" stroke="currentColor" stroke-width="1.1"/><path d="M4 7.5L5.5 5 7 7.5M4.7 6.5h2.6" stroke="currentColor" stroke-width="1" stroke-linecap="round"/></svg></div>
       <div class="pred-ai-body">
         <div class="pred-ai-title">NEPAWatch AI is active</div>
-        <div class="pred-ai-sub">Auto-reports above ${Math.round(AI_CONFIDENCE_THRESH*100)}% · <strong style="color:var(--p)">${aiCount} AI report${aiCount!==1?'s':''}</strong> filed${_modelStatus?.summary?.accuracy_pct != null ? ` · <strong style="color:var(--p)">${_modelStatus.summary.accuracy_pct}%</strong> accurate (30d)` : ''}</div>
+        <div class="pred-ai-sub">Server-side · above ${Math.round(AI_CONFIDENCE_THRESH*100)}% threshold · <strong style="color:var(--p)">${aiCount} AI report${aiCount!==1?'s':''}</strong>${_modelStatus?.summary?.accuracy_pct != null ? ` · <strong style="color:var(--p)">${_modelStatus.summary.accuracy_pct}%</strong> accurate (30d)` : ''}</div>
       </div>
       <div class="pred-ai-dot"></div>
     </div>
