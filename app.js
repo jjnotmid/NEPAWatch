@@ -4494,10 +4494,9 @@ window.addEventListener("load",async()=>{
   setInterval(_checkAIPredictionWarning,30*60*1000);
   startDurationTimer();
   loadAnnouncements();
-  if(typeof AIReporter!=='undefined'){
-    await AIReporter.loadHistory();
-    AIReporter.start();
-  }
+  /* Load server-precomputed predictions (~40 KB) — replaces 10 000-row download */
+  if(typeof loadAreaPredictions==='function') await loadAreaPredictions();
+  if(typeof loadModelStatus==='function') loadModelStatus();
   /* Load Nigeria-wide data after LOCS + AREA_BANDS are ready */
   if(typeof initNigeriaData==='function') initNigeriaData();
   /* Check if outside Nigeria (much more permissive than old Lagos check) */
@@ -4524,7 +4523,7 @@ async function doPasswordReset(){
       _inResetFlow=false;
       await initAuth();
       loadUserCount();updateBanner();startRealtime();renderMyArea();
-      if(typeof AIReporter!=="undefined"){await AIReporter.loadHistory();AIReporter.start();}
+      if(typeof loadAreaPredictions==='function') await loadAreaPredictions();
       go("account");
       renderAuthForm(document.getElementById("authWrap"),"login");
     },3500);

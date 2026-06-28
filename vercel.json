@@ -75,7 +75,7 @@
   ],
   "rewrites": [
     {
-      "source": "/((?!logo|styles|app|predict|robots|sitemap|favicon|sw|topup|api).*)",
+      "source": "/((?!logo|styles|app|predict|robots|sitemap|favicon|sw|topup|api|accuracy).*)",
       "destination": "/index.html"
     }
   ]
