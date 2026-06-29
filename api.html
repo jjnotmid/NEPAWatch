@@ -383,6 +383,78 @@
       color: var(--ink3);
     }
 
+    /* KEY SUCCESS CARD */
+    .key-success {
+      display: none;
+      background: rgba(170,255,0,.06);
+      border: 1px solid rgba(170,255,0,.25);
+      border-radius: var(--radius);
+      padding: 24px 28px;
+    }
+    .key-success.show { display: block; }
+    .key-success-title {
+      font-family: 'Bricolage Grotesque', sans-serif;
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--green);
+      margin-bottom: 6px;
+    }
+    .key-success-sub {
+      font-size: .82rem;
+      color: var(--ink2);
+      margin-bottom: 18px;
+    }
+    .key-display-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 16px;
+      margin-bottom: 14px;
+      overflow: hidden;
+    }
+    .key-value {
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      font-size: .82rem;
+      color: var(--green);
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      letter-spacing: .02em;
+    }
+    .btn-copy {
+      flex-shrink: 0;
+      background: rgba(170,255,0,.12);
+      border: 1px solid rgba(170,255,0,.2);
+      color: var(--green);
+      font-size: .75rem;
+      font-weight: 600;
+      padding: 5px 14px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all .15s;
+    }
+    .btn-copy:hover { background: rgba(170,255,0,.2); }
+    .key-warn {
+      font-size: .78rem;
+      color: var(--am);
+      display: flex;
+      align-items: flex-start;
+      gap: 7px;
+    }
+    .key-warn svg { flex-shrink: 0; margin-top: 2px; }
+    .key-next-steps {
+      margin-top: 16px;
+      padding-top: 16px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
     /* FORM */
     .form-card {
       background: var(--surface);
@@ -664,7 +736,7 @@ console.log(data); <span class="hl-comment">// Array of outage reports</span></p
               </td>
               <td>10,000 requests/day</td>
               <td>Resets at midnight UTC</td>
-              <td class="rate-price">Pricing coming soon</td>
+              <td class="rate-price">₦15,000/mo &nbsp;<a href="https://paystack.com/pay/nepawatch-pro" target="_blank" rel="noopener" style="color:var(--green);font-size:.75rem;font-weight:600">Upgrade →</a></td>
             </tr>
           </tbody>
         </table>
@@ -677,8 +749,8 @@ console.log(data); <span class="hl-comment">// Array of outage reports</span></p
   <!-- REQUEST KEY FORM -->
   <div class="section" id="request">
     <div class="section-label">Get Access</div>
-    <h2>Request your free API key</h2>
-    <p>Keys are reviewed and activated within 24 hours. You'll receive your key via email.</p>
+    <h2>Get your free API key instantly</h2>
+    <p>No approval needed — your key is generated the moment you submit. Keep it safe; it won't be shown again.</p>
 
     <div class="form-card">
       <form id="apiKeyForm" onsubmit="submitRequest(event)">
@@ -703,11 +775,29 @@ console.log(data); <span class="hl-comment">// Array of outage reports</span></p
         <div class="form-submit">
           <button type="submit" class="btn btn-primary" id="submitBtn">
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M1.5 7h11M8 3l4.5 4L8 11" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            Submit Request
+            Generate API Key
           </button>
           <div id="formMsg" class="form-msg"></div>
         </div>
       </form>
+
+      <!-- shown immediately after key is created -->
+      <div class="key-success" id="keySuccess">
+        <div class="key-success-title">Your API key is ready</div>
+        <div class="key-success-sub">Copy it now — this is the only time it will be displayed.</div>
+        <div class="key-display-row">
+          <span class="key-value" id="keyValue"></span>
+          <button class="btn-copy" id="copyBtn" onclick="copyKey()">Copy</button>
+        </div>
+        <div class="key-warn">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style="flex-shrink:0;margin-top:1px"><path d="M7 1.5L13 12.5H1L7 1.5Z" stroke="#F5A623" stroke-width="1.3" stroke-linejoin="round"/><path d="M7 5.5v3" stroke="#F5A623" stroke-width="1.3" stroke-linecap="round"/><circle cx="7" cy="10" r=".7" fill="#F5A623"/></svg>
+          Store this key securely (e.g. in an env var). Do not commit it to source control. If lost, request a new key.
+        </div>
+        <div class="key-next-steps">
+          <a href="#quickstart" class="btn btn-secondary" style="font-size:.8rem;padding:8px 16px">View Quickstart</a>
+          <a href="#request" class="btn btn-secondary" style="font-size:.8rem;padding:8px 16px" onclick="resetForm()">Request another key</a>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -731,6 +821,13 @@ console.log(data); <span class="hl-comment">// Array of outage reports</span></p
     document.getElementById('code-js').style.display   = lang === 'js'   ? '' : 'none';
   }
 
+  function generateApiKey() {
+    const bytes = new Uint8Array(16);
+    crypto.getRandomValues(bytes);
+    const hex = Array.from(bytes).map(b => b.toString(16).padStart(2,'0')).join('');
+    return 'nw_live_' + hex;
+  }
+
   async function submitRequest(e) {
     e.preventDefault();
     const btn = document.getElementById('submitBtn');
@@ -749,8 +846,10 @@ console.log(data); <span class="hl-comment">// Array of outage reports</span></p
       return;
     }
 
-    btn.textContent = 'Submitting…';
+    btn.innerHTML = 'Generating…';
     btn.disabled = true;
+
+    const apiKey = generateApiKey();
 
     try {
       const res = await fetch(`${SUPA_URL}/rest/v1/api_keys`, {
@@ -762,10 +861,13 @@ console.log(data); <span class="hl-comment">// Array of outage reports</span></p
           'Prefer': 'return=minimal'
         },
         body: JSON.stringify({
+          key: apiKey,
           developer_name: devName,
           email,
           app_name: appName || null,
-          use_case: useCase || null
+          use_case: useCase || null,
+          status: 'active',
+          tier: 'free'
         })
       });
 
@@ -774,15 +876,35 @@ console.log(data); <span class="hl-comment">// Array of outage reports</span></p
         throw new Error(errBody.message || errBody.error || `HTTP ${res.status}`);
       }
 
-      msg.className = 'form-msg ok';
-      msg.textContent = 'Request submitted! Your API key will be sent to ' + email + ' within 24 hours.';
-      document.getElementById('apiKeyForm').reset();
+      // Show the key immediately
+      document.getElementById('keyValue').textContent = apiKey;
+      document.getElementById('keySuccess').classList.add('show');
+      document.getElementById('apiKeyForm').style.display = 'none';
+
     } catch (err) {
       msg.className = 'form-msg err';
       msg.textContent = 'Error: ' + err.message;
+      btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M1.5 7h11M8 3l4.5 4L8 11" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg> Generate API Key';
+      btn.disabled = false;
     }
+  }
 
-    btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M1.5 7h11M8 3l4.5 4L8 11" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg> Submit Request';
+  function copyKey() {
+    const key = document.getElementById('keyValue').textContent;
+    navigator.clipboard.writeText(key).then(() => {
+      const btn = document.getElementById('copyBtn');
+      btn.textContent = 'Copied!';
+      setTimeout(() => { btn.textContent = 'Copy'; }, 2000);
+    });
+  }
+
+  function resetForm() {
+    document.getElementById('apiKeyForm').reset();
+    document.getElementById('apiKeyForm').style.display = '';
+    document.getElementById('keySuccess').classList.remove('show');
+    document.getElementById('keyValue').textContent = '';
+    const btn = document.getElementById('submitBtn');
+    btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M1.5 7h11M8 3l4.5 4L8 11" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg> Generate API Key';
     btn.disabled = false;
   }
 </script>
