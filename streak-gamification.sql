@@ -48,7 +48,9 @@ CREATE TABLE IF NOT EXISTS streak_nudges (
 
 -- ── 5. View: current week leaderboard ────────────────────────────────
 -- Called by renderCommunity() to show live rankings
-CREATE OR REPLACE VIEW vw_weekly_leaders AS
+CREATE OR REPLACE VIEW vw_weekly_leaders
+  WITH (security_invoker = true)
+AS
 WITH week_start AS (
   SELECT DATE_TRUNC('week', NOW() AT TIME ZONE 'Africa/Lagos')::date AS ws
 ),
