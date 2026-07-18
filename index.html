@@ -1480,19 +1480,10 @@ if ('serviceWorker' in navigator) {
     <div class="m-badge"><span class="m-dot"></span> Brief Maintenance</div>
     <h2>We'll be back shortly.</h2>
     <p>NEPAWatch is undergoing a quick maintenance. The app may be unavailable for a short while. Thanks for your patience.</p>
-    <button class="m-btn" onclick="document.getElementById('maintOverlay').classList.remove('show')">Got it, I'll wait</button>
+    <button class="m-btn" style="cursor:default;opacity:.7">Check back soon</button>
   </div>
 </div>
 
 <script>
-  // Show maintenance modal once per session
-  if (!sessionStorage.getItem('maintDismissed')) {
-    document.getElementById('maintOverlay').classList.add('show');
-    document.getElementById('maintOverlay').addEventListener('click', function(e) {
-      if (e.target === this) this.classList.remove('show');
-    });
-    document.querySelector('#maintBox .m-btn').addEventListener('click', function() {
-      sessionStorage.setItem('maintDismissed', '1');
-    });
-  }
+  document.getElementById('maintOverlay').classList.add('show');
 </script>
