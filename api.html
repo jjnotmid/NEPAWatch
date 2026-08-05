@@ -632,7 +632,7 @@ console.log(data); <span class="hl-comment">// Array of outage reports</span></p
             <tr>
               <td>lga</td>
               <td><span class="param-type">string</span></td>
-              <td>Filter by Local Government Area (partial match)</td>
+              <td>Alias for <code style="font-size:.75rem;color:var(--ink3)">area</code>. Our data is area-level, so both match the same field.</td>
             </tr>
             <tr>
               <td>area</td>
@@ -652,7 +652,17 @@ console.log(data); <span class="hl-comment">// Array of outage reports</span></p
             <tr>
               <td>since</td>
               <td><span class="param-type">ISO date</span></td>
-              <td>Return reports after this timestamp. E.g. <code style="font-size:.75rem;color:var(--ink3)">2025-01-01T00:00:00Z</code></td>
+              <td>Return reports at or after this timestamp. E.g. <code style="font-size:.75rem;color:var(--ink3)">2026-01-01T00:00:00Z</code></td>
+            </tr>
+            <tr>
+              <td>until</td>
+              <td><span class="param-type">ISO date</span></td>
+              <td>Return reports at or before this timestamp</td>
+            </tr>
+            <tr>
+              <td>order</td>
+              <td><span class="param-type">string</span></td>
+              <td><code style="font-size:.75rem;color:var(--ink3)">desc</code> (newest first, default) or <code style="font-size:.75rem;color:var(--ink3)">asc</code></td>
             </tr>
             <tr>
               <td>limit</td>
@@ -676,18 +686,19 @@ console.log(data); <span class="hl-comment">// Array of outage reports</span></p
       <span class="hl-key">"id"</span>: <span class="hl-string">"8f3a1c2d-..."</span>,
       <span class="hl-key">"type"</span>: <span class="hl-string">"out"</span>,
       <span class="hl-key">"location_name"</span>: <span class="hl-string">"Lekki Phase 1"</span>,
-      <span class="hl-key">"location_area"</span>: <span class="hl-string">"Lekki"</span>,
+      <span class="hl-key">"location_area"</span>: <span class="hl-string">"Lekki Phase 1"</span>,
       <span class="hl-key">"location_state"</span>: <span class="hl-string">"Lagos"</span>,
-      <span class="hl-key">"location_lga"</span>: <span class="hl-string">"Eti-Osa"</span>,
       <span class="hl-key">"confirms"</span>: <span class="hl-num">7</span>,
       <span class="hl-key">"source"</span>: <span class="hl-string">"crowd"</span>,
-      <span class="hl-key">"created_at"</span>: <span class="hl-string">"2025-06-12T08:32:14Z"</span>
+      <span class="hl-key">"created_at"</span>: <span class="hl-string">"2026-06-12T08:32:14Z"</span>
     }
   ],
   <span class="hl-key">"meta"</span>: {
     <span class="hl-key">"count"</span>: <span class="hl-num">1</span>,
+    <span class="hl-key">"total"</span>: <span class="hl-num">248</span>,
     <span class="hl-key">"limit"</span>: <span class="hl-num">50</span>,
     <span class="hl-key">"offset"</span>: <span class="hl-num">0</span>,
+    <span class="hl-key">"has_more"</span>: <span class="hl-kw">true</span>,
     <span class="hl-key">"source"</span>: <span class="hl-string">"all"</span>,
     <span class="hl-key">"requests_today"</span>: <span class="hl-num">4</span>,
     <span class="hl-key">"requests_remaining"</span>: <span class="hl-num">96</span>,
@@ -699,6 +710,36 @@ console.log(data); <span class="hl-comment">// Array of outage reports</span></p
         </div>
       </div>
     </div>
+  </div>
+
+  <!-- ERRORS -->
+  <div class="section" id="errors">
+    <div class="section-label">Errors</div>
+    <h2>Error responses</h2>
+    <p>Every error returns JSON with a stable <code style="font-family:monospace;font-size:.85em">code</code>. Branch on the code, not the message — messages may be reworded, codes will not.</p>
+
+    <div class="endpoint-card">
+      <div class="ep-body" style="padding:20px 24px">
+        <table class="rate-table">
+          <thead><tr><th>Status</th><th>Code</th><th>Meaning</th></tr></thead>
+          <tbody>
+            <tr><td>401</td><td><code style="font-family:monospace;font-size:.75rem;color:var(--am)">MISSING_API_KEY</code></td><td>No <code style="font-family:monospace;font-size:.75rem">X-API-Key</code> header was sent</td></tr>
+            <tr><td>403</td><td><code style="font-family:monospace;font-size:.75rem;color:var(--am)">INVALID_API_KEY</code></td><td>Key not recognised</td></tr>
+            <tr><td>403</td><td><code style="font-family:monospace;font-size:.75rem;color:var(--am)">KEY_REVOKED</code></td><td>Key was revoked</td></tr>
+            <tr><td>400</td><td><code style="font-family:monospace;font-size:.75rem;color:var(--am)">UNKNOWN_STATE</code></td><td>State not recognised. The response lists every valid state in <code style="font-family:monospace;font-size:.75rem">valid_states</code>.</td></tr>
+            <tr><td>400</td><td><code style="font-family:monospace;font-size:.75rem;color:var(--am)">INVALID_TYPE</code></td><td>type must be <code style="font-family:monospace;font-size:.75rem">out</code> or <code style="font-family:monospace;font-size:.75rem">bck</code></td></tr>
+            <tr><td>400</td><td><code style="font-family:monospace;font-size:.75rem;color:var(--am)">INVALID_DATE</code></td><td><code style="font-family:monospace;font-size:.75rem">since</code>/<code style="font-family:monospace;font-size:.75rem">until</code> is not a valid ISO 8601 timestamp</td></tr>
+            <tr><td>429</td><td><code style="font-family:monospace;font-size:.75rem;color:var(--rd)">RATE_LIMITED</code></td><td>Daily limit hit. Wait the seconds given in the <code style="font-family:monospace;font-size:.75rem">Retry-After</code> header.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <h4 style="margin-top:24px">Rate limit headers</h4>
+    <p style="margin-bottom:12px">Present on every response, so you can back off before you are cut off.</p>
+    <div class="code-wrap"><div class="code-wrap-inner"><pre>X-RateLimit-Limit: 100
+X-RateLimit-Remaining: 96
+X-RateLimit-Reset: 2026-08-05T23:59:59Z</pre></div></div>
   </div>
 
   <!-- DATA TRANSPARENCY -->
