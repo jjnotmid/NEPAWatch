@@ -3,12 +3,24 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 /* ────────────────────────────────────────────────────────────────
    NEPAWatch — buy-electricity edge function
-   100% Flutterwave — no VTPass dependency
+
+   Payment collection : Paystack
+   Token vending      : Flutterwave Bills
+
+   These are two different jobs and Paystack only does the first —
+   its API has no bills/utilities resource, so it cannot hand back a
+   meter token. Paystack takes the customer's money; the vendor below
+   turns that money into units on the meter.
 
    Flow:
-     action:"verify"   + provider/number/type  → FLW bill-items validate
-     action:"initiate" + billing details        → FLW payment link
-     action:"verify"   + transaction_id/tx_ref  → confirm payment + POST /bills + poll token
+     action:"verify"   + provider/number/type  → validate meter, quote fee
+     action:"initiate" + billing details        → Paystack checkout URL
+     action:"verify"   + reference              → confirm payment, vend token
+
+   Secrets required:
+     PAYSTACK_SECRET_KEY   sk_live_… (payment collection)
+     FLW_SECRET_KEY        token vending
+     NW_SERVICE_FEE        optional, naira, defaults to 100
    ──────────────────────────────────────────────────────────────── */
 
 const CORS = {
@@ -16,6 +28,16 @@ const CORS = {
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type",
 };
+
+/* ── Service fee ───────────────────────────────────────────────
+   Added on top of the units the customer is buying. They enter
+   ₦2 000 of electricity, they are charged ₦2 100, and ₦2 000 goes
+   to the meter. Configurable without a redeploy via NW_SERVICE_FEE. */
+const SERVICE_FEE = Number(Deno.env.get("NW_SERVICE_FEE") ?? 100);
+
+function serviceFeeFor(_amount: number): number {
+  return SERVICE_FEE;
+}
 
 // ── DISCO map: provider slug → Flutterwave biller codes ────────
 interface DiscoInfo {
@@ -38,7 +60,17 @@ const DISCOS: Record<string, DiscoInfo> = {
   "yola-electric":   { billerCode: "BIL118", prepaid: "UB168", postpaid: null,    name: "YEDC"  },
 };
 
-// ── Flutterwave ────────────────────────────────────────────────
+// ── Paystack (payment collection) ──────────────────────────────
+const PAYSTACK = "https://api.paystack.co";
+
+function psHeaders(): HeadersInit {
+  return {
+    Authorization:  `Bearer ${Deno.env.get("PAYSTACK_SECRET_KEY") ?? ""}`,
+    "Content-Type": "application/json",
+  };
+}
+
+// ── Flutterwave (token vending only) ───────────────────────────
 const FLW = "https://api.flutterwave.com/v3";
 
 function flwHeaders(): HeadersInit {
@@ -63,6 +95,32 @@ function makeRef(prefix = "NW"): string {
   return `${prefix}-${d}-${r}`;
 }
 
+/* ── Vend the token once payment is confirmed ───────────────────
+   `amount` here is the electricity value only — the service fee has
+   already been stripped off, so we never send our margin to the meter. */
+async function vendToken(
+  disco: DiscoInfo, number: string, amount: number, billRef: string,
+): Promise<{ ok: boolean; token?: string; error?: string }> {
+  const res = await fetch(`${FLW}/bills`, {
+    method:  "POST",
+    headers: flwHeaders(),
+    body: JSON.stringify({
+      country:     "NG",
+      customer:    number,
+      amount,
+      type:        disco.billerCode,
+      reference:   billRef,
+      recurrence:  "ONCE",
+      biller_name: disco.name,
+    }),
+  });
+  const bill = await res.json();
+  if (bill.status !== "success") {
+    return { ok: false, error: bill.message ?? "Token vending failed" };
+  }
+  return { ok: true, token: bill.data?.extra as string | undefined };
+}
+
 // ──────────────────────────────────────────────────────────────
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
@@ -71,8 +129,8 @@ serve(async (req) => {
     const body = await req.json();
     const { action } = body;
 
-    /* ── 1. Meter validation via Flutterwave bill-items ───────── */
-    if (action === "verify" && body.provider && !body.transaction_id && !body.tx_ref) {
+    /* ── 1. Meter validation (still via Flutterwave bill-items) ── */
+    if (action === "verify" && body.provider && !body.reference) {
       const disco = DISCOS[body.provider as string];
       if (!disco) return json({ success: false, error: "Unknown DISCO" });
 
@@ -95,7 +153,7 @@ serve(async (req) => {
           success:      true,
           customerName: d.data.name   ?? "Customer",
           address:      d.data.address ?? "",
-          fee:          d.data.fee    ?? 100,
+          serviceFee:   SERVICE_FEE,
           minimum:      d.data.minimum ?? 100,
           maximum:      d.data.maximum ?? 500000,
         });
@@ -106,7 +164,7 @@ serve(async (req) => {
       });
     }
 
-    /* ── 2. Initiate Flutterwave payment ──────────────────────── */
+    /* ── 2. Initiate Paystack payment ─────────────────────────── */
     if (action === "initiate") {
       const { provider, number, type, amount, email, customerName, ...kycFields } = body;
 
@@ -116,76 +174,87 @@ serve(async (req) => {
         return json({ success: false, error: "Missing required fields" });
       }
 
+      const units  = Number(amount);            // value that reaches the meter
+      const fee    = serviceFeeFor(units);      // NEPAWatch margin
+      const total  = units + fee;               // what the customer is charged
+
       const txRef    = makeRef("NW");
       const origin   = req.headers.get("origin") ?? "https://nepawatch.app";
-      const redirect = `${origin}/topup.html`;
+      const callback = `${origin}/topup.html`;
 
-      const flwRes = await fetch(`${FLW}/payments`, {
+      const psRes = await fetch(`${PAYSTACK}/transaction/initialize`, {
         method:  "POST",
-        headers: flwHeaders(),
+        headers: psHeaders(),
         body: JSON.stringify({
-          tx_ref:       txRef,
-          amount,
+          email,
+          amount:       Math.round(total * 100),   // Paystack works in kobo
           currency:     "NGN",
-          redirect_url: redirect,
-          customer: {
-            email,
-            name: customerName ?? email,
+          reference:    txRef,
+          callback_url: callback,
+          metadata: {
+            provider, number, type,
+            customerName: customerName ?? "",
+            units, fee,
+            custom_fields: [
+              { display_name: "Meter",  variable_name: "meter",  value: number },
+              { display_name: "DISCO",  variable_name: "disco",  value: disco.name },
+              { display_name: "Units",  variable_name: "units",  value: `NGN ${units.toLocaleString()}` },
+              { display_name: "Service fee", variable_name: "fee", value: `NGN ${fee}` },
+            ],
+            ...kycFields,
           },
-          customizations: {
-            title:       `${disco.name} Electricity`,
-            description: `${type === "postpaid" ? "Postpaid bill" : "Prepaid token"} for meter ${number}`,
-            logo:        `${origin}/logo2.jpg`,
-          },
-          meta: { provider, number, type, customerName: customerName ?? "", amount, ...kycFields },
         }),
       });
 
-      const flw = await flwRes.json();
-      if (flw.status !== "success") {
-        return json({ success: false, error: flw.message ?? "Payment init failed" });
+      const ps = await psRes.json();
+      if (!ps.status || !ps.data?.authorization_url) {
+        return json({ success: false, error: ps.message ?? "Payment init failed" });
       }
 
-      // Persist pending record
+      // Persist pending record — amount stores the meter value, not the total
       try {
         await adminClient().from("electricity_transactions").insert({
           reference:    txRef,
           provider,
           meter_number: number,
           meter_type:   type,
-          amount,
+          amount:       units,
+          service_fee:  fee,
+          total_paid:   total,
           email,
           status:       "pending",
         });
       } catch (_) { /* non-fatal */ }
 
-      return json({ success: true, checkoutUrl: flw.data.link, tx_ref: txRef });
+      return json({
+        success:     true,
+        checkoutUrl: ps.data.authorization_url,
+        reference:   txRef,
+        units, fee, total,
+      });
     }
 
     /* ── 3. Verify payment + deliver electricity token ─────────── */
-    if (action === "verify" && (body.transaction_id || body.tx_ref)) {
-      const transactionId = body.transaction_id as string | undefined;
-      const payTxRef      = body.tx_ref         as string | undefined;
+    if (action === "verify" && body.reference) {
+      const reference = body.reference as string;
 
-      // Check idempotency cache
+      // Idempotency: never vend twice for one payment
       let cached: Record<string, unknown> | null = null;
       try {
-        if (payTxRef) {
-          const { data } = await adminClient()
-            .from("electricity_transactions")
-            .select("*")
-            .eq("reference", payTxRef)
-            .single();
-          cached = data;
-        }
+        const { data } = await adminClient()
+          .from("electricity_transactions")
+          .select("*")
+          .eq("reference", reference)
+          .single();
+        cached = data;
       } catch (_) {}
 
       if (cached?.status === "success") {
         return json({
           success:    true,
-          token:      cached.token      as string,
-          units:      cached.units      as string ?? "",
-          amount:     cached.amount     as number,
+          token:      cached.token as string,
+          units:      cached.units as string ?? "",
+          amount:     cached.amount as number,
           meter:      cached.meter_number as string,
           isPostpaid: cached.meter_type === "postpaid",
         });
@@ -194,156 +263,122 @@ serve(async (req) => {
         return json({ success: false, fatal: true, error: "Transaction failed — contact support" });
       }
 
-      // If bill already placed but token not yet ready → skip to poll
-      if (cached?.status !== "pending_bill") {
-        // Step A: verify the customer payment with Flutterwave
-        let payConfirmed = false;
-        let payMeta: Record<string, unknown> = {};
-        let payAmount = 0;
-        let payEmail  = "";
+      /* Step A: confirm the customer actually paid */
+      let payConfirmed = false;
+      let payMeta: Record<string, unknown> = {};
+      let paidKobo = 0;
+      let payEmail = "";
 
-        if (transactionId) {
-          const r  = await fetch(`${FLW}/transactions/${transactionId}/verify`, { headers: flwHeaders() });
-          const d  = await r.json();
-          if (d.status === "success" && d.data?.status === "successful") {
-            payConfirmed = true;
-            payMeta   = (d.data.meta as Record<string, unknown>) ?? {};
-            payAmount = Number(d.data.amount ?? 0);
-            payEmail  = (d.data.customer as Record<string,unknown>)?.email as string ?? "";
-          }
-        }
+      const vr = await fetch(
+        `${PAYSTACK}/transaction/verify/${encodeURIComponent(reference)}`,
+        { headers: psHeaders() },
+      );
+      const vd = await vr.json();
+      if (vd.status && vd.data?.status === "success") {
+        payConfirmed = true;
+        payMeta  = (vd.data.metadata as Record<string, unknown>) ?? {};
+        paidKobo = Number(vd.data.amount ?? 0);
+        payEmail = (vd.data.customer as Record<string, unknown>)?.email as string ?? "";
+      } else if (vd.data?.status === "failed" || vd.data?.status === "abandoned") {
+        try {
+          await adminClient().from("electricity_transactions")
+            .update({ status: "failed", error: `Payment ${vd.data.status}` })
+            .eq("reference", reference);
+        } catch (_) {}
+        return json({ success: false, fatal: true, error: "Payment was not completed" });
+      }
 
-        // Fallback: query by tx_ref
-        if (!payConfirmed && payTxRef) {
-          const r = await fetch(
-            `${FLW}/transactions?tx_ref=${encodeURIComponent(payTxRef)}`,
-            { headers: flwHeaders() },
-          );
-          const d = await r.json();
-          const tx = d.data?.[0];
-          if (d.status === "success" && tx?.status === "successful") {
-            payConfirmed = true;
-            payMeta   = (tx.meta as Record<string, unknown>) ?? {};
-            payAmount = Number(tx.amount ?? 0);
-            payEmail  = (tx.customer as Record<string,unknown>)?.email as string ?? "";
-          }
-        }
+      if (!payConfirmed) return json({ success: false }); // still pending — frontend retries
 
-        if (!payConfirmed) return json({ success: false }); // payment not yet confirmed
+      /* Step B: work out what actually goes to the meter.
+         Trust our own stored value first; fall back to the paid total
+         minus the fee so a missing DB row can never over-vend.        */
+      const provider = (payMeta.provider ?? cached?.provider) as string;
+      const number   = (payMeta.number   ?? cached?.meter_number) as string;
+      const type     = (payMeta.type     ?? cached?.meter_type ?? "prepaid") as string;
+      const email    = payEmail || (cached?.email as string) || "";
 
-        // Step B: place bill payment
-        const provider  = (payMeta.provider  ?? cached?.provider)      as string;
-        const number    = (payMeta.number    ?? cached?.meter_number)   as string;
-        const type      = (payMeta.type      ?? cached?.meter_type ?? "prepaid") as string;
-        const amount    = payAmount || (cached?.amount as number) || 0;
-        const email     = payEmail  || (cached?.email  as string) || "";
+      const paidTotal = paidKobo / 100;
+      const fee       = Number(payMeta.fee ?? cached?.service_fee ?? SERVICE_FEE);
+      const units     = Number(payMeta.units ?? cached?.amount ?? Math.max(0, paidTotal - fee));
 
-        const disco = DISCOS[provider];
-        if (!disco) return json({ success: false, fatal: true, error: "Invalid DISCO" });
+      const disco = DISCOS[provider];
+      if (!disco) return json({ success: false, fatal: true, error: "Invalid DISCO" });
+      if (units < 100) return json({ success: false, fatal: true, error: "Invalid electricity amount" });
 
-        const billRef = makeRef("BILL");
+      /* Step C: vend, unless a previous attempt already placed the bill */
+      let billRef = cached?.bill_ref as string | undefined;
+      if (cached?.status !== "pending_bill" || !billRef) {
+        billRef = makeRef("BILL");
+        const vend = await vendToken(disco, number, units, billRef);
 
-        const billRes = await fetch(`${FLW}/bills`, {
-          method:  "POST",
-          headers: flwHeaders(),
-          body: JSON.stringify({
-            country:     "NG",
-            customer:    number,
-            amount,
-            type:        disco.billerCode,
-            reference:   billRef,
-            recurrence:  "ONCE",
-            biller_name: disco.name,
-          }),
-        });
-        const bill = await billRes.json();
-
-        if (bill.status !== "success") {
-          // Bill payment failed — possibly insufficient Flutterwave balance
-          const errMsg = bill.message ?? "Bill payment failed";
+        if (!vend.ok) {
           try {
             await adminClient().from("electricity_transactions").upsert(
-              { reference: payTxRef ?? billRef, status: "failed", error: errMsg,
-                provider, meter_number: number, meter_type: type, amount, email },
+              { reference, status: "failed", error: vend.error,
+                provider, meter_number: number, meter_type: type,
+                amount: units, service_fee: fee, total_paid: paidTotal, email },
               { onConflict: "reference" },
             );
           } catch (_) {}
-          return json({ success: false, fatal: true, error: errMsg });
+          return json({ success: false, fatal: true, error: vend.error });
         }
 
-        // If token arrived immediately in POST /bills response
-        if (bill.data?.extra) {
-          const token = bill.data.extra as string;
+        if (vend.token) {
           try {
             await adminClient().from("electricity_transactions").upsert(
-              { reference: payTxRef ?? billRef, bill_ref: billRef, status: "success",
-                token, units: "", provider, meter_number: number, meter_type: type, amount, email },
+              { reference, bill_ref: billRef, status: "success", token: vend.token, units: "",
+                provider, meter_number: number, meter_type: type,
+                amount: units, service_fee: fee, total_paid: paidTotal, email },
               { onConflict: "reference" },
             );
           } catch (_) {}
           return json({
-            success:    true,
-            token,
-            units:      "",
-            amount,
-            meter:      number,
-            isPostpaid: type === "postpaid",
+            success: true, token: vend.token, units: "",
+            amount: units, meter: number, isPostpaid: type === "postpaid",
           });
         }
 
-        // Token not immediate — persist bill_ref, frontend will retry
+        // Token not immediate — record the bill ref and let the frontend poll
         try {
           await adminClient().from("electricity_transactions").upsert(
-            { reference: payTxRef ?? billRef, bill_ref: billRef, status: "pending_bill",
-              provider, meter_number: number, meter_type: type, amount, email },
+            { reference, bill_ref: billRef, status: "pending_bill",
+              provider, meter_number: number, meter_type: type,
+              amount: units, service_fee: fee, total_paid: paidTotal, email },
             { onConflict: "reference" },
           );
         } catch (_) {}
       }
 
-      // Step C: poll bill status for token
-      const billRef = cached?.bill_ref as string | undefined;
-      if (!billRef) return json({ success: false }); // will retry when DB catches up
-
+      /* Step D: poll the vendor for a token */
       const statusRes = await fetch(
         `${FLW}/bills/${encodeURIComponent(billRef)}?verbose=1`,
         { headers: flwHeaders() },
       );
-      const statusD = await statusRes.json();
+      const statusD  = await statusRes.json();
       const billData = statusD.data as Record<string, unknown> | undefined;
 
       if (statusD.status === "success" && billData?.extra) {
         const token = billData.extra as string;
-        const units = "";
-
         try {
           await adminClient().from("electricity_transactions").upsert(
-            { reference: payTxRef ?? billRef, bill_ref: billRef, status: "success",
-              token, units,
-              provider:     cached?.provider     as string,
-              meter_number: cached?.meter_number as string,
-              meter_type:   cached?.meter_type   as string,
-              amount:       cached?.amount       as number,
-              email:        cached?.email        as string },
+            { reference, bill_ref: billRef, status: "success", token, units: "",
+              provider, meter_number: number, meter_type: type,
+              amount: units, service_fee: fee, total_paid: paidTotal, email },
             { onConflict: "reference" },
           );
         } catch (_) {}
-
         return json({
-          success:    true,
-          token,
-          units,
-          amount:     cached?.amount as number ?? 0,
-          meter:      cached?.meter_number as string ?? "",
-          isPostpaid: cached?.meter_type === "postpaid",
+          success: true, token, units: "",
+          amount: units, meter: number, isPostpaid: type === "postpaid",
         });
       }
 
       if (billData?.status === "failed") {
-        const errMsg = (billData?.product_details as string) ?? "Bill payment failed";
+        const errMsg = (billData?.product_details as string) ?? "Token vending failed";
         try {
           await adminClient().from("electricity_transactions").upsert(
-            { reference: payTxRef ?? billRef, bill_ref: billRef, status: "failed", error: errMsg },
+            { reference, bill_ref: billRef, status: "failed", error: errMsg },
             { onConflict: "reference" },
           );
         } catch (_) {}
