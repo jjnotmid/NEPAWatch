@@ -511,16 +511,26 @@ Deno.serve(async (req) => {
     results.push({ area, disco, band, prob, forecast, hasHistory: getAreaRate(history, area) !== null });
   }
 
-  /* 8. Scan — outages */
+  /* 8. Scan — outages.
+        Rejection reasons are counted so a run that files nothing can explain
+        itself, rather than just reporting out: 0 with no clue why. */
+  const rejected = {
+    already_out: 0, refire_cooldown: 0, below_threshold: 0,
+    below_bootstrap_threshold: 0, bootstrap_cooldown: 0,
+  };
   const outCandidates = results.filter(({ area, hasHistory, prob }) => {
     const s = state[area];
-    if (s?.ai_status === 'out') return false;
-    if (s?.last_ai_out_at && nowMs - new Date(s.last_ai_out_at).getTime() < AI_MIN_REFIRE_MS) return false;
-    if (prob < AI_CONFIDENCE_THRESH) return false;
-    if (!hasHistory && prob < AI_BOOTSTRAP_THRESH) return false;
-    if (!hasHistory && s?.last_ai_out_at && nowMs - new Date(s.last_ai_out_at).getTime() < AI_BOOTSTRAP_COOLDOWN_MS) return false;
+    if (s?.ai_status === 'out') { rejected.already_out++; return false; }
+    if (s?.last_ai_out_at && nowMs - new Date(s.last_ai_out_at).getTime() < AI_MIN_REFIRE_MS) { rejected.refire_cooldown++; return false; }
+    if (prob < AI_CONFIDENCE_THRESH) { rejected.below_threshold++; return false; }
+    if (!hasHistory && prob < AI_BOOTSTRAP_THRESH) { rejected.below_bootstrap_threshold++; return false; }
+    if (!hasHistory && s?.last_ai_out_at && nowMs - new Date(s.last_ai_out_at).getTime() < AI_BOOTSTRAP_COOLDOWN_MS) { rejected.bootstrap_cooldown++; return false; }
     return true;
   }).sort((a, b) => b.prob - a.prob);
+
+  const withHistory = results.filter(r => r.hasHistory).length;
+  const topProb = results.reduce((m, r) => Math.max(m, r.prob), 0);
+  log(`Candidates ${outCandidates.length}/${results.length} — ${withHistory} areas have human history, top prob ${topProb.toFixed(2)}`);
 
   let outFired = 0, bootFired = 0;
   for (const { area, prob, hasHistory } of outCandidates) {
@@ -603,7 +613,20 @@ Deno.serve(async (req) => {
     await sb.from('weather_log').insert(wxRows).then(() => {}).catch(() => {});
   }
 
-  return new Response(JSON.stringify({ run_at: now.toISOString(), training_rows: rRows?.length || 0, areas: results.length, out: outFired, bck: bckFired, weather_cells: wxCache.size, log: runLog }, null, 2), {
+  return new Response(JSON.stringify({
+    run_at:            now.toISOString(),
+    training_rows:     rRows?.length || 0,   // human reports only
+    areas:             results.length,
+    areas_with_history: withHistory,
+    top_probability:   parseFloat(topProb.toFixed(4)),
+    candidates:        outCandidates.length,
+    rejected,                                 // why the rest did not qualify
+    out:               outFired,
+    bck:               bckFired,
+    weather_cells:     wxCache.size,
+    thresholds:        { fire: AI_CONFIDENCE_THRESH, bootstrap: AI_BOOTSTRAP_THRESH, restore: AI_RESTORE_THRESH },
+    log:               runLog,
+  }, null, 2), {
     headers: { ...CORS, 'Content-Type': 'application/json' },
   });
 });
