@@ -700,6 +700,7 @@ console.log(data); <span class="hl-comment">// Array of outage reports</span></p
     <span class="hl-key">"offset"</span>: <span class="hl-num">0</span>,
     <span class="hl-key">"has_more"</span>: <span class="hl-kw">true</span>,
     <span class="hl-key">"source"</span>: <span class="hl-string">"all"</span>,
+    <span class="hl-key">"order"</span>: <span class="hl-string">"desc"</span>,
     <span class="hl-key">"requests_today"</span>: <span class="hl-num">4</span>,
     <span class="hl-key">"requests_remaining"</span>: <span class="hl-num">96</span>,
     <span class="hl-key">"daily_limit"</span>: <span class="hl-num">100</span>,
@@ -771,6 +772,19 @@ X-RateLimit-Reset: 2026-08-05T23:59:59Z</pre></div></div>
     </div>
 
     <p style="margin-top:16px;font-size:.8rem;color:var(--ink3)">If your use case needs verified human reports only, pass <code style="font-family:monospace">?source=crowd</code>. Our model is trained exclusively on human reports — it never trains on its own output.</p>
+
+    <h4 style="margin-top:24px">AI rows carry an extra field</h4>
+    <p style="margin-bottom:12px">Rows with <code style="font-family:monospace;font-size:.85em">source: "ai"</code> include the model's confidence. Crowd rows do not have this field.</p>
+    <div class="code-wrap"><div class="code-wrap-inner"><pre>{
+  <span class="hl-key">"id"</span>: <span class="hl-string">"c41f0b7e-..."</span>,
+  <span class="hl-key">"type"</span>: <span class="hl-string">"out"</span>,
+  <span class="hl-key">"location_area"</span>: <span class="hl-string">"Gwarinpa"</span>,
+  <span class="hl-key">"location_state"</span>: <span class="hl-string">"FCT"</span>,
+  <span class="hl-key">"confirms"</span>: <span class="hl-num">1</span>,
+  <span class="hl-key">"source"</span>: <span class="hl-string">"ai"</span>,
+  <span class="hl-key">"ai_probability"</span>: <span class="hl-num">0.67</span>,
+  <span class="hl-key">"created_at"</span>: <span class="hl-string">"2026-08-05T14:10:02Z"</span>
+}</pre></div></div>
   </div>
 
   <!-- RATE LIMITS -->
