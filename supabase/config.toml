@@ -1,0 +1,30 @@
+project_id = "djurokbkkqrmpafcxlez"
+
+# ── Edge Function auth ────────────────────────────────────────────────────
+# Supabase verifies a Supabase JWT in the Authorization header by default and
+# rejects the request at the gateway with UNAUTHORIZED_NO_AUTH_HEADER before
+# the function ever runs. Functions that carry their own auth scheme, or that
+# are genuinely public, have to opt out of that check.
+
+# Public developer API. Authenticates with X-API-Key against the api_keys
+# table, so a Supabase JWT is neither required nor meaningful here. Third-party
+# consumers do not have one.
+[functions.nepawatch-api]
+verify_jwt = false
+
+# Called from topup.html before a customer signs in. Its own guard is that the
+# payment must be verified with the processor before a token is ever vended.
+[functions.buy-electricity]
+verify_jwt = false
+
+# Read-only model health, shown on the public predict and accuracy pages.
+[functions.model-status]
+verify_jwt = false
+
+# The remaining functions keep the default verify_jwt = true:
+#   ai-engine, send-push          invoked with the service role key, which is
+#                                 itself a valid JWT, and both additionally
+#                                 check that key inside the handler
+#   admin-action, training-data,
+#   check-prediction-outcomes,
+#   compute-reliability           require a signed-in caller
