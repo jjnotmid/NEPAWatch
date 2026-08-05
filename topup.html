@@ -396,9 +396,9 @@ main{padding-top:calc(58px + env(safe-area-inset-top,0px));padding-bottom:calc(8
         <path d="M1.5 7.5h15" stroke="currentColor" stroke-width="1.5"/>
         <circle cx="4.5" cy="10.5" r="1" fill="currentColor"/>
       </svg>
-      Pay with Paystack
+      Pay with Flutterwave
     </button>
-    <p style="text-align:center;font-size:.67rem;color:var(--ink3);margin-top:10px">Card · Bank Transfer · USSD · Secured by Paystack</p>
+    <p style="text-align:center;font-size:.67rem;color:var(--ink3);margin-top:10px">Card · Bank Transfer · USSD · Secured by Flutterwave</p>
   </div>
 
   <!-- SUCCESS -->
@@ -600,7 +600,7 @@ function setAmt(val){
 }
 
 /* Shows exactly what the customer is charged: the units they asked for,
-   our service fee, and the total. No surprises at the Paystack screen. */
+   our service fee, and the total. No surprises at the checkout screen. */
 function renderFee(){
   const box=document.getElementById('feeBreakdown');
   if(!box)return;
@@ -707,20 +707,26 @@ async function pay(){
 function resetPayBtn(){
   const btn=document.getElementById('payBtn');
   btn.disabled=false;
-  btn.innerHTML=`<svg width="18" height="18" viewBox="0 0 18 18" fill="none"><rect x="1.5" y="4.5" width="15" height="10.5" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M1.5 7.5h15" stroke="currentColor" stroke-width="1.5"/><circle cx="4.5" cy="10.5" r="1" fill="currentColor"/></svg> Pay with Paystack`;
+  btn.innerHTML=`<svg width="18" height="18" viewBox="0 0 18 18" fill="none"><rect x="1.5" y="4.5" width="15" height="10.5" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M1.5 7.5h15" stroke="currentColor" stroke-width="1.5"/><circle cx="4.5" cy="10.5" r="1" fill="currentColor"/></svg> Pay with Flutterwave`;
 }
 
 // ── Callback polling ──────────────────────────────────────────
 async function checkCallbackReturn(){
   const params=new URLSearchParams(window.location.search);
-  /* Paystack appends ?reference= and ?trxref= to the callback URL. */
-  const reference=params.get('reference')||params.get('trxref');
-  if(!reference)return;
+  const status=params.get('status');
+  const transactionId=params.get('transaction_id');
+  const txRef=params.get('tx_ref');
+  if(!transactionId&&!txRef)return;
+  if(status==='cancelled'||status==='failed'){
+    window.history.replaceState({},'',window.location.pathname);
+    toast('Payment cancelled — please try again','err');
+    return;
+  }
   window.history.replaceState({},'',window.location.pathname);
   document.getElementById('mainForm').style.display='none';
   document.getElementById('waitingScreen').style.display='block';
   startWaitingDots();
-  pollForToken(reference,0);
+  pollForToken(transactionId,txRef,0);
 }
 
 let dotsInterval=null;
@@ -739,18 +745,18 @@ function startWaitingDots(){
 }
 function stopWaitingDots(){if(dotsInterval){clearInterval(dotsInterval);dotsInterval=null;}}
 
-async function pollForToken(reference,attempt){
+async function pollForToken(transactionId,txRef,attempt){
   const MAX=20; // 20 × 1.5s = 30 seconds
   if(attempt>=MAX){
     stopWaitingDots();
     document.getElementById('waitingScreen').style.display='none';
     document.getElementById('mainForm').style.display='block';
-    toast('Taking longer than usual — contact support with ref: '+reference,'err');
+    toast('Taking longer than usual — contact support with ref: '+(txRef||transactionId),'err');
     return;
   }
   try{
     const res=await fetch(BACKEND,{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({action:'verify',reference})});
+      body:JSON.stringify({action:'verify',transaction_id:transactionId,tx_ref:txRef})});
     const d=await res.json();
 
     if(d.success){
@@ -768,9 +774,9 @@ async function pollForToken(reference,attempt){
       return;
     }
 
-    setTimeout(()=>pollForToken(reference,attempt+1),1500);
+    setTimeout(()=>pollForToken(transactionId,txRef,attempt+1),1500);
   }catch(e){
-    setTimeout(()=>pollForToken(reference,attempt+1),1500);
+    setTimeout(()=>pollForToken(transactionId,txRef,attempt+1),1500);
   }
 }
 
