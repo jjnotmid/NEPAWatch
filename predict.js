@@ -675,6 +675,102 @@ function getRiskLevel(prob) {
   return              { label:'Critical',  short:'CRIT', color:'#FF3D57' };
 }
 
+/* ─── SEARCHABLE AREA PICKER ─────────────────────────────────────────────
+   Replaces plain <select> menus. 291 areas is far too many to scroll, so
+   this filters as you type. Ordering puts Lagos first, then Abuja, then the
+   rest alphabetically — matching where our reporters actually are.
+   ─────────────────────────────────────────────────────────────────────── */
+const _LAGOS_DISCOS = ['IE', 'EKEDC'];
+
+function _areaSortKey(area) {
+  const disco = (typeof _getAreaDisco === 'function') ? _getAreaDisco(area) : '';
+  if (_LAGOS_DISCOS.includes(disco)) return 0;   // Lagos — most of our users
+  if (disco === 'AEDC') return 1;                // Abuja — second densest
+  return 2;
+}
+
+function sortedAreaList(areas) {
+  return areas.slice().sort((a, b) => {
+    const ka = _areaSortKey(a), kb = _areaSortKey(b);
+    return ka !== kb ? ka - kb : a.localeCompare(b);
+  });
+}
+
+/* Renders a searchable picker into `mountId`. onPick(area) fires on select. */
+function initAreaPicker(mountId, areas, selected, onPick) {
+  const mount = document.getElementById(mountId);
+  if (!mount) return;
+  const ordered = sortedAreaList(areas);
+  const uid = mountId + '_ap';
+
+  mount.innerHTML = `
+    <div class="ap" id="${uid}">
+      <button type="button" class="ap-trigger" id="${uid}_trigger" aria-haspopup="listbox" aria-expanded="false">
+        <span class="ap-current" id="${uid}_current">${selected || 'Select an area'}</span>
+        <svg class="ap-caret" width="10" height="6" viewBox="0 0 10 6" fill="none" aria-hidden="true"><path d="M1 1l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <div class="ap-panel" id="${uid}_panel" role="listbox">
+        <input type="text" class="ap-search" id="${uid}_search" placeholder="Search areas…" autocomplete="off" spellcheck="false">
+        <div class="ap-list" id="${uid}_list"></div>
+        <div class="ap-empty" id="${uid}_empty" hidden>No area matches that search.</div>
+      </div>
+    </div>`;
+
+  const el = id => document.getElementById(uid + '_' + id);
+  const panel = el('panel'), search = el('search'), list = el('list'),
+        empty = el('empty'), trigger = el('trigger'), current = el('current');
+  let cur = selected;
+
+  function paint(filter) {
+    const q = (filter || '').trim().toLowerCase();
+    const rows = q ? ordered.filter(a => a.toLowerCase().includes(q)) : ordered;
+    list.innerHTML = rows.map(a =>
+      `<button type="button" class="ap-opt${a === cur ? ' ap-opt-on' : ''}" role="option" data-area="${a.replace(/"/g, '&quot;')}">${a}</button>`
+    ).join('');
+    empty.hidden = rows.length > 0;
+  }
+
+  function open() {
+    panel.classList.add('ap-open');
+    trigger.setAttribute('aria-expanded', 'true');
+    search.value = '';
+    paint('');
+    search.focus();
+  }
+  function close() {
+    panel.classList.remove('ap-open');
+    trigger.setAttribute('aria-expanded', 'false');
+  }
+
+  trigger.addEventListener('click', e => {
+    e.stopPropagation();
+    panel.classList.contains('ap-open') ? close() : open();
+  });
+  search.addEventListener('input', () => paint(search.value));
+  search.addEventListener('keydown', e => {
+    if (e.key === 'Escape') { close(); trigger.focus(); }
+    if (e.key === 'Enter') {
+      const first = list.querySelector('.ap-opt');
+      if (first) first.click();
+      e.preventDefault();
+    }
+  });
+  list.addEventListener('click', e => {
+    const btn = e.target.closest('.ap-opt');
+    if (!btn) return;
+    cur = btn.dataset.area;
+    current.textContent = cur;
+    close();
+    if (typeof onPick === 'function') onPick(cur);
+  });
+  document.addEventListener('click', e => {
+    if (!e.target.closest('#' + uid)) close();
+  });
+
+  paint('');
+  return { set(area) { cur = area; current.textContent = area; } };
+}
+
 /* ─── SERVER PREDICTIONS CACHE ───────────────────────────────────────────
    Populated by loadAreaPredictions() on startup.
    Stores server-precomputed probabilities and AI status per area.
@@ -685,8 +781,12 @@ let _areaStatusCache = {};
 async function loadAreaPredictions() {
   if (typeof sb === 'undefined') return;
   try {
+    /* Only the four fields the UI actually reads. forecast_24h is a 24-entry
+       JSONB blob per area — across ~291 areas it dominated the payload and
+       nothing in the browser consumed it (predictOutage computes locally).
+       Dropping it takes this fetch from ~230 KB to ~15 KB per session.     */
     const { data, error } = await sb.from('area_predictions')
-      .select('area, disco, band, current_prob, forecast_24h, ai_status, last_ai_out_at, computed_at');
+      .select('area, current_prob, ai_status, last_ai_out_at');
     if (!error && data?.length) {
       _areaStatusCache = {};
       for (const row of data) _areaStatusCache[row.area] = row;
@@ -1335,9 +1435,7 @@ function renderPredictPage() {
   page.innerHTML=`<div class="pred-wrap">
     <div class="pred-area-select-wrap">
       <div class="pred-area-label">Predicting for</div>
-      <select class="pred-area-select" id="predictAreaSelect" onchange="switchPredictArea(this.value)">
-        ${Object.keys(AREA_BANDS).map(a=>`<option value="${a}"${a===area?' selected':''}>${a}</option>`).join('')}
-      </select>
+      <div id="predictAreaPicker"></div>
     </div>
 
     <div class="pred-hero" style="border-color:${risk.color}44" id="predHeroCard">
@@ -1423,10 +1521,16 @@ function renderPredictPage() {
       </div>
     </div>
   </div>`;
+
+  _predictPicker = initAreaPicker('predictAreaPicker', Object.keys(AREA_BANDS), area, switchPredictArea);
 }
 
+/* Handle to the predict page picker so switchPredictArea can sync its label
+   when the area changes from somewhere else (e.g. the nearby-areas list). */
+let _predictPicker = null;
+
 function switchPredictArea(area) {
-  const sel=document.getElementById('predictAreaSelect'); if(sel) sel.value=area;
+  if (_predictPicker) _predictPicker.set(area);
   const now=new Date(),h=now.getHours(),d=now.getDay();
   const fmtH=x=>`${x%12||12}${x<12?'am':'pm'}`;
   const DAYS=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];

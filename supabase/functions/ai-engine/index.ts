@@ -12,13 +12,18 @@ const CORS         = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow
 
 /* ─── AI CONSTANTS ───────────────────────────────────────────────────────── */
 const AI_USER_ID               = '00000000-0000-0000-0000-000000000001';
-const AI_CONFIDENCE_THRESH     = 0.58;
-const AI_RESTORE_THRESH        = 0.32;
-const AI_MAX_PER_SCAN          = 6;
-const AI_MIN_REFIRE_MS         = 45 * 60 * 1000;
-const AI_BOOTSTRAP_THRESH      = 0.72;
-const AI_BOOTSTRAP_COOLDOWN_MS = 6 * 3600 * 1000;
-const AI_MAX_BOOTSTRAP_PER_SCAN = 2;
+/* Tuned for higher reporting volume. The engine runs every 10 min, so the
+   per-scan caps below set the daily ceiling:
+     14 out + 14 bck per scan × 144 scans = ~4 000 reports/day worst case,
+   but real volume is far lower because the refire cooldown and the 'out'
+   state gate mean each area can only fire roughly twice an hour at most. */
+const AI_CONFIDENCE_THRESH     = 0.50;   /* was 0.58 — fire on moderate confidence */
+const AI_RESTORE_THRESH        = 0.34;
+const AI_MAX_PER_SCAN          = 14;     /* was 6 */
+const AI_MIN_REFIRE_MS         = 30 * 60 * 1000;   /* was 45 min */
+const AI_BOOTSTRAP_THRESH      = 0.64;   /* was 0.72 — cover thin areas sooner */
+const AI_BOOTSTRAP_COOLDOWN_MS = 3 * 3600 * 1000;  /* was 6 h */
+const AI_MAX_BOOTSTRAP_PER_SCAN = 5;     /* was 2 */
 
 /* ─── AREA → NERC BAND ──────────────────────────────────────────────────── */
 const AREA_BANDS: Record<string, string> = {
@@ -396,6 +401,24 @@ function computeProb(
   return Math.min(0.97, Math.max(0.03, p));
 }
 
+/* ─── PUSH DISPATCH ──────────────────────────────────────────────────────
+   Fire-and-forget call to send-push. Failures never block the engine run —
+   a missed notification must not stop predictions from being written.     */
+async function notifyArea(area: string, type: 'out' | 'bck') {
+  try {
+    const title = type === 'out' ? `Light don go — ${area}` : `Light don come — ${area}`;
+    const body  = type === 'out'
+      ? `NEPAWatch predicts an outage in ${area} right now.`
+      : `Power looks restored in ${area}.`;
+    await fetch(`${SUPABASE_URL}/functions/v1/send-push`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${SERVICE_KEY}` },
+      body: JSON.stringify({ area, type, title, body, url: '/' }),
+      signal: AbortSignal.timeout(8000),
+    });
+  } catch { /* non-fatal */ }
+}
+
 /* ─── WEATHER FETCHER ────────────────────────────────────────────────────── */
 async function fetchWeather(areas: string[]): Promise<Map<string, { code: number | null; rain: number; wind: number }>> {
   const cache = new Map<string, { code: number | null; rain: number; wind: number }>();
@@ -513,11 +536,24 @@ Deno.serve(async (req) => {
       state[area] = { ai_status: 'out', last_ai_out_at: now.toISOString(), last_ai_report_id: rid };
       await sb.from('ai_predictions').insert({ report_id: rid, area, disco: getAreaDisco(area), type: 'out', probability: parseFloat(prob.toFixed(4)) }).then(() => {}).catch(() => {});
       outFired++; if (isBoot) bootFired++;
+      notifyArea(area, 'out');
       log(`OUT ${area} @ ${Math.round(prob * 100)}%${isBoot ? ' [boot]' : ''}`);
     }
   }
 
-  /* 9. Scan — restorations */
+  /* 9. Scan — restorations
+        Human 'out' reports from the last 24 h are fetched in ONE query and
+        bucketed by area. Previously this ran a count query per outage area,
+        which at higher report volume would mean hundreds of round-trips. */
+  const cut24h = new Date(nowMs - 24 * 3600000).toISOString();
+  const { data: hOut } = await sb.from('reports')
+    .select('location_area, created_at')
+    .eq('type', 'out').neq('user_id', AI_USER_ID).gte('created_at', cut24h);
+  const humanOutByArea: Record<string, number[]> = {};
+  for (const r of (hOut || [])) {
+    (humanOutByArea[r.location_area] ||= []).push(new Date(r.created_at).getTime());
+  }
+
   let bckFired = 0;
   for (const { area, prob, band } of results) {
     if (bckFired >= AI_MAX_PER_SCAN) break;
@@ -527,9 +563,8 @@ Deno.serve(async (req) => {
     const maxOutMs = (DISCO_BAND_MAX_OUT_MS[disco] || {})[band] || 12 * 3600000;
     let humanConfirms = 0;
     if (s.last_ai_out_at) {
-      const { count } = await sb.from('reports').select('id', { count: 'exact', head: true })
-        .eq('location_area', area).eq('type', 'out').neq('user_id', AI_USER_ID).gte('created_at', s.last_ai_out_at);
-      humanConfirms = count || 0;
+      const since = new Date(s.last_ai_out_at).getTime();
+      humanConfirms = (humanOutByArea[area] || []).filter(t => t >= since).length;
     }
     const isStale = outageAgeMs > maxOutMs && humanConfirms === 0;
     const dropped = prob < AI_RESTORE_THRESH && outageAgeMs > 90 * 60000;
@@ -541,6 +576,7 @@ Deno.serve(async (req) => {
     if (!insErr && ins) {
       state[area] = { ...s, ai_status: 'bck', last_ai_report_id: String(ins.id) };
       bckFired++;
+      notifyArea(area, 'bck');
       log(`BCK ${area} [${isStale ? 'stale' : 'prob'}]`);
     }
   }

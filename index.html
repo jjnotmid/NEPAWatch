@@ -102,7 +102,7 @@
 .lp-btn-solid {
   font-size: .72rem; font-weight: 700; color: #07090A; background: #AAFF00;
   border: none; border-radius: 50px; padding: 8px 16px; cursor: pointer;
-  transition: all .18s; box-shadow: 0 0 16px rgba(170,255,0,.28);
+  transition: all .18s;
   white-space: nowrap; line-height: 1;
 }
 .lp-btn-solid:hover { background: #CCFF44; }
@@ -113,32 +113,20 @@
   padding: 44px 20px 28px; text-align: center;
   position: relative; z-index: 2; flex-shrink: 0;
 }
-.lp-hero-glow {
-  position: absolute; width: 480px; height: 280px; pointer-events: none;
-  background: radial-gradient(ellipse, rgba(170,255,0,.08) 0%, transparent 70%);
-  top: 50%; left: 50%; transform: translate(-50%,-50%);
-  animation: lp-glow 6s ease infinite alternate;
-}
-@keyframes lp-glow { 0% { opacity:.5; transform:translate(-50%,-50%) scale(.9); } 100% { opacity:1; transform:translate(-50%,-50%) scale(1.15); } }
-
-.lp-eyebrow {
-  display: inline-flex; align-items: center; gap: 7px;
-  font-size: .52rem; letter-spacing: .15em; color: #AAFF00; text-transform: uppercase;
-  border: 1px solid rgba(170,255,0,.2); border-radius: 99px;
-  padding: 5px 13px; background: rgba(170,255,0,.06); margin-bottom: 22px;
+.lp-kicker {
+  font-size: .58rem; letter-spacing: .16em; color: rgba(238,244,238,.42);
+  text-transform: uppercase; margin-bottom: 20px;
   animation: lp-rise .5s ease .05s both;
 }
-.lp-pip { width: 6px; height: 6px; border-radius: 50%; background: #AAFF00; animation: lp-pip 2s ease infinite; }
-@keyframes lp-pip { 0%,100% { box-shadow: 0 0 0 0 rgba(170,255,0,.7); } 50% { box-shadow: 0 0 0 6px rgba(170,255,0,0); } }
 
 .lp-h1 { font-family: 'Bebas Neue', sans-serif; font-size: clamp(4rem,15vw,8.5rem); line-height: .9; letter-spacing: .02em; margin-bottom: 8px; animation: lp-rise .5s ease .1s both; }
-.lp-h1 .line-g { color: #AAFF00; display: block; text-shadow: 0 0 50px rgba(170,255,0,.3); }
+.lp-h1 .line-g { color: #AAFF00; display: block; }
 .lp-h1 .line-w { display: block; color: #EEF4EE; }
 .lp-h1 .line-o { display: block; color: transparent; -webkit-text-stroke: 1px rgba(238,244,238,.15); }
 .lp-sub { font-size: clamp(.84rem,2vw,.98rem); color: rgba(238,244,238,.4); max-width: 360px; line-height: 1.75; margin: 16px auto 28px; animation: lp-rise .5s ease .18s both; }
 
 .lp-hero-ctas { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; animation: lp-rise .5s ease .26s both; }
-.lp-cta-main { font-size: .88rem; font-weight: 700; color: #07090A; background: #AAFF00; border: none; border-radius: 50px; padding: 13px 30px; cursor: pointer; transition: all .2s; box-shadow: 0 0 28px rgba(170,255,0,.32), 0 4px 20px rgba(0,0,0,.5); }
+.lp-cta-main { font-size: .88rem; font-weight: 700; color: #07090A; background: #AAFF00; border: none; border-radius: 50px; padding: 13px 30px; cursor: pointer; transition: all .2s; }
 .lp-cta-main:hover { background: #CCFF44; transform: translateY(-2px); }
 .lp-cta-ghost { font-size: .88rem; font-weight: 600; color: rgba(238,244,238,.65); background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.1); border-radius: 11px; padding: 13px 26px; cursor: pointer; transition: all .2s; }
 .lp-cta-ghost:hover { background: rgba(255,255,255,.08); color: #EEF4EE; }
@@ -147,7 +135,7 @@
 .lp-stats { display: flex; margin-top: 36px; animation: lp-rise .5s ease .36s both; border: 1px solid rgba(255,255,255,.07); border-radius: 13px; overflow: hidden; background: rgba(255,255,255,.02); width: 100%; max-width: 380px; }
 .lp-stat { padding: 10px 6px; text-align: center; border-right: 1px solid rgba(255,255,255,.06); flex: 1; min-width: 0; }
 .lp-stat:last-child { border-right: none; }
-.lp-stat-n { font-family: 'Bricolage Grotesque', sans-serif; font-size: clamp(.95rem, 3.8vw, 1.6rem); font-weight: 900; color: #AAFF00; line-height: 1; text-shadow: 0 0 16px rgba(170,255,0,.25); }
+.lp-stat-n { font-family: 'Bricolage Grotesque', sans-serif; font-size: clamp(.95rem, 3.8vw, 1.6rem); font-weight: 900; color: #AAFF00; line-height: 1; }
 .lp-stat-l { font-size: .5rem; color: rgba(238,244,238,.22); text-transform: uppercase; letter-spacing: .12em; margin-top: 4px; font-weight: 700; }
 
 @keyframes lp-rise { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:none; } }
@@ -253,7 +241,7 @@
   border: none; border-radius: 50px; padding: 13px;
   cursor: pointer; transition: all .18s;
   display: flex; align-items: center; justify-content: center; gap: 8px;
-  box-shadow: 0 0 18px rgba(170,255,0,.22); margin-top: 6px;
+  margin-top: 6px;
   font-family: 'DM Sans', sans-serif; box-sizing: border-box;
 }
 .lp-sh-btn:hover { background: #CCFF44; }
@@ -334,8 +322,7 @@ input,select,textarea{font-size:max(16px,1em)!important}
   </div>
 
   <div class="lp-hero">
-    <div class="lp-hero-glow"></div>
-    <div class="lp-eyebrow"><div class="lp-pip"></div>Real-time · All of Nigeria · 36 States + FCT</div>
+    <div class="lp-kicker">Real-time · All of Nigeria · 36 States + FCT</div>
     <h1 class="lp-h1">
       <span class="line-g">Know When</span>
       <span class="line-w">Light Don</span>
@@ -763,13 +750,12 @@ input,select,textarea{font-size:max(16px,1em)!important}
       <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M1 1L10 10M10 1L1 10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
     </button>
   </div>
-  <div class="user-count-pill" id="userCountPill" style="display:none">
-    <div class="ucp-dot"></div>
+  <div class="user-count-line" id="userCountPill" style="display:none">
     <span><strong id="userCountNum">—</strong> Nigerians using NEPAWatch</span>
   </div>
   <div class="sbar">
     <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style="color:var(--ink3);flex-shrink:0"><rect x="1.5" y="2.5" width="11" height="1.4" rx=".7" fill="currentColor"/><rect x="3" y="6" width="8" height="1.4" rx=".7" fill="currentColor"/><rect x="5" y="9.5" width="4" height="1.4" rx=".7" fill="currentColor"/></svg>
-    <select id="areaFilter" onchange="applyFilter()"><option value="">All Nigeria areas</option></select>
+    <div id="areaFilterPicker"></div>
   </div>
   <div class="stats-row">
     <div class="sc"><div class="sn r" id="s-out">—</div><div class="sl" id="sl-out">Today Out</div></div>

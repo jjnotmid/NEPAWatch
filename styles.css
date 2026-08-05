@@ -184,14 +184,11 @@ body::after{content:"";display:block;position:fixed;bottom:0;left:0;right:0;heig
 .sl{font-size:.48rem;font-weight:700;color:var(--ink3);text-transform:uppercase;letter-spacing:.08em;line-height:1.35}
 
 /* ===== USER COUNT PILL ===== */
-.user-count-pill{
-  display:flex;align-items:center;gap:6px;
-  margin:0 18px 12px;padding:8px 13px;
-  background:var(--sf2);border-radius:50px;border:1px solid var(--bd);
+.user-count-line{
+  margin:0 18px 12px;
   font-size:.67rem;color:var(--ink3);
 }
-.user-count-pill .ucp-dot{width:6px;height:6px;background:var(--p);border-radius:50%;flex-shrink:0;animation:livepulse 2s ease infinite}
-.user-count-pill strong{color:var(--ink2);font-weight:600}
+.user-count-line strong{color:var(--ink2);font-weight:600}
 
 /* ===== SAVED PLACES ===== */
 .saved-places{padding:0 18px 4px}
