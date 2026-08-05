@@ -6,6 +6,10 @@ const cors = {
   'Access-Control-Allow-Methods': 'GET, OPTIONS',
 }
 
+/* Reports filed by the prediction engine carry this user_id. Used to label
+   every row as 'crowd' or 'ai' so API consumers always know what they got. */
+const AI_USER_ID = '00000000-0000-0000-0000-000000000001'
+
 function json(body: object, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
@@ -59,13 +63,14 @@ Deno.serve(async (req) => {
 
   let q = supabase
     .from('reports')
-    .select('id, type, location_name, location_area, location_state, location_lga, confirms, created_at')
+    .select('id, type, user_id, location_name, location_area, location_state, location_lga, confirms, ai_prob, created_at')
 
-  const state = p.get('state')
-  const lga   = p.get('lga')
-  const area  = p.get('area')
-  const type  = p.get('type')
-  const since = p.get('since')
+  const state  = p.get('state')
+  const lga    = p.get('lga')
+  const area   = p.get('area')
+  const type   = p.get('type')
+  const since  = p.get('since')
+  const source = p.get('source')   // 'crowd' | 'ai' — omit for both
 
   if (state) q = q.ilike('location_state', `%${state}%`)
   if (lga)   q = q.ilike('location_lga',   `%${lga}%`)
@@ -73,10 +78,27 @@ Deno.serve(async (req) => {
   if (type && ['out', 'bck'].includes(type)) q = q.eq('type', type)
   if (since) q = q.gte('created_at', since)
 
+  /* Source filter — 'crowd' returns human reports only, 'ai' returns model
+     predictions only. Omitting the param returns both, each labelled.        */
+  if (source === 'crowd')   q = q.neq('user_id', AI_USER_ID)
+  else if (source === 'ai') q = q.eq('user_id', AI_USER_ID)
+
   q = q.order('created_at', { ascending: false }).range(offset, offset + limit - 1)
 
-  const { data, error: qErr } = await q
+  const { data: rows, error: qErr } = await q
   if (qErr) return json({ error: qErr.message }, 400)
+
+  /* Label every row so consumers can always tell crowd data from model output.
+     user_id is stripped — it is internal and not part of the public contract. */
+  const data = (rows ?? []).map((r: Record<string, unknown>) => {
+    const isAI = r.user_id === AI_USER_ID
+    const { user_id: _omit, ai_prob, ...rest } = r
+    return {
+      ...rest,
+      source: isAI ? 'ai' : 'crowd',
+      ...(isAI ? { ai_probability: ai_prob ?? null } : {}),
+    }
+  })
 
   // Non-blocking usage update
   supabase.from('api_keys').update({
@@ -94,11 +116,12 @@ Deno.serve(async (req) => {
   }).then(() => {})
 
   return json({
-    data: data ?? [],
+    data,
     meta: {
-      count: data?.length ?? 0,
+      count: data.length,
       limit,
       offset,
+      source: source ?? 'all',
       requests_today: requestsToday + 1,
       requests_remaining: dailyLimit - requestsToday - 1,
       daily_limit: dailyLimit,

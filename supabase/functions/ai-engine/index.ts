@@ -438,12 +438,15 @@ Deno.serve(async (req) => {
 
   log(`Start — WAT ${h_wat}:00 day ${d_wat}`);
 
-  /* 1. Load training reports */
+  /* 1. Load training reports — HUMAN reports only.
+        Training on our own AI reports creates a feedback loop where the model
+        reinforces its own predictions instead of learning from ground truth. */
   const { data: rRows } = await sb.from('reports')
     .select('location_area, type, created_at, confirms, wrong_votes')
+    .neq('user_id', AI_USER_ID)
     .order('created_at', { ascending: false }).limit(2000);
   const history = buildHistory((rRows || []) as any[]);
-  log(`Training: ${rRows?.length || 0} reports`);
+  log(`Training: ${rRows?.length || 0} human reports (AI reports excluded)`);
 
   /* 2. Accuracy weights */
   const { data: wRows } = await sb.from('ai_accuracy_weights').select('area, weight');
@@ -467,7 +470,7 @@ Deno.serve(async (req) => {
 
   /* 6. Last 'bck' per area (feeder rotation) */
   const cut48h = new Date(nowMs - 48 * 3600000).toISOString();
-  const { data: bRows } = await sb.from('reports').select('location_area, created_at').eq('type', 'bck').gte('created_at', cut48h).order('created_at', { ascending: false });
+  const { data: bRows } = await sb.from('reports').select('location_area, created_at').eq('type', 'bck').neq('user_id', AI_USER_ID).gte('created_at', cut48h).order('created_at', { ascending: false });
   const lastBck: Record<string, Date> = {};
   for (const r of (bRows || [])) { if (!lastBck[r.location_area]) lastBck[r.location_area] = new Date(r.created_at); }
 
