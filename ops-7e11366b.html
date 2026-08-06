@@ -2,8 +2,10 @@
 <html lang="en" data-theme="dark">
 <head>
 <meta charset="UTF-8">
+<meta name="robots" content="noindex, nofollow, noarchive, nosnippet">
+<meta name="referrer" content="no-referrer">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>NEPAWatch Admin</title>
+<title>NEPAWatch</title>
 <meta name="robots" content="noindex,nofollow">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -871,7 +873,15 @@ tr:hover td{background:rgba(128,128,128,.04)}
 const SUPA_URL  = 'https://djurokbkkqrmpafcxlez.supabase.co';
 const SUPA_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRqdXJva2Jra3FybXBhZmN4bGV6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI1NzE5OTUsImV4cCI6MjA4ODE0Nzk5NX0.ZLOtWFB7qy_J0mitjb_pcZ88wxmRjMe-3OdbQCRL8xE';
 const EMAIL_FN  = `${SUPA_URL}/functions/v1/send-alert`;
-const ADMIN_EMAILS = ['usifohjosh47@gmail.com'];
+/* Admin identity lives in the database, never in this bundle. is_admin() is a
+   SECURITY DEFINER function that returns a bare boolean for the signed-in
+   user, so the privileged address is never disclosed to the client. */
+async function checkIsAdmin() {
+  try {
+    const { data, error } = await sb.rpc('is_admin');
+    return !error && data === true;
+  } catch (e) { return false; }
+}
 
 const sb = supabase.createClient(SUPA_URL, SUPA_ANON, {
   auth:{ autoRefreshToken:true, persistSession:true, detectSessionInUrl:true }
@@ -919,7 +929,7 @@ async function doLogin() {
   try {
     const { data, error } = await sb.auth.signInWithPassword({ email, password:pass });
     if (error) throw error;
-    if (!ADMIN_EMAILS.includes(email.toLowerCase())) {
+    if (!await checkIsAdmin()) {
       await sb.auth.signOut(); deny.style.display='block';
       btn.textContent='Sign In to Admin'; btn.disabled=false; return;
     }
@@ -2296,7 +2306,7 @@ async function triggerComputeReliability() {
 // ── AUTO-LOGIN ────────────────────────────────────────────────
 (async function(){
   const{data:{session}}=await sb.auth.getSession();
-  if(session?.user&&ADMIN_EMAILS.includes(session.user.email.toLowerCase())){adminUser=session.user;boot();}
+  if(session?.user&&await checkIsAdmin()){adminUser=session.user;boot();}
 })();
 </script>
 

@@ -74,5 +74,5 @@ CREATE POLICY "disco_alerts_select" ON disco_alerts FOR SELECT USING (true);
 
 -- Only authenticated admin writes; edge functions use service role key
 CREATE POLICY "disco_alerts_write" ON disco_alerts FOR ALL
-  USING (auth.email() = 'usifohjosh47@gmail.com')
-  WITH CHECK (auth.email() = 'usifohjosh47@gmail.com');
+  USING (public.is_admin())
+  WITH CHECK (public.is_admin());

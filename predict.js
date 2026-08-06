@@ -114,7 +114,7 @@ function _getBandMaxOutMs(area) {
 
 /* ─── DISCO ALERT MULTIPLIERS ────────────────────────────────────────────── */
 /* Admin-settable probability multipliers for declared grid emergencies.
- * Set via admin.html Grid Alerts panel. Keys are DISCO short names.
+ * Set via the admin Grid Alerts panel. Keys are DISCO short names.
  * 1.0 = normal, 2.5 = declared emergency, 0.0 = suppress AI for this DISCO.
  * Persisted to localStorage ('nw-disco-alert') and a Supabase disco_alerts table.
  *

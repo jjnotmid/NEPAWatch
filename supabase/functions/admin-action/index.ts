@@ -5,8 +5,6 @@ const cors = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-const ADMIN_EMAILS = ['usifohjosh47@gmail.com']
-
 function json(body: object, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
@@ -28,9 +26,18 @@ Deno.serve(async (req) => {
 
   const token = authHeader.replace('Bearer ', '')
   const { data: { user }, error: authErr } = await supabaseAdmin.auth.getUser(token)
-  if (authErr || !user || !ADMIN_EMAILS.includes(user.email!)) {
-    return json({ error: 'Forbidden' }, 403)
-  }
+  if (authErr || !user) return json({ error: 'Unauthorized' }, 401)
+
+  /* Authorisation comes from the admins table, not a list baked into this
+     source file. Adding or removing an admin is a row change, not a deploy,
+     and the privileged address appears in no artifact we ship. */
+  const { data: adminRow } = await supabaseAdmin
+    .from('admins')
+    .select('user_id')
+    .eq('user_id', user.id)
+    .maybeSingle()
+
+  if (!adminRow) return json({ error: 'Forbidden' }, 403)
 
   const body = await req.json().catch(() => ({}))
   const { action } = body

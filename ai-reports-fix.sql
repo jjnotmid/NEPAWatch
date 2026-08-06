@@ -66,5 +66,5 @@ CREATE POLICY "reports_update" ON reports
 CREATE POLICY "reports_delete" ON reports
   FOR DELETE USING (
     auth.uid() = user_id
-    OR auth.email() = 'usifohjosh47@gmail.com'
+    OR public.is_admin()
   );
