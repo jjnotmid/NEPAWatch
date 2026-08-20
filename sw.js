@@ -3,7 +3,8 @@
    To deploy: update version.json (one-line JSON file).
    SW version here only needs bumping when SW logic changes.
    ===================================================== */
-const VERSION = 'v2.4.0';
+const VERSION = 'v2.5.0-maint';
+const MAINTENANCE = true;   // set false to bring the app back
 const CACHE   = `nepawatch-${VERSION}`;
 
 const PRECACHE = [
@@ -33,6 +34,18 @@ self.addEventListener('activate', event => {
 self.addEventListener('fetch', event => {
   const { request } = event;
   const url = new URL(request.url);
+
+  /* MAINTENANCE — refuse Supabase calls at the worker.
+     Clients running an older cached app.js would otherwise keep querying and
+     burning quota. Blocking here catches them regardless of which bundle they
+     are on. Remove this block, and bump VERSION, to bring the app back. */
+  if (MAINTENANCE && url.hostname.includes('supabase.co')) {
+    event.respondWith(new Response(
+      JSON.stringify({ error: 'maintenance' }),
+      { status: 503, headers: { 'Content-Type': 'application/json' } }
+    ));
+    return;
+  }
 
   // Always network-first for Supabase API calls
   if (url.hostname.includes('supabase.co') || url.hostname.includes('open-meteo.com')) {

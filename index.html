@@ -887,6 +887,9 @@ input,select,textarea{font-size:max(16px,1em)!important}
 </div>
 
 <!-- Google Maps removed — using Leaflet -->
+<!-- MAINTENANCE — set before any app script so nothing gets to run -->
+<script>window.NW_MAINTENANCE = true;</script>
+
 <script src="predict.js"></script>
 <script src="nigeria_data.js"></script>
 <script src="app.js"></script>
@@ -1400,3 +1403,39 @@ if ('serviceWorker' in navigator) {
 </script>
 
 
+
+<!-- MAINTENANCE MODAL -->
+<style>
+#nwMaint {
+  position: fixed; inset: 0; z-index: 99999;
+  background: rgba(7,9,10,.82);
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  display: flex; align-items: center; justify-content: center;
+  padding: 20px;
+  font-family: 'DM Sans', system-ui, sans-serif;
+}
+#nwMaint .box {
+  background: #111815;
+  border: 1px solid rgba(255,255,255,.1);
+  border-radius: 16px;
+  padding: 34px 28px;
+  max-width: 360px; width: 100%;
+  text-align: center;
+}
+#nwMaint h2 {
+  font-family: 'Bricolage Grotesque', sans-serif;
+  font-size: 1.3rem; font-weight: 800;
+  color: #F0F4EF; margin: 0 0 10px; line-height: 1.25;
+}
+#nwMaint p {
+  font-size: .86rem; color: rgba(240,244,239,.55);
+  line-height: 1.6; margin: 0;
+}
+</style>
+
+<div id="nwMaint">
+  <div class="box">
+    <h2>NEPAWatch is temporarily unavailable.</h2>
+    <p>We&rsquo;ll be back shortly. Thanks for your patience.</p>
+  </div>
+</div>

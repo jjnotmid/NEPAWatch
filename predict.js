@@ -38,6 +38,7 @@ const _aiAreaAccuracy = (() => {
    to show live accuracy % in the AI banner without additional fetches.      */
 let _modelStatus = null;
 async function loadModelStatus() {
+  if (window.NW_MAINTENANCE) return;
   if (typeof SUPA_URL === 'undefined') return;
   try {
     const res = await fetch(`${SUPA_URL}/functions/v1/model-status`, {
@@ -65,6 +66,7 @@ async function _syncAccuracyToSupabase() {
   } catch(e) {}
 }
 async function _loadAccuracyFromSupabase() {
+  if (window.NW_MAINTENANCE) return;
   if (typeof sb === 'undefined') return;
   try {
     const { data, error } = await sb.from('ai_accuracy_weights').select('area, weight');
@@ -76,6 +78,7 @@ async function _loadAccuracyFromSupabase() {
   } catch(e) {}
 }
 async function _loadNercBaselines() {
+  if (window.NW_MAINTENANCE) return;
   if (typeof sb === 'undefined') return;
   try {
     const { data, error } = await sb.from('nerc_baselines').select('disco, band, outage_prob, supply_hours');
@@ -779,6 +782,7 @@ function initAreaPicker(mountId, areas, selected, onPick) {
 let _areaStatusCache = {};
 
 async function loadAreaPredictions() {
+  if (window.NW_MAINTENANCE) return;
   if (typeof sb === 'undefined') return;
   try {
     /* Only the four fields the UI actually reads. forecast_24h is a 24-entry

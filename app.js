@@ -4436,6 +4436,10 @@ async function shareApp(){const shareData={title:"NEPAWatch Nigeria — Live Pow
 
 /* ━━━ PATCH 4: window.load — start AI reporter after app boots ━━━ */
 window.addEventListener("load",async()=>{
+  /* Maintenance stop. Set in index.html. Returns before any Supabase call so
+     the app makes zero network requests while the modal is up — the point is
+     to stop consuming quota, not just to cover the screen. */
+  if(window.NW_MAINTENANCE)return;
   initTheme();
   buildFilter();
   document.getElementById("repOverlay").addEventListener("click",e=>{if(e.target===document.getElementById("repOverlay"))closeModal();});
