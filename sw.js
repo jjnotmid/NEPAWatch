@@ -1,5 +1,5 @@
 /* =====================================================
-   NEPAWatch Nigeria — Service Worker v2.4.0
+   NEPAWatch Nigeria — Service Worker v2.6.0
    To deploy: update version.json (one-line JSON file).
    SW version here only needs bumping when SW logic changes.
    ===================================================== */
@@ -38,7 +38,7 @@ self.addEventListener('fetch', event => {
   /* MAINTENANCE — refuse Supabase calls at the worker.
      Clients running an older cached app.js would otherwise keep querying and
      burning quota. Blocking here catches them regardless of which bundle they
-     are on. Remove this block, and bump VERSION, to bring the app back. */
+     are on. Flip MAINTENANCE and bump VERSION to bring the app back. */
   if (MAINTENANCE && url.hostname.includes('supabase.co')) {
     event.respondWith(new Response(
       JSON.stringify({ error: 'maintenance' }),
