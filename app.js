@@ -4436,9 +4436,11 @@ async function shareApp(){const shareData={title:"NEPAWatch Nigeria — Live Pow
 
 /* ━━━ PATCH 4: window.load — start AI reporter after app boots ━━━ */
 window.addEventListener("load",async()=>{
-  /* Maintenance stop. Set in index.html. Returns before any Supabase call so
-     the app makes zero network requests while the modal is up — the point is
-     to stop consuming quota, not just to cover the screen. */
+  /* Maintenance kill switch. Normally undefined, so this is a no-op.
+     To cut every Supabase call in one move, add this to index.html above the
+     script tags, and set MAINTENANCE = true in sw.js (bumping its VERSION):
+       <script>window.NW_MAINTENANCE = true;</script>
+     Returning here means zero network requests, not just a covered screen. */
   if(window.NW_MAINTENANCE)return;
   initTheme();
   buildFilter();
