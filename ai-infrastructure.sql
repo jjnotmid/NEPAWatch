@@ -15,6 +15,9 @@ CREATE TABLE IF NOT EXISTS ai_accuracy_weights (
 );
 
 ALTER TABLE ai_accuracy_weights ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "aiw_select" ON ai_accuracy_weights;
+DROP POLICY IF EXISTS "aiw_insert" ON ai_accuracy_weights;
+DROP POLICY IF EXISTS "aiw_update" ON ai_accuracy_weights;
 CREATE POLICY "aiw_select" ON ai_accuracy_weights FOR SELECT USING (true);
 CREATE POLICY "aiw_insert" ON ai_accuracy_weights FOR INSERT WITH CHECK (true);
 CREATE POLICY "aiw_update" ON ai_accuracy_weights FOR UPDATE USING (true);
@@ -39,6 +42,9 @@ CREATE TABLE IF NOT EXISTS ai_predictions (
 );
 
 ALTER TABLE ai_predictions ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "aip_select" ON ai_predictions;
+DROP POLICY IF EXISTS "aip_insert" ON ai_predictions;
+DROP POLICY IF EXISTS "aip_update" ON ai_predictions;
 CREATE POLICY "aip_select" ON ai_predictions FOR SELECT USING (true);
 CREATE POLICY "aip_insert" ON ai_predictions FOR INSERT WITH CHECK (true);
 CREATE POLICY "aip_update" ON ai_predictions FOR UPDATE USING (true);
@@ -62,5 +68,7 @@ CREATE TABLE IF NOT EXISTS area_reliability (
 );
 
 ALTER TABLE area_reliability ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "ar_select" ON area_reliability;
+DROP POLICY IF EXISTS "ar_all" ON area_reliability;
 CREATE POLICY "ar_select" ON area_reliability FOR SELECT USING (true);
 CREATE POLICY "ar_all"    ON area_reliability FOR ALL   USING (true);
