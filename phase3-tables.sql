@@ -14,8 +14,7 @@ CREATE TABLE IF NOT EXISTS weather_log (
   weather_code INT,
   rain_mm      NUMERIC(6,3)  NOT NULL DEFAULT 0,
   wind_kmh     NUMERIC(5,2)  NOT NULL DEFAULT 0,
-  is_raining   BOOLEAN       GENERATED ALWAYS AS (rain_mm > 0.5) STORED,
-  UNIQUE (lat_key, lon_key, date_trunc('hour', logged_at))
+  is_raining   BOOLEAN       GENERATED ALWAYS AS (rain_mm > 0.5) STORED
 );
 
 ALTER TABLE weather_log ENABLE ROW LEVEL SECURITY;
@@ -24,6 +23,7 @@ CREATE POLICY "wl_insert" ON weather_log FOR INSERT WITH CHECK (true);
 
 CREATE INDEX IF NOT EXISTS wl_latlon_idx    ON weather_log (lat_key, lon_key);
 CREATE INDEX IF NOT EXISTS wl_logged_at_idx ON weather_log (logged_at DESC);
+CREATE UNIQUE INDEX IF NOT EXISTS wl_unique_hourly ON weather_log (lat_key, lon_key, date_trunc('hour', logged_at));
 
 -- 2. nerc_baselines: NERC SAIDI/SAIFI data per DISCO per band.
 --    Pre-seeded from the values hardcoded in predict.js (DISCO_BAND_BASELINE +
