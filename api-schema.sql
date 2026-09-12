@@ -31,5 +31,6 @@ ALTER TABLE api_keys ENABLE ROW LEVEL SECURITY;
 ALTER TABLE api_logs ENABLE ROW LEVEL SECURITY;
 
 -- Public can apply for API keys (insert only)
+DROP POLICY IF EXISTS "api_keys_public_insert" ON api_keys;
 CREATE POLICY "api_keys_public_insert" ON api_keys
   FOR INSERT WITH CHECK (true);
