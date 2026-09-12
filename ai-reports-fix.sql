@@ -10,9 +10,13 @@
 --   2. Enable RLS and add a policy allowing the fixed AI UUID to insert without auth
 --   3. Add ai_prob column if it doesn't already exist
 
--- ── Step 0: Insert permanent AI profile ──────────────────────────────────────
+-- ── Step 0: Drop FK on profiles.id ────────────────────────────────────────────
+-- The AI profile needs to exist without an auth.users row.
+ALTER TABLE profiles DROP CONSTRAINT IF EXISTS profiles_id_fkey;
+
+-- ── Step 0a: Insert permanent AI profile ──────────────────────────────────────
 -- The AI reporter inserts reports with this fixed UUID. A matching profiles row
--- is required so FK checks (if re-added later) and leaderboard JOINs work.
+-- is required so leaderboard JOINs work.
 INSERT INTO profiles (id, email, name, notif_on)
 VALUES (
   '00000000-0000-0000-0000-000000000001',
