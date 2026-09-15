@@ -446,14 +446,24 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
 
   const auth = req.headers.get('Authorization') ?? '';
-  if (!SERVICE_KEY) {
+  /* The gateway already verified the JWT signature (verify_jwt = true for
+     this function). Checking the token's ROLE — instead of comparing raw
+     keys — survives API-key rotation and the legacy/deprecated key
+     mismatch that used to cause silent 401s. */
+  const isServiceRole = (() => {
+    try {
+      const jwt = auth.replace(/^Bearer\s+/i, '').trim();
+      if (!jwt) return false;
+      const b64 = jwt.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+      const payload = JSON.parse(atob(b64));
+      return payload.role === 'service_role';
+    } catch (_) {
+      return auth.includes(SERVICE_KEY); // legacy fallback
+    }
+  })();
+  if (!isServiceRole) {
     return new Response(JSON.stringify({
-      error: 'Function secret SUPABASE_SERVICE_ROLE_KEY is not set — add it in Edge Functions → Secrets (same value as the Vault service_role_key)',
-    }), { status: 500, headers: { ...CORS, 'Content-Type': 'application/json' } });
-  }
-  if (!auth.includes(SERVICE_KEY)) {
-    return new Response(JSON.stringify({
-      error: 'Unauthorized — the key sent does not match SUPABASE_SERVICE_ROLE_KEY on this function. Re-store the CURRENT service_role key in Vault (repair SQL STEP 6) and in Edge Functions → Secrets.',
+      error: 'Unauthorized — a signed service_role token is required. The cron must send the current service_role key stored in Vault (repair SQL STEP 6).',
     }), { status: 401, headers: { ...CORS, 'Content-Type': 'application/json' } });
   }
 
