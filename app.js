@@ -3801,7 +3801,27 @@ async function initPush() {
   try {
     const reg = await navigator.serviceWorker.ready;
     const existing = await reg.pushManager.getSubscription();
-    if (existing) { _pushSubscription = existing; await _savePushSub(existing); }
+    if (existing) {
+      // VAPID key rotated? The old subscription can never decrypt new pushes —
+      // drop it and re-subscribe with the current key automatically.
+      let keyUsed=null; try{keyUsed=localStorage.getItem('nw-vapid-key');}catch(e){}
+      if (keyUsed !== VAPID_PUBLIC_KEY) {
+        await existing.unsubscribe();
+        try{localStorage.setItem('nw-vapid-key', VAPID_PUBLIC_KEY);}catch(e){}
+        if ((Notification.permission||'default') === 'granted') {
+          const sub = await reg.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: _urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+          });
+          _pushSubscription = sub;
+          await _savePushSub(sub);
+        } else {
+          _pushSubscription = null;
+        }
+      } else {
+        _pushSubscription = existing; await _savePushSub(existing);
+      }
+    }
   } catch(e) {}
 }
 
@@ -3818,6 +3838,7 @@ async function requestPushPermission() {
       applicationServerKey: _urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
     });
     _pushSubscription = sub;
+    try{localStorage.setItem('nw-vapid-key', VAPID_PUBLIC_KEY);}catch(e){}
     await _savePushSub(sub);
     toast('Push notifications enabled', 'ok');
     renderAccount();

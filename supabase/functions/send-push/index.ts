@@ -156,7 +156,20 @@ Deno.serve(async (req) => {
     new Response(JSON.stringify(b), { status: s, headers: { ...CORS, 'Content-Type': 'application/json' } });
 
   const authHeader = req.headers.get('Authorization') ?? '';
-  if (!authHeader.includes(SERVICE_KEY)) return json({ error: 'Unauthorized' }, 401);
+  /* Gateway already verified the JWT signature (verify_jwt = true) — check
+     the ROLE instead of comparing raw keys, so key rotation never breaks it. */
+  const isServiceRole = (() => {
+    try {
+      const jwt = authHeader.replace(/^Bearer\s+/i, '').trim();
+      if (!jwt) return false;
+      const b64 = jwt.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+      const payload = JSON.parse(atob(b64));
+      return payload.role === 'service_role';
+    } catch (_) {
+      return authHeader.includes(SERVICE_KEY);
+    }
+  })();
+  if (!isServiceRole) return json({ error: 'Unauthorized' }, 401);
 
   if (!VAPID_PUBLIC_KEY || !VAPID_PRIVATE_KEY) {
     return json({ error: 'VAPID keys not configured. Set VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY secrets.' }, 500);

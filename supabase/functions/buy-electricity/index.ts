@@ -307,7 +307,7 @@ serve(async (req) => {
       }
       const { data } = await adminClient()
         .from("electricity_transactions")
-        .select("reference, provider, meter_number, meter_type, amount, service_fee, total_paid, status, token, created_at")
+        .select("reference, provider, meter_number, meter_type, amount, service_fee, total_paid, status, token, error, created_at")
         .ilike("email", email)
         .order("created_at", { ascending: false })
         .limit(100);

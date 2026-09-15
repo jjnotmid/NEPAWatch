@@ -483,7 +483,7 @@ main{padding-top:calc(58px + env(safe-area-inset-top,0px));padding-bottom:calc(8
   <!-- HISTORY (full page) -->
   <div id="historyPage" style="display:none;padding:6px 0 40px">
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:18px">
-      <button class="ico-btn" onclick="closeHistory()" aria-label="Back">
+      <button class="ico-btn" onclick="histBack()" aria-label="Back">
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 2 4 8l6 6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </button>
       <div style="flex:1;min-width:0">
@@ -492,6 +492,7 @@ main{padding-top:calc(58px + env(safe-area-inset-top,0px));padding-bottom:calc(8
       </div>
     </div>
     <div id="histList"></div>
+    <div id="histDetail" style="display:none"></div>
   </div>
 
 </main>
@@ -751,15 +752,18 @@ async function openHistory(){
     const res=await fetch(BACKEND,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'history',email})});
     const d=await res.json();
     const rows=d.transactions||[];
+    _histRows=rows;
     if(!rows.length){el.innerHTML='<div style="text-align:center;color:var(--ink3);padding:28px;font-size:.8rem">No purchases yet for this email.</div>';return;}
-    el.innerHTML=rows.map(t=>{
+    document.getElementById('histDetail').style.display='none';
+    el.style.display='block';
+    el.innerHTML=rows.map((t,i)=>{
       const statusLabel=t.status==='success'?'Delivered':t.status==='failed'?'Failed':'Processing';
       const cls=t.status==='success'?'bs-success':t.status==='failed'?'bs-failed':'bs-pending';
       const date=t.created_at?new Date(t.created_at).toLocaleString('en-NG',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}):'—';
       const tokenBox=(t.token)
         ?`<div class="hist-token-row"><div class="hist-token">${fmt(t.token)}</div><button class="hist-copy" onclick="copyHistToken(this)">Copy</button></div>`
         :'';
-      return `<div class="hist-item">
+      return `<div class="hist-item" style="cursor:pointer" onclick="showHistDetail(${i})">
         <div class="hist-top"><span class="hist-prov">${HIST_LABEL[t.provider]||t.provider||'Electricity'} · ${t.meter_type==='postpaid'?'Postpaid':'Prepaid'}</span><span class="badge-status ${cls}">${statusLabel}</span></div>
         <div class="hist-meta">Meter <b>${t.meter_number||'—'}</b> · Units ₦${Number(t.amount||0).toLocaleString()} · Paid ₦${Number(t.total_paid||0).toLocaleString()}<br>Ref ${(t.reference||'').substring(0,18)} · ${date}</div>
         ${tokenBox}
@@ -767,6 +771,41 @@ async function openHistory(){
     }).join('');
   }catch(e){el.innerHTML='<div style="text-align:center;color:var(--rd);padding:26px;font-size:.8rem">Could not load — check your connection</div>';}
 }
+function histBack(){
+  if(document.getElementById('histDetail').style.display==='block'){
+    document.getElementById('histDetail').style.display='none';
+    document.getElementById('histList').style.display='block';
+    window.scrollTo({top:0,behavior:'smooth'});
+  } else {
+    closeHistory();
+  }
+}
+
+function showHistDetail(i){
+  const t=_histRows[i]; if(!t)return;
+  const statusLabel=t.status==='success'?'Delivered':t.status==='failed'?'Failed':'Processing';
+  const cls=t.status==='success'?'bs-success':t.status==='failed'?'bs-failed':'bs-pending';
+  const date=t.created_at?new Date(t.created_at).toLocaleString('en-NG',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}):'—';
+  document.getElementById('histList').style.display='none';
+  const d=document.getElementById('histDetail');
+  d.style.display='block';
+  d.innerHTML=`<div class="hist-item">
+    <div class="hist-top"><span class="hist-prov">${HIST_LABEL[t.provider]||t.provider||'Electricity'}</span><span class="badge-status ${cls}">${statusLabel}</span></div>
+    <div class="hist-meta">
+      <b>Meter:</b> ${t.meter_number||'—'}<br>
+      <b>Type:</b> ${t.meter_type==='postpaid'?'Postpaid (bill)':'Prepaid (token)'}<br>
+      <b>Units:</b> ₦${Number(t.amount||0).toLocaleString()}<br>
+      <b>Service fee:</b> ₦${Number(t.service_fee||0).toLocaleString()}<br>
+      <b>Total paid:</b> ₦${Number(t.total_paid||0).toLocaleString()}<br>
+      <b>Reference:</b> ${t.reference||'—'}<br>
+      <b>Date:</b> ${date}
+    </div>
+    ${t.token?`<div class="hist-token-row"><div class="hist-token">${fmt(t.token)}</div><button class="hist-copy" onclick="copyHistToken(this)">Copy</button></div>`:''}
+    ${t.error?`<div style="font-size:.7rem;color:var(--rd);margin-top:8px">${t.error}</div>`:''}
+  </div>`;
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
 function closeHistory(){
   document.getElementById('historyPage').style.display='none';
   if(_histPrev==='success'){
@@ -890,6 +929,7 @@ async function checkCallbackReturn(){
 let dotsInterval=null;
 let waitingTokenMode=false; // prepaid tokens arrive via Pairgate webhook
 let _histPrev='main';           // restore the right screen after history closes
+let _histRows=[];                    // loaded transactions for the detail view
 function startWaitingDots(){
   const el=document.getElementById('waitingDots');
   // Set title/desc based on meter type

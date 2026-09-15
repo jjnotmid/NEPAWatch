@@ -8,6 +8,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SERVICE_KEY  = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+let REQ_AUTH = '';   // current request's Authorization, forwarded to send-push
 const CORS         = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'authorization, content-type' };
 
 /* ─── AI CONSTANTS ───────────────────────────────────────────────────────── */
@@ -412,7 +413,7 @@ async function notifyArea(area: string, type: 'out' | 'bck') {
       : `Power looks restored in ${area}.`;
     await fetch(`${SUPABASE_URL}/functions/v1/send-push`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${SERVICE_KEY}` },
+      headers: { 'Content-Type': 'application/json', 'Authorization': REQ_AUTH || `Bearer ${SERVICE_KEY}` },
       body: JSON.stringify({ area, type, title, body, url: '/' }),
       signal: AbortSignal.timeout(8000),
     });
@@ -446,6 +447,7 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
 
   const auth = req.headers.get('Authorization') ?? '';
+  REQ_AUTH = auth;
   /* The gateway already verified the JWT signature (verify_jwt = true for
      this function). Checking the token's ROLE — instead of comparing raw
      keys — survives API-key rotation and the legacy/deprecated key
