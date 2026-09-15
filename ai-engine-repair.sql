@@ -65,6 +65,37 @@ CREATE TABLE IF NOT EXISTS weather_log (
   wind_kmh     NUMERIC(5,2) NOT NULL DEFAULT 0
 );
 
+/* These two are read by the engine on EVERY run — if they are missing the
+   whole run crashes before writing anything, which shows up as an empty
+   AI Intelligence page even though the function "runs". */
+CREATE TABLE IF NOT EXISTS ai_accuracy_weights (
+  area         TEXT PRIMARY KEY,
+  weight       NUMERIC(6,4) NOT NULL DEFAULT 1.0,
+  sample_count INT           NOT NULL DEFAULT 0,
+  last_updated TIMESTAMPTZ   DEFAULT NOW()
+);
+ALTER TABLE ai_accuracy_weights ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "aiw_select" ON ai_accuracy_weights;
+DROP POLICY IF EXISTS "aiw_insert" ON ai_accuracy_weights;
+DROP POLICY IF EXISTS "aiw_update" ON ai_accuracy_weights;
+CREATE POLICY "aiw_select" ON ai_accuracy_weights FOR SELECT USING (true);
+CREATE POLICY "aiw_insert" ON ai_accuracy_weights FOR INSERT WITH CHECK (true);
+CREATE POLICY "aiw_update" ON ai_accuracy_weights FOR UPDATE USING (true);
+
+CREATE TABLE IF NOT EXISTS nerc_baselines (
+  disco         TEXT NOT NULL,
+  band          TEXT NOT NULL,
+  outage_prob   NUMERIC(5,4) NOT NULL,
+  supply_hours  NUMERIC(4,1) NOT NULL,
+  saidi_annual  NUMERIC(8,2),
+  saifi_annual  NUMERIC(6,2),
+  source_period TEXT DEFAULT 'predict.js defaults',
+  updated_at    TIMESTAMPTZ DEFAULT NOW()
+);
+ALTER TABLE nerc_baselines ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "nerc_select" ON nerc_baselines;
+CREATE POLICY "nerc_select" ON nerc_baselines FOR SELECT USING (true);
+
 /* ─── STEP 3: let the AI write reports (the silent-FK-failure fix) ───────── */
 ALTER TABLE reports DROP CONSTRAINT IF EXISTS reports_user_id_fkey;
 ALTER TABLE reports ADD COLUMN IF NOT EXISTS ai_prob numeric(4,3);
