@@ -548,6 +548,10 @@ Deno.serve(async (req) => {
       outFired++; if (isBoot) bootFired++;
       notifyArea(area, 'out');
       log(`OUT ${area} @ ${Math.round(prob * 100)}%${isBoot ? ' [boot]' : ''}`);
+    } else if (insErr) {
+      /* Surfaced so a permissions/FK failure is visible in the run log
+         instead of silently filing nothing. */
+      log(`OUT insert FAILED for ${area}: ${insErr.message}`);
     }
   }
 
@@ -588,6 +592,8 @@ Deno.serve(async (req) => {
       bckFired++;
       notifyArea(area, 'bck');
       log(`BCK ${area} [${isStale ? 'stale' : 'prob'}]`);
+    } else if (insErr) {
+      log(`BCK insert FAILED for ${area}: ${insErr.message}`);
     }
   }
 

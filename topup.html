@@ -155,10 +155,10 @@ main{padding-top:calc(58px + env(safe-area-inset-top,0px));padding-bottom:calc(8
 .vs-addr{font-size:.67rem;color:var(--ink3);margin-top:2px}
 
 /* ── Amount input ─────────────────────────────────────────────── */
-.amt-wrap{position:relative;display:flex;align-items:center;margin-bottom:8px}
-.amt-prefix{position:absolute;left:14px;font-size:1rem;font-weight:700;color:var(--ink2);pointer-events:none;z-index:1}
-.amt-wrap input{width:100%;background:var(--bg);border:1.5px solid var(--bd);border-radius:10px;padding:12px 14px 12px 28px;color:var(--ink);font-family:var(--font-body);font-size:16px;font-weight:700;outline:none;transition:border-color .15s}
-.amt-wrap input:focus{border-color:var(--p)}
+.amt-wrap{display:flex;align-items:center;background:var(--bg);border:1.5px solid var(--bd);border-radius:10px;overflow:hidden;margin-bottom:8px;transition:border-color .15s}
+.amt-wrap:focus-within{border-color:var(--p)}
+.amt-prefix{padding-left:14px;font-size:1rem;font-weight:700;color:var(--ink2);pointer-events:none;flex-shrink:0}
+.amt-wrap input{flex:1;min-width:0;background:none;border:none;padding:12px 14px 12px 8px;color:var(--ink);font-family:var(--font-body);font-size:16px;font-weight:700;outline:none}
 .amt-chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:4px}
 .amt-chip{background:var(--bg);border:1.5px solid var(--bd);border-radius:8px;padding:5px 10px;font-size:.72rem;font-weight:700;color:var(--ink2);cursor:pointer;transition:all .15s;font-family:var(--font-body)}
 .amt-chip:hover{border-color:var(--bd2);color:var(--ink)}
@@ -199,8 +199,10 @@ main{padding-top:calc(58px + env(safe-area-inset-top,0px));padding-bottom:calc(8
 .token-box{background:var(--sf);border:1.5px solid var(--pb);border-radius:var(--r);padding:20px;margin:20px 0;position:relative;text-align:left}
 .token-label{font-size:.64rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--ink3);margin-bottom:10px}
 .token-code{font-family:monospace;font-size:1.5rem;font-weight:700;color:var(--p);letter-spacing:.15em;word-break:break-all;line-height:1.4}
-.copy-btn{position:absolute;top:14px;right:14px;background:var(--pp);border:1px solid var(--pb);border-radius:7px;padding:5px 11px;font-size:.68rem;font-weight:700;color:var(--p);cursor:pointer;transition:all .15s;font-family:var(--font-body)}
+.copy-btn{width:100%;background:var(--pp);border:1px solid var(--pb);border-radius:9px;padding:12px;font-size:.85rem;font-weight:800;color:var(--p);cursor:pointer;transition:all .15s;font-family:var(--font-body);margin-top:12px}
 .copy-btn:hover{background:var(--pb)}
+.token-note{font-size:.7rem;color:var(--ink3);margin-top:10px;line-height:1.6;display:flex;align-items:flex-start;gap:7px;text-align:left}
+.token-note svg{flex-shrink:0;margin-top:2px;color:var(--ink2)}
 .token-info{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px}
 .ti{background:var(--sf2);border:1px solid var(--bd);border-radius:8px;padding:10px 12px}
 .ti strong{display:block;font-size:.85rem;color:var(--ink);font-weight:600}
@@ -242,10 +244,10 @@ main{padding-top:calc(58px + env(safe-area-inset-top,0px));padding-bottom:calc(8
 .modal-chip{flex:1 1 28%;background:var(--bg);border:1.5px solid var(--bd);border-radius:12px;padding:12px 6px;font-weight:800;color:var(--ink2);cursor:pointer;font-family:var(--font-body);font-size:.85rem;transition:all .15s}
 .modal-chip.active{border-color:var(--p);color:var(--p);background:var(--pp)}
 .modal-chip.hide{display:none}
-.m-amt{display:flex;align-items:center;gap:10px;margin-bottom:14px}
-.m-amt .amt-prefix{font-size:1.1rem;font-weight:800;color:var(--ink2)}
-.m-amt input{flex:1;background:var(--bg);border:1.5px solid var(--bd);border-radius:12px;padding:13px;font-size:1.05rem;font-weight:800;color:var(--ink);font-family:var(--font-body)}
-.m-amt input:focus{border-color:var(--p);outline:none}
+.m-amt{display:flex;align-items:center;background:var(--bg);border:1.5px solid var(--bd);border-radius:12px;overflow:hidden;margin-bottom:14px;transition:border-color .15s}
+.m-amt:focus-within{border-color:var(--p)}
+.m-amt .amt-prefix{padding-left:14px;font-size:1.1rem;font-weight:800;color:var(--ink2);flex-shrink:0}
+.m-amt input{flex:1;min-width:0;background:none;border:none;padding:13px;font-size:1.05rem;font-weight:800;color:var(--ink);font-family:var(--font-body);outline:none}
 .earn-note{font-size:.72rem;color:var(--ink3);margin-top:10px;display:flex;align-items:center;gap:6px;line-height:1.5}
 .earn-note b{color:var(--p)}
 /* ── Post-purchase reports CTA ───────────────────────────────── */
@@ -330,11 +332,11 @@ main{padding-top:calc(58px + env(safe-area-inset-top,0px));padding-bottom:calc(8
     <div class="card">
       <div class="fld">
         <label>Meter Number</label>
-        <input type="tel" id="meterInput" placeholder="Enter your meter number" maxlength="13"
+        <input type="tel" id="meterInput" placeholder="Enter your meter number"
                oninput="onMeterInput(this)" autocomplete="off">
         <div class="hint" id="meterHint">Enter your 11–13 digit meter number</div>
         <div class="verify-strip" id="verifyStrip">
-          <div class="vs-icon" id="vsIcon">⏳</div>
+          <div class="vs-icon" id="vsIcon"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M4 2h8M4 14h8M5.5 2v3l3 3-3 3v3M10.5 2v3l-3 3 3 3v3" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg></div>
           <div style="flex:1">
             <div class="vs-name" id="vsName">Verifying…</div>
             <div class="vs-addr" id="vsAddr"></div>
@@ -385,12 +387,12 @@ main{padding-top:calc(58px + env(safe-area-inset-top,0px));padding-bottom:calc(8
       </svg>
       Pay
     </button>
-    <p style="text-align:center;font-size:.67rem;color:var(--ink3);margin-top:10px">🔒 Secure payment · token delivered in seconds</p>
+    <p style="text-align:center;font-size:.67rem;color:var(--ink3);margin-top:10px"><svg width="13" height="13" viewBox="0 0 16 16" fill="none" style="vertical-align:-1px"><rect x="3" y="7" width="10" height="7" rx="1.5" stroke="currentColor" stroke-width="1.4"/><path d="M5 7V5a3 3 0 0 1 6 0v2" stroke="currentColor" stroke-width="1.4"/></svg> Secure payment · token delivered in seconds</p>
   </div>
 
   <!-- SUCCESS -->
   <div class="success-screen" id="successScreen">
-    <div class="s-icon" id="successIcon">⚡</div>
+    <div class="s-icon" id="successIcon"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" style="vertical-align:-2px"><path d="M9 1 3 9h4l-1 6 6-8H8l1-6z"/></svg></div>
     <h2 id="successTitle">Token Ready!</h2>
     <p id="successSubtitle">Enter this code into your meter keypad.</p>
 
@@ -398,12 +400,13 @@ main{padding-top:calc(58px + env(safe-area-inset-top,0px));padding-bottom:calc(8
     <div class="token-box" id="tokenBox" style="display:none">
       <div class="token-label">Your 20-Digit Meter Token</div>
       <div class="token-code" id="tokenCode">— — — — —</div>
-      <button class="copy-btn" onclick="copyToken()">Copy</button>
+      <button class="copy-btn" onclick="copyToken()">Copy Token</button>
+      <div class="token-note" id="tokenNote"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" style="vertical-align:-2px"><path d="M2.5 5.5A2.5 2.5 0 0 1 5 3h6a2.5 2.5 0 0 1 2.5 2.5v5A2.5 2.5 0 0 1 11 13H5a2.5 2.5 0 0 1-2.5-2.5v-5z" stroke="currentColor" stroke-width="1.3"/><circle cx="8" cy="8" r="2" stroke="currentColor" stroke-width="1.3"/><path d="M4.5 4.5l.5-1h6l.5 1" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg> Take a screenshot — your token stays here (and saved on this device) until you buy again.</div>
     </div>
 
     <!-- Postpaid confirmation -->
     <div class="postpaid-banner" id="postpaidBanner" style="display:none">
-      <h3>✅ Bill Payment Confirmed</h3>
+      <h3><svg width="16" height="16" viewBox="0 0 16 16" fill="none" style="vertical-align:-2px"><circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.5"/><path d="M5 8.5l2 2 4-4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg> Bill Payment Confirmed</h3>
       <p>Your postpaid bill payment has been processed. No token is generated for postpaid meters — your account will be updated by your DISCO within 24 hours.</p>
     </div>
 
@@ -415,7 +418,7 @@ main{padding-top:calc(58px + env(safe-area-inset-top,0px));padding-bottom:calc(8
     </div>
 
     <div class="reports-cta" id="reportsCta" style="display:none">
-      <div class="rc-title">🔔 Want power-status reports for your area?</div>
+      <div class="rc-title"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" style="vertical-align:-2px"><path d="M8 2a4 4 0 0 0-4 4v2l-1.5 3h11L12 8V6a4 4 0 0 0-4-4z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M6.5 13a1.8 1.8 0 0 0 3 0" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg> Want power-status reports for your area?</div>
       <div class="rc-sub">Free outage alerts the second light changes on your street — so you always know when NEPA takes light.</div>
       <button class="rc-btn" onclick="signInForReports()">Create free account with Google</button>
       <div class="rc-note">Takes 30 seconds · no card needed · your token email stays the same</div>
@@ -435,13 +438,12 @@ main{padding-top:calc(58px + env(safe-area-inset-top,0px));padding-bottom:calc(8
     <div class="modal-card">
       <div class="modal-head">
         <div>
-          <div class="modal-title">How much power? ⚡</div>
+          <div class="modal-title">How much power? <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" style="vertical-align:-2px"><path d="M9 1 3 9h4l-1 6 6-8H8l1-6z"/></svg></div>
           <div class="modal-sub" id="modalSub">Meter verified · choose an amount</div>
         </div>
         <button class="modal-x" onclick="closeAmountModal()" aria-label="Close">✕</button>
       </div>
       <div class="modal-chips" id="modalChips">
-        <button type="button" class="modal-chip" data-mamt="1000" onclick="setModalAmt(1000)">₦1,000</button>
         <button type="button" class="modal-chip" data-mamt="1000" onclick="setModalAmt(1000)">₦1,000</button>
         <button type="button" class="modal-chip" data-mamt="2000" onclick="setModalAmt(2000)">₦2,000</button>
         <button type="button" class="modal-chip" data-mamt="5000" onclick="setModalAmt(5000)">₦5,000</button>
@@ -457,8 +459,8 @@ main{padding-top:calc(58px + env(safe-area-inset-top,0px));padding-bottom:calc(8
         <div class="fee-row"><span>Service fee <span id="mFeeLbl" style="color:var(--ink3);font-weight:400"></span></span><span id="mFeeService">₦0</span></div>
         <div class="fee-row fee-total"><span>You pay</span><span id="mFeeTotal">₦0</span></div>
       </div>
-      <div class="earn-note" id="mMinNote" style="display:none">⚡ From <b id="mMinTxt">₦1,000</b> — the lowest amount this meter accepts</div>
-      <div class="earn-note">🔒 Secure checkout · token in seconds</div>
+      <div class="earn-note" id="mMinNote" style="display:none"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" style="vertical-align:-2px"><path d="M9 1 3 9h4l-1 6 6-8H8l1-6z"/></svg> From <b id="mMinTxt">₦1,000</b> — the lowest amount this meter accepts</div>
+      <div class="earn-note"><svg width="13" height="13" viewBox="0 0 16 16" fill="none" style="vertical-align:-1px"><rect x="3" y="7" width="10" height="7" rx="1.5" stroke="currentColor" stroke-width="1.4"/><path d="M5 7V5a3 3 0 0 1 6 0v2" stroke="currentColor" stroke-width="1.4"/></svg> Secure checkout · token in seconds</div>
       <button class="pay-btn" id="modalPayBtn" onclick="payFromModal()" disabled>Pay</button>
       <p style="text-align:center;font-size:.7rem;color:var(--ink3);margin:12px 0 0;cursor:pointer;text-decoration:underline" onclick="closeAmountModal()">Change meter number or DISCO</p>
     </div>
@@ -481,6 +483,11 @@ main{padding-top:calc(58px + env(safe-area-inset-top,0px));padding-bottom:calc(8
     <div class="ni-pip"></div>
     <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><rect x="2" y="6" width="16" height="11" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M2 10h16" stroke="currentColor" stroke-width="1.5"/><circle cx="5.5" cy="14" r="1" fill="currentColor"/><path d="M6 3l4-2 4 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
     Buy Units
+  </a>
+  <a class="ni" href="/index.html#predict">
+    <div class="ni-pip"></div>
+    <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M2 15L7 9.5L11 13L16 7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><circle cx="17.5" cy="5" r="1.8" stroke="currentColor" stroke-width="1.4"/></svg>
+    Predict
   </a>
   <a class="ni" href="/index.html#community">
     <div class="ni-pip"></div>
@@ -540,6 +547,7 @@ async function initTopup(){
   }catch(e){}
   checkReady();
   checkCallbackReturn();
+  restoreSavedToken();
 }
 
 // ── DISCO coverage labels ─────────────────────────────────────
@@ -579,17 +587,21 @@ function resetVerify(){
   document.getElementById('verifyStrip').classList.remove('show');
   document.getElementById('meterHint').textContent='Enter your 11–13 digit meter number';
   document.getElementById('meterHint').className='hint';
+  try{localStorage.removeItem('nw-last-token');}catch(e){}
   document.getElementById('meterInput').value='';
   checkReady();
 }
 
 // ── Meter verify ──────────────────────────────────────────────
 function onMeterInput(inp){
-  inp.value=inp.value.replace(/\D/g,'');
+  // Strip spaces/dashes from WhatsApp-style pastes, keep digits only.
+  // No maxlength on the field — pasted formatting used to truncate the
+  // last digit before we ever saw the real number.
+  inp.value=inp.value.replace(/\D/g,'').slice(0,20);
   verified=null;
   clearTimeout(verifyTmr);
   document.getElementById('verifyStrip').classList.remove('show');
-  if(inp.value.length>=11){
+  if(inp.value.length>=10){
     verifyTmr=setTimeout(()=>{
       // No DISCO picked? Auto-detect it from the meter number.
       if(discoCode) doVerifyMeter(inp.value);
@@ -614,13 +626,14 @@ async function doVerifyMeter(num){
     const d=await res.json();
     if(d.success&&d.customerName){
       verified={num,name:d.customerName,address:d.address||'',min:d.minimum||100,max:d.maximum||500000};
+      try{localStorage.setItem('nw-last-disco',discoCode);}catch(e){}
       if(d.feePct!=null){FEE={pct:d.feePct,cap:d.feeCap,min:d.feeMin||0};}
       if(d.minimum)MIN_AMT=d.minimum;
       document.getElementById('amtInput').min=MIN_AMT;
       vsIcon.innerHTML='✓'; vsIcon.style.color='var(--p)';
       vsName.textContent=d.customerName; vsAddr.textContent=d.address||'';
       hint.textContent='Meter verified ✓'; hint.className='hint ok';
-      document.getElementById('vsFee').textContent=`+${FEE.pct}% fee (max ₦${FEE.cap})`;
+      document.getElementById('vsFee').textContent=`+${FEE.pct}% fee`;
       renderFee();
       openAmountModal();
     }else{
@@ -663,10 +676,12 @@ async function doDetectMeter(num){
   hint.textContent='Working out your DISCO from the meter number…';
   hint.className='hint';
   try{
-    const res=await fetch(BACKEND,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'detect',number:num})});
+    let hint=null; try{hint=localStorage.getItem('nw-last-disco');}catch(e){}
+    const res=await fetch(BACKEND,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'detect',number:num,hint:hint||undefined})});
     const d=await res.json();
     if(d.success&&d.provider){
       setDiscoByProvider(d.provider);
+      try{localStorage.setItem('nw-last-disco',d.provider);}catch(e){}
       // Set the meter-type toggle directly — selectType() calls resetVerify()
       // which would wipe the meter input we just detected from.
       if(d.type){
@@ -682,7 +697,7 @@ async function doDetectMeter(num){
       vsAddr.textContent=d.address||'';
       hint.textContent=`Detected ${d.discoName||disco} automatically ✓ — change it above if wrong`;
       hint.className='hint ok';
-      document.getElementById('vsFee').textContent=`+${FEE.pct}% fee (max ₦${FEE.cap})`;
+      document.getElementById('vsFee').textContent=`+${FEE.pct}% fee`;
       renderFee();
       openAmountModal();
     }else{
@@ -725,7 +740,7 @@ function renderFee(){
   document.getElementById('feeService').textContent=n(fee);
   document.getElementById('feeTotal').textContent=n(units+fee);
   const lbl=document.getElementById('feeLbl');
-  if(lbl)lbl.textContent=`(${FEE.pct}% · capped ₦${FEE.cap})`;
+  if(lbl)lbl.textContent=`(${FEE.pct}%)`;
   box.classList.add('show');
   renderModalFee();
 }
@@ -770,7 +785,7 @@ function renderModalFee(){
   const bad=!units||units<min;
   document.getElementById('mFeeUnits').textContent=n(units);
   document.getElementById('mFeeService').textContent=n(fee);
-  document.getElementById('mFeeLbl').textContent=`(${FEE.pct}% · capped ₦${FEE.cap})`;
+  document.getElementById('mFeeLbl').textContent=`(${FEE.pct}%)`;
   document.getElementById('mFeeTotal').textContent=n(units+fee);
   const btn=document.getElementById('modalPayBtn');
   btn.disabled=bad;
@@ -804,6 +819,8 @@ async function pay(){
   if(!email||!email.includes('@')){toast('Add an email so we can send your token','err');return;}
   // Remember where they want the token sent — defaults next time
   try{localStorage.setItem('nw-pay-email',email);}catch(e){}
+  // New purchase replaces any previous saved token
+  try{localStorage.removeItem('nw-last-token');}catch(e){}
   // Always re-read amount from input at pay time to prevent stale state
   amount=parseInt(document.getElementById('amtInput').value)||0;
   if(amount<MIN_AMT){toast('Minimum amount is ₦'+MIN_AMT.toLocaleString(),'err');return;}
@@ -903,19 +920,21 @@ function showSuccess(d){
 
   if(d.isPostpaid){
     // Postpaid — no token, show confirmation
-    document.getElementById('successIcon').textContent='✅';
+    document.getElementById('successIcon').textContent='<svg width="16" height="16" viewBox="0 0 16 16" fill="none" style="vertical-align:-2px"><circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.5"/><path d="M5 8.5l2 2 4-4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
     document.getElementById('successTitle').textContent='Payment Confirmed!';
     document.getElementById('successSubtitle').textContent='Your postpaid bill has been paid.';
     document.getElementById('tokenBox').style.display='none';
     document.getElementById('postpaidBanner').style.display='block';
+    document.getElementById('tokenNote').style.display='none';
     document.getElementById('infoUnits').textContent='N/A';
   }else{
     // Prepaid — show token
-    document.getElementById('successIcon').textContent='⚡';
+    document.getElementById('successIcon').textContent='<svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" style="vertical-align:-2px"><path d="M9 1 3 9h4l-1 6 6-8H8l1-6z"/></svg>';
     document.getElementById('successTitle').textContent='Token Ready!';
     document.getElementById('successSubtitle').textContent='Enter this code into your meter keypad.';
     document.getElementById('tokenBox').style.display='block';
     document.getElementById('postpaidBanner').style.display='none';
+    document.getElementById('tokenNote').style.display='block';
     document.getElementById('tokenCode').textContent=fmt(d.token||'');
     document.getElementById('infoUnits').textContent=d.units||'—';
   }
@@ -923,9 +942,28 @@ function showSuccess(d){
   document.getElementById('infoAmt').textContent='₦'+(d.amount||amount).toLocaleString();
   document.getElementById('infoDisco').textContent=disco;
   document.getElementById('infoMeter').textContent=d.meter||verified?.num||'—';
+  // Never lose the token: persist it on-device so it survives refresh/close.
+  try{
+    localStorage.setItem('nw-last-token', JSON.stringify({
+      token: d.token||'', amount: d.amount||amount, meter: d.meter||(verified?.num||''),
+      disco, isPostpaid: !!d.isPostpaid, ts: Date.now(),
+    }));
+  }catch(e){}
   // Post-purchase: offer area power reports → creates an account if needed
   document.getElementById('reportsCta').style.display=_signedIn?'none':'block';
   window.scrollTo({top:0,behavior:'smooth'});
+}
+
+/* Restore the last token if the user comes back (email may not have sent —
+   the token must never disappear). */
+function restoreSavedToken(){
+  if(document.getElementById('successScreen').classList.contains('show')) return;
+  if(document.getElementById('waitingScreen').style.display==='block') return;
+  let saved=null; try{saved=JSON.parse(localStorage.getItem('nw-last-token'));}catch(e){}
+  if(!saved||!saved.ts) return;
+  if(Date.now()-saved.ts > 30*24*3600000) return; // keep for 30 days
+  if(saved.disco) disco=saved.disco;
+  showSuccess({token:saved.token, amount:saved.amount, meter:saved.meter, isPostpaid:saved.isPostpaid, units:''});
 }
 
 async function signInForReports(){

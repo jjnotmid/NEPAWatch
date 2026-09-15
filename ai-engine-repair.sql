@@ -188,3 +188,34 @@ FROM area_predictions;
      2. Secrets set on send-push: VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY,
         VAPID_SUBJECT (must match the VAPID_PUBLIC_KEY in app.js)
      Without these the engine still files reports, but nobody gets pushed. */
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   I. FIRE THE ENGINE RIGHT NOW (manual test)
+   Run this single statement — it calls the function immediately and prints
+   the HTTP status. Then check Supabase → Edge Functions → ai-engine → Logs:
+   the run log now prints "OUT insert FAILED …" if the DB rejected the
+   report, plus training rows, candidates, rejected reasons, out/bck counts.
+   ═══════════════════════════════════════════════════════════════════════════ */
+SELECT net.http_post(
+  url     := 'https://djurokbkkqrmpafcxlez.supabase.co/functions/v1/ai-engine',
+  headers := jsonb_build_object(
+    'Content-Type',  'application/json',
+    'Authorization', 'Bearer ' || (
+      SELECT decrypted_secret FROM vault.decrypted_secrets
+      WHERE name = 'service_role_key'
+    )
+  ),
+  body    := '{}'::jsonb
+) AS request_id;
+
+/* Or from your terminal (replace the key):
+   curl -X POST https://djurokbkkqrmpafcxlez.supabase.co/functions/v1/ai-engine \
+     -H "Content-Type: application/json" \
+     -H "Authorization: Bearer <service_role_key>" \
+     -d '{}'
+
+   Expected reply: JSON with run_at, training_rows, candidates, out, bck,
+   rejected and log — NOT a 401/404. 401 = Vault key missing/wrong,
+   404 = function not deployed, "out: 0, bck: 0" with all candidates
+   rejected = engine healthy but below thresholds (normal at low traffic —
+   human reports feed it, and every human report is stored regardless). */

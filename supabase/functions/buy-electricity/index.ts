@@ -303,9 +303,16 @@ serve(async (req) => {
         }
       } catch (_) {}
 
+      const hint = String(body.hint ?? "");
       const providers = await getElectricityProviders();
+      /* Try the customer's last-known DISCO first — repeat purchases
+         resolve instantly instead of re-scanning every provider. */
+      const ordered = hint
+        ? [...providers.filter((p) => p.ours === hint || p.pg === hint),
+           ...providers.filter((p) => p.ours !== hint && p.pg !== hint)]
+        : providers;
       for (const t of ["prepaid", "postpaid"]) {
-        for (const prov of providers) {
+        for (const prov of ordered) {
           try {
             const v = await pgVerifyMeter(prov.pg, num, t);
             if (v.ok) {
