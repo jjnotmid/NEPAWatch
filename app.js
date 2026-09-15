@@ -15,7 +15,7 @@ const SUPA_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIs
 const EMAIL_FN = `${SUPA_URL}/functions/v1/send-alert`;
 const APP_URL = 'https://nepawatch.app';
 const APP_LOGO_URL = APP_URL + '/logo2.jpg';
-const VAPID_PUBLIC_KEY = 'BCucUDvVmV6cHGeMRideIWul16t336GXMypUT4nYwIs5RRPNVtAy0h5D0diwOY56OTjDCRFyzZbXeaXRcCUTnqw';
+const VAPID_PUBLIC_KEY = 'BObi7kLJof0LXX9cbAhEETxaL3VeXSy9EWm7VmfIBoitJC3-BSI8Rlm9TxSgtGpp_l6wLyOUWGgABaF46Nn0Ojs';
 
 /* ━━━ NIGERIA-WIDE COVERAGE ━━━ */
 /* NEPAWatch now covers ALL of Nigeria — 36 states + FCT */
