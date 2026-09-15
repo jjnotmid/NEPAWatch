@@ -472,7 +472,7 @@ body::after{content:"";display:block;position:fixed;bottom:0;left:0;right:0;heig
 .msearch{width:100%;background:var(--sf2);border:1px solid var(--bd);border-radius:16px;color:var(--ink);font-size:.82rem;padding:12px 15px 12px 40px;outline:none;transition:border-color .2s,box-shadow .2s;-webkit-appearance:none}
 .msearch:focus{border-color:var(--p);box-shadow:0 0 0 3px var(--pp)}
 .msearch::placeholder{color:var(--ink3)}
-.mlist{max-height:200px;overflow-y:auto;border:1px solid var(--bd);border-radius:16px;margin-bottom:15px;background:var(--sf2)}
+.mlist{max-height:min(55vh,480px);flex:1 1 auto;overflow-y:auto;border:1px solid var(--bd);border-radius:16px;margin-bottom:15px;background:var(--sf2)}
 .mlist::-webkit-scrollbar{width:3px}
 .mlist::-webkit-scrollbar-thumb{background:var(--bd2);border-radius:2px}
 .mopt,.mlist-item{padding:12px 15px;font-size:.8rem;cursor:pointer;border-bottom:1px solid var(--bd);transition:background .1s;display:flex;justify-content:space-between;align-items:center;color:var(--ink)}
