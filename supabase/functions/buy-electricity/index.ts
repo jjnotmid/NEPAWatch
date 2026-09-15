@@ -423,7 +423,10 @@ serve(async (req) => {
       });
       const flw = await flwRes.json();
       if (flw.status !== "success") {
-        return json({ success: false, error: flw.message ?? "Payment init failed" });
+        return json({
+          success: false,
+          error: `Flutterwave payment init failed: ${flw.message ?? "unknown error"} — check FLW_SECRET_KEY is the LIVE key (FLWSECK-…)`,
+        });
       }
 
       try {
