@@ -296,6 +296,24 @@ serve(async (req) => {
       });
     }
 
+    /* ── 0a. Transaction history for the customer's email ──────
+       Guests identify their purchases by the email they paid with —
+       the same one we sent their token to. Read-only, capped at the
+       last 100 rows. */
+    if (action === "history") {
+      const email = String(body.email ?? "").trim().toLowerCase();
+      if (!email.includes("@")) {
+        return json({ success: false, error: "Enter the email you used to buy" });
+      }
+      const { data } = await adminClient()
+        .from("electricity_transactions")
+        .select("reference, provider, meter_number, meter_type, amount, service_fee, total_paid, status, token, created_at")
+        .ilike("email", email)
+        .order("created_at", { ascending: false })
+        .limit(100);
+      return json({ success: true, transactions: data ?? [] });
+    }
+
     /* ── 0b. Auto-detect DISCO + meter type from the number ──── */
     if (action === "detect" && body.number) {
       const num = String(body.number).replace(/\D/g, "");
