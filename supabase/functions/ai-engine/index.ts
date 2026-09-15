@@ -9,6 +9,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SERVICE_KEY  = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 let REQ_AUTH = '';   // current request's Authorization, forwarded to send-push
+let lastWxHour = -1;    // fetch live weather at most once per hour (egress diet)
 const CORS         = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'authorization, content-type' };
 
 /* ─── AI CONSTANTS ───────────────────────────────────────────────────────── */
@@ -505,10 +506,18 @@ Deno.serve(async (req) => {
   const state: Record<string, { ai_status: string | null; last_ai_out_at: string | null; last_ai_report_id: string | null }> = {};
   for (const r of (sRows || [])) state[r.area] = { ai_status: r.ai_status, last_ai_out_at: r.last_ai_out_at, last_ai_report_id: r.last_ai_report_id };
 
-  /* 5. Weather */
+  /* 5. Weather — fetched at most once per hour per isolate. Open-Meteo
+     current-weather barely moves minute to minute; 144 fetches/day of ~84
+     cells was pure egress. Runs in the same hour reuse the last cache. */
   const allAreas = Object.keys(AREA_BANDS);
-  const wxCache = await fetchWeather(allAreas);
-  log(`Weather: ${wxCache.size} grid cells`);
+  let wxCache: Map<string, { code: number | null; rain: number; wind: number }> = new Map();
+  if (h_utc !== lastWxHour) {
+    wxCache = await fetchWeather(allAreas);
+    lastWxHour = h_utc;
+    log(`Weather: ${wxCache.size} grid cells`);
+  } else {
+    log(`Weather: skipped (already fetched this hour)`);
+  }
 
   /* 6. Last 'bck' per area (feeder rotation) */
   const cut48h = new Date(nowMs - 48 * 3600000).toISOString();

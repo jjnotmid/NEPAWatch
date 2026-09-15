@@ -120,7 +120,7 @@ WHERE EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'ai-engine-10min');
 
 SELECT cron.schedule(
   'ai-engine-10min',
-  '*/10 * * * *',
+  '*/15 * * * *',  -- was every 10 min; 15 min cuts 1/3 of run egress
   $$
     SELECT net.http_post(
       url     := 'https://djurokbkkqrmpafcxlez.supabase.co/functions/v1/ai-engine',

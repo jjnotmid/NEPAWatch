@@ -2632,7 +2632,7 @@ async function loadReports(){
       sb.from("reports")
         .select("id,user_id,location_name,location_area,type,confirms,created_at,ai_prob,wrong_votes")
         .order("created_at",{ascending:false})
-        .limit(1000),
+        .limit(400),   /* egress diet — 400 rows covers the visible feed */
       8000
     );
     if(extResult.error && (extResult.error.code==='42703'||extResult.error.message?.includes('column')||(extResult.error.details||'').includes('ai_prob')||(extResult.error.details||'').includes('wrong_votes'))) {
@@ -2642,7 +2642,7 @@ async function loadReports(){
         sb.from("reports")
           .select("id,user_id,location_name,location_area,type,confirms,created_at")
           .order("created_at",{ascending:false})
-          .limit(300),
+          .limit(200),
         8000
       );
       data = base.data; error = base.error;
@@ -3493,7 +3493,7 @@ async function renderCommunity(){
       .neq("user_id",AI_USER_ID)
       .gte("created_at",weekStartUtc)
       .order("created_at",{ascending:false})
-      .limit(500);
+      .limit(300);
     if(repErr)throw repErr;
 
     /* ── Build per-user count map ── */
