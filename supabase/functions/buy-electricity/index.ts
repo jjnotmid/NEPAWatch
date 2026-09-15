@@ -213,9 +213,10 @@ async function pgStatus(pairgateRef: string):
     headers: { ...pgHeaders(), "Cache-Control": "no-cache" },
   });
   const d = await r.json();
+  const dd = d.data as Record<string, unknown> | undefined;
   return {
-    status:  (d.data?.status as string) ?? "unknown",
-    pin:     (d.data?.pin as string) || (d.data?.extra as string) || undefined,
+    status:  (dd?.status as string) ?? "unknown",
+    pin:     (dd?.pin as string) || (dd?.token as string) || (dd?.extra as string) || (dd?.meter_token as string) || undefined,
     message: d.message as string | undefined,
   };
 }
@@ -242,20 +243,32 @@ serve(async (req) => {
     if (p.event === "electricity.purchase") {
       const refCode = p.reference_code as string | undefined;
       const ref     = p.reference     as string | undefined;
-      const updates: Record<string, unknown> = {};
-      if (p.status === "successful") {
-        updates.status = "success";
-        if (p.pin) updates.token = p.pin as string;
-      } else if (p.status === "failed") {
-        updates.status = "failed";
-        updates.error  = (p.message as string) ?? "Pairgate failed the electricity purchase";
-      }
       try {
-        if (Object.keys(updates).length && (refCode || ref)) {
-          let q = adminClient().from("electricity_transactions").update(updates);
-          if (ref) q = q.eq("reference", ref);
-          else q = q.eq("bill_ref", refCode as string);
-          await q;
+        if (refCode || ref) {
+          const { data: rows } = await adminClient()
+            .from("electricity_transactions").select("meter_type, status")
+            .or(ref ? `reference.eq.${ref}` : `bill_ref.eq.${refCode}`)
+            .limit(1);
+          const row = rows?.[0];
+          if (row) {
+            const isPostpaid = row.meter_type === "postpaid";
+            if (p.status === "successful" && (p.pin || isPostpaid)) {
+              const updates: Record<string, unknown> = { status: "success" };
+              if (p.pin) updates.token = p.pin as string;
+              let q = adminClient().from("electricity_transactions").update(updates);
+              if (ref) q = q.eq("reference", ref);
+              else q = q.eq("bill_ref", refCode as string);
+              await q;
+            } else if (p.status === "failed") {
+              let q = adminClient().from("electricity_transactions").update({
+                status: "failed",
+                error:  (p.message as string) ?? "Pairgate failed the electricity purchase",
+              });
+              if (ref) q = q.eq("reference", ref);
+              else q = q.eq("bill_ref", refCode as string);
+              await q;
+            }
+          }
         }
       } catch (_) {}
     }
@@ -598,6 +611,14 @@ async function verifyAndVend(transactionId?: string, payTxRef?: string): Promise
     const st = await pgStatus(pgRef);
     if (st.status === "successful") {
       const token = st.pin ?? "";
+      if (!token && type !== "postpaid") {
+        /* Pairgate delivers prepaid tokens ONLY via its webhook — the
+           status endpoint confirms success but not the token. Stay in
+           pending_bill and let the webhook (or the customer's next poll
+           after the webhook lands) fill the token in. Never show an
+           empty "Token Ready" for real money. */
+        return json({ success: false, waitingToken: true });
+      }
       try {
         await adminClient().from("electricity_transactions").upsert(
           { reference: payTxRef ?? pgRef, bill_ref: pgRef, status: "success",

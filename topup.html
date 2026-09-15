@@ -806,6 +806,7 @@ async function checkCallbackReturn(){
     return;
   }
   window.history.replaceState({},'',window.location.pathname);
+  waitingTokenMode=false;
   document.getElementById('mainForm').style.display='none';
   document.getElementById('waitingScreen').style.display='block';
   startWaitingDots();
@@ -813,6 +814,7 @@ async function checkCallbackReturn(){
 }
 
 let dotsInterval=null;
+let waitingTokenMode=false; // prepaid tokens arrive via Pairgate webhook
 function startWaitingDots(){
   const el=document.getElementById('waitingDots');
   // Set title/desc based on meter type
@@ -829,7 +831,7 @@ function startWaitingDots(){
 function stopWaitingDots(){if(dotsInterval){clearInterval(dotsInterval);dotsInterval=null;}}
 
 async function pollForToken(transactionId,txRef,attempt){
-  const MAX=20; // 20 × 1.5s = 30 seconds
+  const MAX=waitingTokenMode?120:20; // webhook-delivered tokens get up to 3 min
   if(attempt>=MAX){
     stopWaitingDots();
     document.getElementById('waitingScreen').style.display='none';
@@ -847,6 +849,12 @@ async function pollForToken(transactionId,txRef,attempt){
       document.getElementById('waitingScreen').style.display='none';
       showSuccess(d);
       return;
+    }
+
+    if(d.waitingToken){
+      waitingTokenMode=true;
+      document.getElementById('waitingTitle').textContent='Generating your token…';
+      document.getElementById('waitingDesc').innerHTML='Payment confirmed ✓<br>The token is being generated — keep this page open.';
     }
 
     if(d.fatal){
