@@ -480,18 +480,18 @@ main{padding-top:calc(58px + env(safe-area-inset-top,0px));padding-bottom:calc(8
     </div>
   </div>
 
-  <!-- HISTORY -->
-  <div class="modal-back" id="historyModal">
-    <div class="modal-card">
-      <div class="modal-head">
-        <div>
-          <div class="modal-title">Transaction History</div>
-          <div class="modal-sub" id="histSub">Your electricity purchases</div>
-        </div>
-        <button class="modal-x" onclick="closeHistory()" aria-label="Close">✕</button>
+  <!-- HISTORY (full page) -->
+  <div id="historyPage" style="display:none;padding:6px 0 40px">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:18px">
+      <button class="ico-btn" onclick="closeHistory()" aria-label="Back">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 2 4 8l6 6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <div style="flex:1;min-width:0">
+        <div class="modal-title" style="font-size:1.2rem">Transaction History</div>
+        <div class="modal-sub" id="histSub">Your electricity purchases</div>
       </div>
-      <div id="histList" style="max-height:60vh;overflow-y:auto"></div>
     </div>
+    <div id="histList"></div>
   </div>
 
 </main>
@@ -739,10 +739,14 @@ const HIST_LABEL={'ikeja-electric':'IKEDC','eko-electric':'EKEDC','abuja-electri
 async function openHistory(){
   const email=(document.getElementById('emailInput').value||'').trim();
   if(!email.includes('@')){toast('Enter your email above first — we use it to find your purchases','err');document.getElementById('emailInput').focus();return;}
+  _histPrev=document.getElementById('successScreen').classList.contains('show')?'success':'main';
+  document.getElementById('mainForm').style.display='none';
+  document.getElementById('successScreen').classList.remove('show');
+  document.getElementById('waitingScreen').style.display='none';
+  document.getElementById('historyPage').style.display='block';
   const el=document.getElementById('histList');
   el.innerHTML='<div style="text-align:center;color:var(--ink3);padding:26px;font-size:.8rem">Loading your purchases…</div>';
   document.getElementById('histSub').textContent='Purchases for '+email;
-  document.getElementById('historyModal').classList.add('show');
   try{
     const res=await fetch(BACKEND,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'history',email})});
     const d=await res.json();
@@ -763,7 +767,15 @@ async function openHistory(){
     }).join('');
   }catch(e){el.innerHTML='<div style="text-align:center;color:var(--rd);padding:26px;font-size:.8rem">Could not load — check your connection</div>';}
 }
-function closeHistory(){document.getElementById('historyModal').classList.remove('show');}
+function closeHistory(){
+  document.getElementById('historyPage').style.display='none';
+  if(_histPrev==='success'){
+    document.getElementById('successScreen').classList.add('show');
+  }else{
+    document.getElementById('mainForm').style.display='block';
+  }
+  window.scrollTo({top:0,behavior:'smooth'});
+}
 function copyHistToken(btn){const txt=btn.previousElementSibling.textContent.replace(/\s/g,'');navigator.clipboard.writeText(txt).then(()=>toast('Token copied!','ok'));}
 
 // ── Amount popup (the 3-click flow) ───────────────────────────
@@ -877,6 +889,7 @@ async function checkCallbackReturn(){
 
 let dotsInterval=null;
 let waitingTokenMode=false; // prepaid tokens arrive via Pairgate webhook
+let _histPrev='main';           // restore the right screen after history closes
 function startWaitingDots(){
   const el=document.getElementById('waitingDots');
   // Set title/desc based on meter type
