@@ -287,6 +287,12 @@ serve(async (req) => {
         usingFallback: providersFromFallback,
         providers: providers.map((p) => ({ slug: p.ours, pairgate: p.pg, name: p.name })),
         minimum: PG_MIN_AMOUNT,
+        secrets: {
+          flw_secret_key:          !!Deno.env.get("FLW_SECRET_KEY"),
+          flw_webhook_hash:        !!Deno.env.get("FLW_WEBHOOK_HASH"),
+          pairgate_secret_key:     !!Deno.env.get("PAIRGATE_SECRET_KEY"),
+          pairgate_webhook_secret: !!Deno.env.get("PAIRGATE_WEBHOOK_SECRET"),
+        },
       });
     }
 
