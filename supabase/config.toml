@@ -12,11 +12,6 @@ project_id = "djurokbkkqrmpafcxlez"
 [functions.nepawatch-api]
 verify_jwt = false
 
-# Called from topup.html before a customer signs in. Its own guard is that the
-# payment must be verified with the processor before a token is ever vended.
-[functions.buy-electricity]
-verify_jwt = false
-
 # Read-only model health, shown on the public predict and accuracy pages.
 [functions.model-status]
 verify_jwt = false
