@@ -158,8 +158,10 @@ SELECT cron.schedule(
 );
 
 /* ─── STEP 6: store the real service role key in Vault ─────────────────────
-   ⚠ Replace the placeholder below with Settings → API → service_role
-     (starts with eyJ...), then run THIS STEP ALONE.                 */
+   ⚠ Use the NEW-format secret key: Settings → API → "Secret API keys" →
+     the key starting with sb_secret_ (NOT the deprecated legacy eyJ... JWT —
+     the gateway rejects legacy JWTs now that the project uses JWT Signing
+     Keys). Replace the placeholder, then run THIS STEP ALONE.        */
 -- DELETE FROM vault.secrets WHERE name = 'service_role_key';
 -- SELECT vault.create_secret('PASTE_YOUR_SERVICE_ROLE_KEY_HERE', 'service_role_key', 'Used by pg_cron to authenticate calls to the ai-engine function');
 
