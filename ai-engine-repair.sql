@@ -134,9 +134,6 @@ SELECT cron.schedule(
       body    := '{}'::jsonb
     );
   $$
-);      body    := '{}'::jsonb
-    );
-  $$
 );
 
 SELECT cron.unschedule('nepawatch-compute-reliability')
