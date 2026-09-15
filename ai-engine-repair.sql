@@ -163,6 +163,14 @@ SELECT cron.schedule(
 -- DELETE FROM vault.secrets WHERE name = 'service_role_key';
 -- SELECT vault.create_secret('PASTE_YOUR_SERVICE_ROLE_KEY_HERE', 'service_role_key', 'Used by pg_cron to authenticate calls to the ai-engine function');
 
+/* ─── STEP 6b: the FUNCTION'S OWN secret must be the SAME key ───────────────
+   A 401 in the ai-engine logs means the key pg_cron sends (Vault) differs
+   from the key the function compares against (its env secret).
+   Fix in the dashboard — no SQL needed:
+     Settings → Edge Functions → Secrets →
+     make sure SUPABASE_SERVICE_ROLE_KEY exists and equals the CURRENT
+     service_role key, then re-run STEP 6 with that same key so both match. */
+
 /* ═══════════════════════════════════════════════════════════════════════════
    DIAGNOSTICS — run after the steps above and interpret each result:
    ═══════════════════════════════════════════════════════════════════════════ */

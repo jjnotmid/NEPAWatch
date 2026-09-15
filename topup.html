@@ -7,7 +7,7 @@
 
 <!-- ── SEO ──────────────────────────────────────────────────── -->
 <title>Pay Electricity Bills Online in Nigeria — No Sign-up | NEPAWatch</title>
-<meta name="description" content="Pay your electricity bill in 3 clicks — no sign-up needed. Paste your meter number, we auto-detect your DISCO, pay from ₦1,000 and get your token in seconds. All 11 DISCOs. Transparent 3% fee capped at ₦500.">
+<meta name="description" content="Pay your electricity bill in 3 clicks — no sign-up needed. Paste your meter number, we remember your DISCO, pay from ₦1,000 and get your token in seconds. All 11 DISCOs. Transparent 3% fee capped at ₦500.">
 <meta name="keywords" content="pay electricity bill online Nigeria, buy prepaid meter token, IKEDC recharge, EKEDC token, AEDC, IBEDC, EEDC, PHED, KEDCO, no sign up electricity payment, pay light bill, NEPAWatch">
 <meta name="theme-color" content="#AAFF00">
 <meta name="mobile-web-app-capable" content="yes">
@@ -21,7 +21,7 @@
 <!-- ── Open Graph ────────────────────────────────────────────── -->
 <meta property="og:type" content="website">
 <meta property="og:title" content="Pay Electricity Bills Online in Nigeria — No Sign-up | NEPAWatch">
-<meta property="og:description" content="Paste your meter number, we auto-detect your DISCO. Pay from ₦1,000 — token in seconds. All 11 DISCOs, transparent 3% fee capped at ₦500.">
+<meta property="og:description" content="Paste your meter number, we remember your DISCO. Pay from ₦1,000 — token in seconds. All 11 DISCOs, transparent 3% fee capped at ₦500.">
 <meta property="og:url" content="https://nepawatch.app/topup.html">
 <meta property="og:image" content="https://nepawatch.app/logo2.jpg">
 <meta property="og:site_name" content="NEPAWatch">
@@ -41,7 +41,7 @@
     {
       "@type": "Question",
       "name": "Do I need to sign up to buy electricity on NEPAWatch?",
-      "acceptedAnswer": {"@type": "Answer", "text": "No sign-up is needed. Paste your meter number, we auto-detect your DISCO, choose an amount and pay — your token is delivered in seconds."}
+      "acceptedAnswer": {"@type": "Answer", "text": "No sign-up is needed. Paste your meter number, we remember your DISCO, choose an amount and pay — your token is delivered in seconds."}
     },
     {
       "@type": "Question",
@@ -107,7 +107,7 @@ header{position:fixed;top:0;left:0;right:0;z-index:500;background:var(--hbg);hei
 
 /* ── Nav ────────────────────────────────────────────────────── */
 nav{position:fixed;bottom:0;left:0;right:0;z-index:500;background:var(--hbg);border-top:1px solid rgba(128,128,128,.1);display:flex;padding-bottom:env(safe-area-inset-bottom);-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px)}
-.ni{flex:1;padding:10px 0 13px;display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;color:var(--ink3);font-size:.54rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;user-select:none;position:relative;transition:color .2s}
+.ni{flex:1;padding:10px 0 13px;display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;color:var(--ink3);font-size:.54rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;user-select:none;position:relative;transition:color .2s;text-decoration:none}
 .ni.active{color:var(--p)}
 .ni.active::before{content:'';position:absolute;top:6px;left:50%;transform:translateX(-50%);width:46px;height:30px;background:rgba(170,255,0,.1);border-radius:14px;pointer-events:none}
 .ni svg{transition:transform .2s}
@@ -523,6 +523,10 @@ async function initTopup(){
   // Always editable — they confirm or change where the token is sent,
   // and the choice sticks for next time.
   try{
+    let lastDisco=null; try{lastDisco=localStorage.getItem('nw-last-disco');}catch(e){}
+    if(lastDisco) setDiscoByProvider(lastDisco);
+  }catch(e){}
+  try{
     const emailEl=document.getElementById('emailInput');
     let saved=null; try{saved=localStorage.getItem('nw-pay-email');}catch(e){}
     const {data:{session}}=await sb.auth.getSession();
@@ -595,11 +599,14 @@ function onMeterInput(inp){
   clearTimeout(verifyTmr);
   document.getElementById('verifyStrip').classList.remove('show');
   if(inp.value.length>=10){
-    verifyTmr=setTimeout(()=>{
-      // No DISCO picked? Auto-detect it from the meter number.
-      if(discoCode) doVerifyMeter(inp.value);
-      else doDetectMeter(inp.value);
-    },800);
+    if(!discoCode){
+      const hint=document.getElementById('meterHint');
+      hint.textContent='Select your electricity company above — we remember it for next time';
+      hint.className='hint err';
+      checkReady();
+      return;
+    }
+    verifyTmr=setTimeout(()=>doVerifyMeter(inp.value),800);
   }
   checkReady();
 }
@@ -642,7 +649,7 @@ async function doVerifyMeter(num){
   checkReady();
 }
 
-// ── Auto-detect DISCO from the meter number ───────────────────
+// ── Preselect / set a DISCO from its provider slug ──────────
 function setDiscoByProvider(provider){
   const sel=document.getElementById('discoSelect');
   for(const o of sel.options){
@@ -654,56 +661,6 @@ function setDiscoByProvider(provider){
       break;
     }
   }
-}
-
-async function doDetectMeter(num){
-  const strip=document.getElementById('verifyStrip');
-  const vsName=document.getElementById('vsName');
-  const vsAddr=document.getElementById('vsAddr');
-  const vsIcon=document.getElementById('vsIcon');
-  const hint=document.getElementById('meterHint');
-  strip.classList.add('show');
-  vsIcon.innerHTML='<div class="spin"></div>';
-  vsName.textContent='Detecting your electricity company…';
-  vsAddr.textContent='';
-  hint.textContent='Working out your DISCO from the meter number…';
-  hint.className='hint';
-  try{
-    let hint=null; try{hint=localStorage.getItem('nw-last-disco');}catch(e){}
-    const res=await fetch(BACKEND,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'detect',number:num,hint:hint||undefined})});
-    const d=await res.json();
-    if(d.success&&d.provider){
-      setDiscoByProvider(d.provider);
-      try{localStorage.setItem('nw-last-disco',d.provider);}catch(e){}
-      // Set the meter-type toggle directly — selectType() calls resetVerify()
-      // which would wipe the meter input we just detected from.
-      if(d.type){
-        meterType=d.type;
-        document.querySelectorAll('.type-btn').forEach((b,i)=>b.classList.toggle('active',(d.type==='postpaid')===!!i));
-      }
-      if(d.feePct!=null){FEE={pct:d.feePct,cap:d.feeCap,min:d.feeMin||0};}
-      if(d.minimum)MIN_AMT=d.minimum;
-      verified={num,name:d.customerName||'Customer',address:d.address||'',min:d.minimum||100,max:d.maximum||500000};
-      document.getElementById('amtInput').min=MIN_AMT;
-      vsIcon.innerHTML='✓'; vsIcon.style.color='var(--p)';
-      vsName.textContent=`${d.discoName||disco} · ${d.customerName||'Customer'}`;
-      vsAddr.textContent=d.address||'';
-      hint.textContent=`Detected ${d.discoName||disco} automatically ✓ — change it above if wrong`;
-      hint.className='hint ok';
-      document.getElementById('vsFee').textContent=`+${FEE.pct}% fee`;
-      renderFee();
-      openAmountModal();
-    }else{
-      strip.classList.remove('show');
-      hint.textContent=d.error||"Couldn't auto-detect — select your DISCO and try again";
-      hint.className='hint err';
-    }
-  }catch(e){
-    strip.classList.remove('show');
-    hint.textContent="Couldn't auto-detect — check connection, or select your DISCO";
-    hint.className='hint err';
-  }
-  checkReady();
 }
 
 // ── Amount ────────────────────────────────────────────────────

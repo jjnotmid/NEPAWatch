@@ -446,8 +446,15 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
 
   const auth = req.headers.get('Authorization') ?? '';
+  if (!SERVICE_KEY) {
+    return new Response(JSON.stringify({
+      error: 'Function secret SUPABASE_SERVICE_ROLE_KEY is not set — add it in Edge Functions → Secrets (same value as the Vault service_role_key)',
+    }), { status: 500, headers: { ...CORS, 'Content-Type': 'application/json' } });
+  }
   if (!auth.includes(SERVICE_KEY)) {
-    return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...CORS, 'Content-Type': 'application/json' } });
+    return new Response(JSON.stringify({
+      error: 'Unauthorized — the key sent does not match SUPABASE_SERVICE_ROLE_KEY on this function. Re-store the CURRENT service_role key in Vault (repair SQL STEP 6) and in Edge Functions → Secrets.',
+    }), { status: 401, headers: { ...CORS, 'Content-Type': 'application/json' } });
   }
 
   const sb     = createClient(SUPABASE_URL, SERVICE_KEY);
