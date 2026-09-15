@@ -134,6 +134,29 @@ SELECT cron.schedule(
       body    := '{}'::jsonb
     );
   $$
+);      body    := '{}'::jsonb
+    );
+  $$
+);
+
+SELECT cron.unschedule('nepawatch-compute-reliability')
+WHERE EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'nepawatch-compute-reliability');
+SELECT cron.schedule(
+  'nepawatch-compute-reliability',
+  '0 2 * * *',
+  $$
+    SELECT net.http_post(
+      url     := 'https://djurokbkkqrmpafcxlez.supabase.co/functions/v1/compute-reliability',
+      headers := jsonb_build_object(
+        'Content-Type',  'application/json',
+        'Authorization', 'Bearer ' || (
+          SELECT decrypted_secret FROM vault.decrypted_secrets
+          WHERE name = 'service_role_key'
+        )
+      ),
+      body    := '{}'::jsonb
+    );
+  $$
 );
 
 /* ─── STEP 5: repair the Phase-2 cron jobs (they had a placeholder key) ──── */
