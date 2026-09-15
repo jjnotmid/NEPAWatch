@@ -15,4 +15,25 @@
     </image:image>
   </url>
 
+  <!-- Electricity bill payment — no sign-up required -->
+  <url>
+    <loc>https://nepawatch.app/topup.html</loc>
+    <lastmod>2026-09-15</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+    <image:image>
+      <image:loc>https://nepawatch.app/logo2.jpg</image:loc>
+      <image:title>NEPAWatch — Pay Electricity Bills Online in Nigeria, No Sign-up</image:title>
+      <image:caption>Buy prepaid electricity tokens and pay postpaid bills for all 11 Nigerian DISCOs in 3 clicks</image:caption>
+    </image:image>
+  </url>
+
+  <!-- Electricity bill payment landing page -->
+  <url>
+    <loc>https://nepawatch.app/pay-electricity-bill.html</loc>
+    <lastmod>2026-09-15</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
 </urlset>

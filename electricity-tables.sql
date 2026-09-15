@@ -54,9 +54,34 @@ WHERE status = 'success' AND total_paid IS NOT NULL
 GROUP BY 1
 ORDER BY 1 DESC;
 
+-- Admin dashboard totals: delivered count, total processed (money in),
+-- and fees earned (your margin). One row, always current.
+CREATE OR REPLACE VIEW vw_electricity_totals
+  WITH (security_invoker = true)
+AS
+SELECT
+  count(*) FILTER (WHERE status = 'success')                      AS delivered,
+  coalesce(sum(total_paid)  FILTER (WHERE status = 'success'), 0) AS processed,
+  coalesce(sum(service_fee) FILTER (WHERE status = 'success'), 0) AS fees
+FROM electricity_transactions;
+
 -- Index for fast lookups
 CREATE INDEX IF NOT EXISTS idx_elec_tx_reference ON electricity_transactions(reference);
 CREATE INDEX IF NOT EXISTS idx_elec_tx_bill_ref  ON electricity_transactions(bill_ref);
+
+-- Meter → DISCO auto-detection cache (action:"detect" stores successful
+-- lookups so repeat pastes are instant and don't re-scan all billers)
+CREATE TABLE IF NOT EXISTS meter_disco_cache (
+  meter_number text PRIMARY KEY,
+  provider     text NOT NULL,
+  meter_type   text NOT NULL DEFAULT 'prepaid',
+  updated_at   timestamptz DEFAULT now()
+);
+
+ALTER TABLE meter_disco_cache ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "meter_cache_service_only" ON meter_disco_cache;
+CREATE POLICY "meter_cache_service_only" ON meter_disco_cache
+  USING (true) WITH CHECK (true); -- edge function uses service role key, bypasses RLS
 
 -- Enable RLS
 ALTER TABLE electricity_transactions ENABLE ROW LEVEL SECURITY;

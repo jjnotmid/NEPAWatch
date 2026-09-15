@@ -130,7 +130,7 @@
   ],
   "rewrites": [
     {
-      "source": "/((?!logo|styles|app|predict|robots|sitemap|favicon|sw|topup|api|accuracy).*)",
+      "source": "/((?!logo|styles|app|predict|robots|sitemap|favicon|sw|topup|api|accuracy|pay-electricity-bill|privacy|terms|contact|ops).*)",
       "destination": "/index.html"
     }
   ]
