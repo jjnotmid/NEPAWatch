@@ -21,6 +21,11 @@ verify_jwt = false
 [functions.api-billing]
 verify_jwt = false
 
+# Single FLW webhook entrypoint: fans charge.completed to api-billing AND
+# buy-electricity, subscription events to api-billing. verif-hash guarded.
+[functions.flw-webhook-router]
+verify_jwt = false
+
 # The remaining functions keep the default verify_jwt = true:
 #   ai-engine, send-push          invoked with the service role key, which is
 #                                 itself a valid JWT, and both additionally
