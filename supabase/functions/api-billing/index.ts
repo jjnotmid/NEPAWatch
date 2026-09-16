@@ -251,11 +251,19 @@ serve(async (req) => {
 
     /* ── Tier list for the pricing UI ───────────────────────── */
     if (body.action === "plans") {
+      /* Live/test mode is readable from the key PREFIX — the secret itself
+         is never exposed. "live" = real money, "test" = dry-run key. */
+      const secretKey = Deno.env.get("FLW_SECRET_KEY") ?? "";
+      const flwMode = secretKey.startsWith("FLWSECK_TEST") ? "test"
+                    : secretKey.startsWith("FLWSECK") ? "live" : "missing";
+      const webhookHashSet = !!(Deno.env.get("FLW_WEBHOOK_HASH") ?? "");
       return json({
         success:  true,
         currency: "NGN",
         interval: "monthly",
         graceDays: GRACE_DAYS,
+        flwMode,
+        webhookHashSet,
         tiers: Object.entries(TIERS).map(([id, t]) => ({
           id, label: t.label, price: t.price, dailyLimit: t.daily,
         })),
