@@ -16,6 +16,11 @@ verify_jwt = false
 [functions.model-status]
 verify_jwt = false
 
+# Flutterwave monthly billing for Pro API subscriptions. Public — payment
+# confirmation is guarded by the verif-hash webhook + server-side verify.
+[functions.api-billing]
+verify_jwt = false
+
 # The remaining functions keep the default verify_jwt = true:
 #   ai-engine, send-push          invoked with the service role key, which is
 #                                 itself a valid JWT, and both additionally
