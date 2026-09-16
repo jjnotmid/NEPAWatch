@@ -3,28 +3,30 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 /* ────────────────────────────────────────────────────────────────
    NEPAWatch — api-billing edge function
-   Flutterwave monthly subscription for Pro API access (₦5,000/month,
-   10,000 requests/day). Replaces the old "we'll email you" manual flow.
+   Flutterwave monthly subscriptions for the data API.
+
+   Tiers (env-tunable):
+     starter  ₦1,000/mo  →   1,000 requests/day
+     pro      ₦5,000/mo  →  10,000 requests/day
+     scale    ₦15,000/mo →  50,000 requests/day
+     business ₦30,000/mo → 200,000 requests/day
 
    Flow:
-     action:"plans"                       → plan price/interval
-     action:"initiate"  + developer info  → FLW checkout (payment plan),
-                                            pending key + subscription rows
-     action:"status"    + tx_ref          → key/status for the frontend poll
-     POST {event:…}      + verif-hash     → FLW webhook:
-        charge.completed (successful)     → activate key, extend renews_at +1mo
-        charge.completed (failed)         → mark past_due (grace, no revoke)
-        subscription.cancelled            → revoke key, mark cancelled
+     action:"plans"                      → tier list for the pricing UI
+     action:"initiate"  + tier + info    → FLW checkout (payment plan per tier)
+     action:"status"    + tx_ref         → key/status for the frontend poll
+     POST {event:…}      + verif-hash    → FLW webhook:
+        charge.completed (successful)    → activate key w/ tier limit, renew +1mo
+        charge.completed (failed)        → past_due + 7-day grace
+        subscription.cancelled           → revoke immediately
+     Every invocation also sweeps subscriptions whose 7-day grace expired.
 
    Secrets:
-     FLW_SECRET_KEY       Flutterwave live secret key
-     FLW_WEBHOOK_HASH     verif-hash guard (same value as FLW dashboard)
-     FLW_PRO_PLAN_ID      optional — existing payment plan id (auto-created
-                          on first use if absent)
-     NW_PRO_PRICE         optional, default 5000 (naira per month)
-
-   NOTE: Flutterwave sends webhooks to ONE URL per account — point the
-   dashboard webhook at this function while Pro billing is live.
+     FLW_SECRET_KEY      Flutterwave secret key (live; swap to FLWSECK_TEST-
+                         for test-mode dry runs, then back to live)
+     FLW_WEBHOOK_HASH    verif-hash guard (same value as FLW dashboard)
+     NW_GRACE_DAYS       optional, default 7 (days before past-due keys revoke)
+     NW_PRICE_* / NW_LIMIT_*   optional per-tier overrides
    ──────────────────────────────────────────────────────────────── */
 
 const CORS = {
@@ -33,8 +35,15 @@ const CORS = {
     "authorization, x-client-info, apikey, content-type",
 };
 
-const FLW   = "https://api.flutterwave.com/v3";
-const PRICE = Number(Deno.env.get("NW_PRO_PRICE") ?? 5000);
+const FLW = "https://api.flutterwave.com/v3";
+const GRACE_DAYS = Number(Deno.env.get("NW_GRACE_DAYS") ?? 7);
+
+const TIERS: Record<string, { price: number; daily: number; label: string }> = {
+  starter:  { price: Number(Deno.env.get("NW_PRICE_STARTER")  ?? 1000),   daily: Number(Deno.env.get("NW_LIMIT_STARTER")  ?? 1000),   label: "Starter"  },
+  pro:      { price: Number(Deno.env.get("NW_PRICE_PRO")      ?? 5000),   daily: Number(Deno.env.get("NW_LIMIT_PRO")      ?? 10000),  label: "Pro"      },
+  scale:    { price: Number(Deno.env.get("NW_PRICE_SCALE")    ?? 15000),  daily: Number(Deno.env.get("NW_LIMIT_SCALE")    ?? 50000),  label: "Scale"    },
+  business: { price: Number(Deno.env.get("NW_PRICE_BUSINESS") ?? 30000),  daily: Number(Deno.env.get("NW_LIMIT_BUSINESS") ?? 200000), label: "Business" },
+};
 
 function flwHeaders(): HeadersInit {
   return {
@@ -54,26 +63,26 @@ function makeRef(prefix = "PRO"): string {
   return `${prefix}-${d}-${r}`;
 }
 
-/* ── Payment plan (monthly, indefinite) — created once, cached ── */
-let proPlanId: string | null = null;
-async function ensurePlan(): Promise<string> {
-  if (proPlanId) return proPlanId;
-  const envPlan = Deno.env.get("FLW_PRO_PLAN_ID");
-  if (envPlan) { proPlanId = envPlan; return proPlanId; }
+/* ── One FLW payment plan per tier, cached ──────────────────── */
+const planCache: Record<string, string> = {};
+async function ensurePlan(tier: string): Promise<string> {
+  if (planCache[tier]) return planCache[tier];
+  const t = TIERS[tier];
+  const name = `NEPAWatch API ${t.label}`;
 
-  const r = await fetch(`${FLW}/payment-plans?name=${encodeURIComponent("NEPAWatch Pro API")}`, { headers: flwHeaders() });
+  const r = await fetch(`${FLW}/payment-plans?name=${encodeURIComponent(name)}`, { headers: flwHeaders() });
   const d = await r.json();
   if (d.status === "success" && d.data?.[0]?.id) {
-    proPlanId = String(d.data[0].id);
-    return proPlanId;
+    planCache[tier] = String(d.data[0].id);
+    return planCache[tier];
   }
 
   const c = await fetch(`${FLW}/payment-plans`, {
     method:  "POST",
     headers: flwHeaders(),
     body: JSON.stringify({
-      name:     "NEPAWatch Pro API",
-      amount:   PRICE,
+      name:     name,
+      amount:   t.price,
       currency: "NGN",
       interval: "monthly",
       duration: 0,          // charges until cancelled
@@ -81,8 +90,8 @@ async function ensurePlan(): Promise<string> {
   });
   const cd = await c.json();
   if (cd.status === "success" && cd.data?.id) {
-    proPlanId = String(cd.data.id);
-    return proPlanId;
+    planCache[tier] = String(cd.data.id);
+    return planCache[tier];
   }
   throw new Error(cd.message ?? "Could not create the payment plan");
 }
@@ -93,6 +102,28 @@ function nextRenewal(current: string | null | undefined): string {
     ? new Date(current)
     : new Date();
   return new Date(base.getTime() + 30 * 24 * 3600 * 1000).toISOString();
+}
+
+/* ── 7-day grace sweep: past_due whose grace expired → revoke ── */
+async function sweepExpiredGrace() {
+  try {
+    const cutoff = new Date(Date.now() - GRACE_DAYS * 24 * 3600 * 1000).toISOString();
+    const { data } = await adminClient()
+      .from("api_subscriptions")
+      .select("id, api_key_id")
+      .eq("status", "past_due")
+      .lt("grace_ends_at", cutoff)
+      .limit(50);
+    for (const sub of data ?? []) {
+      await adminClient().from("api_subscriptions")
+        .update({ status: "cancelled" }).eq("id", sub.id);
+      await adminClient().from("api_keys")
+        .update({ status: "revoked", revoked_at: new Date().toISOString() })
+        .eq("id", sub.api_key_id)
+        .eq("status", "active");
+    }
+    if (data?.length) console.log(`api-billing: grace sweep revoked ${data.length} subscription(s)`);
+  } catch (_) {}
 }
 
 /* ══════════════════════════════════════════════════════════════ */
@@ -114,9 +145,7 @@ serve(async (req) => {
         const meta  = (body.data?.meta as Record<string, unknown>) ?? {};
         const paid  = body.data?.status === "successful";
 
-        /* Re-verify with the API (never trust the webhook alone) */
-        let confirmed = false;
-        let amount = 0, currency = "";
+        let confirmed = false, amount = 0, currency = "";
         if (txId) {
           try {
             const v = await fetch(`${FLW}/transactions/${txId}/verify`, { headers: flwHeaders() });
@@ -129,24 +158,26 @@ serve(async (req) => {
           } catch (_) {}
         }
 
-        if (!paid || !confirmed || currency !== "NGN" || amount < PRICE - 5) {
-          /* Failed or unconfirmed charge → grace period, don't revoke */
+        if (!paid || !confirmed || currency !== "NGN") {
           if (txRef) {
             try {
               const { data: subs } = await adminClient().from("api_subscriptions")
-                .select("id, last_tx_id").eq("tx_ref", txRef).limit(1);
+                .select("id, last_tx_id, grace_ends_at").eq("tx_ref", txRef).limit(1);
               const sub = subs?.[0];
               if (sub && sub.last_tx_id !== String(txId)) {
-                await adminClient().from("api_subscriptions")
-                  .update({ status: "past_due", last_tx_id: String(txId) })
-                  .eq("id", sub.id);
+                await adminClient().from("api_subscriptions").update({
+                  status:       "past_due",
+                  last_tx_id:   String(txId),
+                  grace_ends_at: new Date(Date.now() + GRACE_DAYS * 24 * 3600 * 1000).toISOString(),
+                }).eq("id", sub.id);
               }
             } catch (_) {}
           }
+          await sweepExpiredGrace();
           return json({ success: true });
         }
 
-        /* Successful monthly charge → activate + extend */
+        /* Successful charge — amount must match the subscribed tier */
         const keyId = (meta.api_key_id as string) || "";
         try {
           let sub: Record<string, unknown> | null = null;
@@ -160,22 +191,36 @@ serve(async (req) => {
               .select("*").eq("api_key_id", keyId).limit(1);
             sub = data?.[0] ?? null;
           }
-          if (sub && sub.last_tx_id !== String(txId)) {
-            const subId = body.data?.flw_sub ?? body.data?.plan?.id ?? undefined;
-            await adminClient().from("api_subscriptions").update({
-              status:    "active",
-              last_tx_id: String(txId),
-              renews_at: nextRenewal(sub.renews_at as string | null),
-              ...(subId ? { flw_sub_id: String(subId) } : {}),
-            }).eq("id", sub.id);
+          if (sub) {
+            const tier = String(sub.tier ?? "pro");
+            const t    = TIERS[tier] ?? TIERS.pro;
+            if (amount < t.price - 5) {
+              /* Paid less than the tier price → don't activate */
+              return json({ success: true });
+            }
+            if (sub.last_tx_id !== String(txId)) {
+              const subId = body.data?.flw_sub ?? body.data?.plan?.id ?? undefined;
+              await adminClient().from("api_subscriptions").update({
+                status:       "active",
+                last_tx_id:   String(txId),
+                renews_at:    nextRenewal(sub.renews_at as string | null),
+                grace_ends_at: null,
+                ...(subId ? { flw_sub_id: String(subId) } : {}),
+              }).eq("id", sub.id);
 
-            /* Activate the key if it's still pending */
-            await adminClient().from("api_keys")
-              .update({ status: "active", tier: "pro", approved_at: new Date().toISOString() })
-              .eq("id", sub.api_key_id)
-              .eq("status", "pending");
+              await adminClient().from("api_keys")
+                .update({
+                  status:      "active",
+                  tier:        tier,
+                  daily_limit: t.daily,
+                  approved_at: new Date().toISOString(),
+                })
+                .eq("id", sub.api_key_id)
+                .eq("status", "pending");
+            }
           }
         } catch (_) {}
+        await sweepExpiredGrace();
         return json({ success: true });
       }
 
@@ -196,20 +241,24 @@ serve(async (req) => {
               .eq("id", sub.api_key_id);
           }
         } catch (_) {}
+        await sweepExpiredGrace();
         return json({ success: true });
       }
 
+      await sweepExpiredGrace();
       return json({ success: true });
     }
 
-    /* ── Plan info ──────────────────────────────────────────── */
+    /* ── Tier list for the pricing UI ───────────────────────── */
     if (body.action === "plans") {
       return json({
         success:  true,
-        price:    PRICE,
         currency: "NGN",
         interval: "monthly",
-        limits:   { requestsPerDay: 10000 },
+        graceDays: GRACE_DAYS,
+        tiers: Object.entries(TIERS).map(([id, t]) => ({
+          id, label: t.label, price: t.price, dailyLimit: t.daily,
+        })),
       });
     }
 
@@ -219,23 +268,25 @@ serve(async (req) => {
       const email   = String(body.email ?? "").trim().toLowerCase();
       const app     = String(body.app_name ?? "").trim();
       const useCase = String(body.use_case ?? "").trim();
+      const tierId  = String(body.tier ?? "pro");
+      const t       = TIERS[tierId];
+      if (!t) return json({ success: false, error: "Unknown tier" });
       if (!name || !email.includes("@") || !useCase) {
         return json({ success: false, error: "Name, email and use case are required" });
       }
 
       let planId: string;
-      try { planId = await ensurePlan(); }
+      try { planId = await ensurePlan(tierId); }
       catch (e) { return json({ success: false, error: (e as Error).message }); }
 
-      /* Pending key + subscription rows (service role, idempotent by tx_ref) */
       const { data: keyRows, error: keyErr } = await adminClient()
         .from("api_keys").insert({
           developer_name: name,
           email,
           app_name:       app || null,
-          use_case:       `[PRO] ${useCase}`,
+          use_case:       `[${tierId.toUpperCase()}] ${useCase}`,
           status:         "pending",
-          tier:           "pro",
+          tier:           tierId,
         }).select("id");
       if (keyErr || !keyRows?.[0]) {
         return json({ success: false, error: keyErr?.message ?? "Could not create key" });
@@ -245,11 +296,9 @@ serve(async (req) => {
       const txRef = makeRef("PRO");
       const { error: subErr } = await adminClient()
         .from("api_subscriptions").insert({
-          api_key_id: keyId, email, tx_ref: txRef, price: PRICE,
+          api_key_id: keyId, email, tier: tierId, tx_ref: txRef, price: t.price,
         });
-      if (subErr) {
-        return json({ success: false, error: subErr.message });
-      }
+      if (subErr) return json({ success: false, error: subErr.message });
 
       const origin = req.headers.get("origin") ?? "https://nepawatch.app";
       const flwRes = await fetch(`${FLW}/payments`, {
@@ -257,17 +306,17 @@ serve(async (req) => {
         headers: flwHeaders(),
         body: JSON.stringify({
           tx_ref:       txRef,
-          amount:       PRICE,
+          amount:       t.price,
           currency:     "NGN",
           redirect_url: `${origin}/api.html`,
           payment_plan: planId,
           customer:     { email, name },
           customizations: {
-            title:       "NEPAWatch Pro API",
-            description: "Monthly Pro API subscription — 10,000 requests/day",
+            title:       `NEPAWatch API — ${t.label}`,
+            description: `${t.daily.toLocaleString()} requests/day`,
             logo:        `${origin}/logo2.jpg`,
           },
-          meta: { api_key_id: keyId, email },
+          meta: { api_key_id: keyId, email, tier: tierId },
         }),
       });
       const flw = await flwRes.json();
@@ -279,27 +328,32 @@ serve(async (req) => {
         success:     true,
         checkoutUrl: flw.data.link,
         tx_ref:      txRef,
-        price:       PRICE,
+        price:       t.price,
+        tier:        tierId,
       });
     }
 
     /* ── Subscription status (frontend polls after redirect) ── */
     if (body.action === "status" && body.tx_ref) {
+      await sweepExpiredGrace();
       const { data, error } = await adminClient()
         .from("api_subscriptions")
-        .select("status, renews_at, price, api_keys(key, status, tier, requests_today, total_requests)")
+        .select("status, tier, renews_at, price, grace_ends_at, api_keys(key, status, tier, daily_limit, requests_today, total_requests)")
         .eq("tx_ref", String(body.tx_ref))
         .limit(1);
       if (error) return json({ success: false, error: error.message });
       const sub = data?.[0];
       if (!sub) return json({ success: false, error: "Subscription not found" });
       return json({
-        success:  true,
-        status:   sub.status,
-        renewsAt: sub.renews_at,
-        price:    sub.price,
-        key:      (sub.api_keys as { key?: string } | null)?.key ?? null,
-        keyStatus: (sub.api_keys as { status?: string } | null)?.status ?? null,
+        success:    true,
+        status:     sub.status,
+        tier:       sub.tier,
+        renewsAt:   sub.renews_at,
+        price:      sub.price,
+        graceEndsAt: sub.grace_ends_at,
+        key:        (sub.api_keys as { key?: string } | null)?.key ?? null,
+        keyStatus:  (sub.api_keys as { status?: string } | null)?.status ?? null,
+        dailyLimit: (sub.api_keys as { daily_limit?: number } | null)?.daily_limit ?? null,
       });
     }
 

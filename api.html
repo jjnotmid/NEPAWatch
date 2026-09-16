@@ -918,6 +918,12 @@ X-RateLimit-Reset: 2026-08-05T23:59:59Z</pre></div></div>
             <textarea id="proUseCase" placeholder="Describe your product and how you'll use NEPAWatch data…" required></textarea>
           </div>
         </div>
+        <div class="fld span2" style="margin-top:6px">
+          <label>Plan</label>
+          <div id="tierPicker" style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+            <div style="grid-column:1/-1;font-size:.72rem;color:var(--ink3)">Loading plans…</div>
+          </div>
+        </div>
         <div class="form-submit">
           <button type="submit" class="btn btn-primary" id="proSubmitBtn">
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M1.5 7h11M8 3l4.5 4L8 11" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -933,7 +939,8 @@ X-RateLimit-Reset: 2026-08-05T23:59:59Z</pre></div></div>
         <div id="proKeyWrap" style="display:none;margin:16px 0;text-align:left">
           <div style="font-size:.68rem;letter-spacing:.08em;color:var(--ink3);margin-bottom:6px">YOUR PRO API KEY</div>
           <div style="background:var(--bg,#0A0D0B);border:1px solid var(--bd,#1F2D23);border-radius:10px;padding:12px 14px;font-family:monospace;font-size:.85rem;word-break:break-all" id="proKeyOut"></div>
-          <div style="font-size:.7rem;color:var(--ink3);margin-top:8px">Use it in the X-API-Key header. 10,000 requests/day reset daily.</div>
+          <div style="font-size:.7rem;color:var(--ink3);margin-top:8px">Use it in the X-API-Key header. <span id="proLimitOut">10,000</span> requests/day reset daily.</div>
+          <button type="button" id="proCopyBtn" onclick="copyProKey()" style="margin-top:10px;background:transparent;border:1px solid var(--bd,#1F2D23);color:var(--ink2);border-radius:8px;padding:8px 14px;font-size:.75rem;cursor:pointer;font-family:inherit">Copy Key</button>
         </div>
         <div class="key-next-steps" style="border-top:none;padding-top:0;margin-top:0">
           <a href="#request" class="btn btn-secondary" style="font-size:.8rem;padding:8px 16px">Start on the free tier meanwhile</a>
@@ -1065,6 +1072,47 @@ X-RateLimit-Reset: 2026-08-05T23:59:59Z</pre></div></div>
     });
   }
 
+  let _selectedTier = 'pro';
+
+  async function loadTiers() {
+    const el = document.getElementById('tierPicker');
+    try {
+      const res = await fetch(`${SUPA_URL}/functions/v1/api-billing`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'plans' }),
+      });
+      const d = await res.json();
+      if (!d.success || !d.tiers?.length) { el.innerHTML = '<div style="grid-column:1/-1;font-size:.72rem;color:var(--ink3)">Plans unavailable — refresh the page</div>'; return; }
+      el.innerHTML = d.tiers.map(t => `
+        <div class="tier-opt ${t.id === _selectedTier ? 'sel' : ''}" id="tier-${t.id}" onclick="selectTier('${t.id}')" style="cursor:pointer;border:1.5px solid ${t.id === _selectedTier ? 'var(--green,#79c0ff)' : 'var(--bd,#1F2D23)'};border-radius:10px;padding:10px;text-align:center">
+          <div style="font-weight:700;font-size:.8rem">${t.label}</div>
+          <div style="font-size:.72rem;color:var(--ink2)">₦${t.price.toLocaleString()}/mo</div>
+          <div style="font-size:.64rem;color:var(--ink3)">${t.dailyLimit.toLocaleString()} req/day</div>
+        </div>`).join('');
+      _tierData = d.tiers;
+    } catch (e) {
+      el.innerHTML = '<div style="grid-column:1/-1;font-size:.72rem;color:var(--ink3)">Plans unavailable — refresh the page</div>';
+    }
+  }
+  let _tierData = [];
+  function selectTier(id) {
+    _selectedTier = id;
+    _tierData.forEach(t => {
+      const el = document.getElementById('tier-' + t.id);
+      if (el) el.style.borderColor = t.id === id ? 'var(--green,#79c0ff)' : 'var(--bd,#1F2D23)';
+    });
+    const t = _tierData.find(x => x.id === id);
+    document.getElementById('proSubmitBtn').innerHTML = '<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M1.5 7h11M8 3l4.5 4L8 11" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg> Pay ₦' + ((t?.price||0)).toLocaleString() + '/month';
+  }
+  function copyProKey() {
+    const txt = document.getElementById('proKeyOut').textContent;
+    if (!txt || txt === '—') return;
+    navigator.clipboard.writeText(txt).then(() => {
+      const b = document.getElementById('proCopyBtn');
+      b.textContent = 'Copied'; setTimeout(() => { b.textContent = 'Copy Key'; }, 1500);
+    });
+  }
+
   async function submitProRequest(e) {
     e.preventDefault();
     const btn = document.getElementById('proSubmitBtn');
@@ -1100,6 +1148,7 @@ X-RateLimit-Reset: 2026-08-05T23:59:59Z</pre></div></div>
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'initiate',
+          tier: _selectedTier,
           developer_name: name,
           email,
           app_name: company || null,
@@ -1134,6 +1183,7 @@ X-RateLimit-Reset: 2026-08-05T23:59:59Z</pre></div></div>
         document.getElementById('proStatusSub').textContent =
           '₦5,000/month · renews ' + new Date(d.renewsAt).toLocaleDateString('en-NG', { day: 'numeric', month: 'short', year: 'numeric' });
         document.getElementById('proKeyOut').textContent = d.key || '—';
+        document.getElementById('proLimitOut').textContent = (d.dailyLimit || 10000).toLocaleString();
         document.getElementById('proKeyWrap').style.display = 'block';
         document.getElementById('proSuccess').classList.add('show');
         window.history.replaceState({}, '', window.location.pathname);
@@ -1153,6 +1203,7 @@ X-RateLimit-Reset: 2026-08-05T23:59:59Z</pre></div></div>
   }
 
   (function () {
+    loadTiers();
     const tx = new URLSearchParams(window.location.search).get('tx_ref');
     if (tx) pollProStatus(tx, 0);
   })();
