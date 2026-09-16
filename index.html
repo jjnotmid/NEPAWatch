@@ -101,12 +101,11 @@
 .lp-nav-logo-icon img { width: 100%; height: 100%; object-fit: cover; }
 .lp-nav-wordmark { font-family: 'Bebas Neue', sans-serif; font-size: 1.3rem; letter-spacing: .04em; color: #EEF4EE; line-height: 1; white-space: nowrap; }
 .lp-nav-wordmark em { color: #AAFF00; font-style: normal; }
-.lp-nav-btns { display: flex; gap: 6px; align-items: center; flex-shrink: 1; flex-wrap: wrap; justify-content: flex-end; }
+.lp-nav-btns { display: flex; gap: 7px; align-items: center; flex-shrink: 0; }
 @media(max-width:560px){
-  .lp-nav { gap: 8px; flex-wrap: wrap; }
-  .lp-nav-logo { flex: 1 1 auto; }
-  .lp-nav-btns { flex: 1 1 100%; justify-content: flex-start; }
-  .lp-btn-ghost,.lp-btn-solid { padding: 7px 13px; font-size: .7rem; }
+  .lp-nav-btns { gap: 5px; }
+  .lp-btn-ghost,.lp-btn-solid { padding: 7px 12px; font-size: .7rem; }
+  .lp-nav-wordmark { font-size: 1.15rem; }
 }
 .lp-btn-ghost {
   font-size: .72rem; font-weight: 600; color: rgba(238,244,238,.7);
@@ -332,7 +331,6 @@ input,select,textarea{font-size:max(16px,1em)!important}
       <div class="lp-nav-wordmark">NEPA<em>Watch</em></div>
     </div>
     <div class="lp-nav-btns">
-      <a href="/api.html" class="lp-btn-ghost" style="text-decoration:none;display:inline-flex;align-items:center">API for Devs</a>
       <button class="lp-btn-ghost" onclick="lpOpenAuth('login')">Sign In</button>
       <button class="lp-btn-solid" onclick="lpOpenAuth('register')">Get Started</button>
     </div>
