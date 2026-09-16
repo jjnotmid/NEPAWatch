@@ -529,18 +529,103 @@
     }
     .fade-up { animation: fadeUp .5s ease both; }
   </style>
+
+<!-- ── NEPAWatch API design system v2 (responsive override) ── -->
+<style>
+  /* Nav — sticky glass, hamburger on mobile */
+  nav{position:sticky;top:0;z-index:50;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 20px;background:rgba(10,13,11,.85);backdrop-filter:blur(14px);border-bottom:1px solid var(--bd)}
+  .nav-logo{font-size:1.05rem;letter-spacing:-.02em}
+  .nav-links{display:flex;align-items:center;gap:8px}
+  .nav-links a{font-size:.8rem;font-weight:600;padding:8px 13px;border-radius:10px;transition:all .15s}
+  .nav-links a.btn-nav{color:#0A0D0B}
+  .nav-burger{display:none;background:none;border:1px solid var(--bd);border-radius:10px;width:38px;height:38px;align-items:center;justify-content:center;cursor:pointer;color:var(--ink)}
+  @media(max-width:720px){
+    nav{flex-wrap:wrap}
+    .nav-burger{display:flex}
+    .nav-links{display:none;width:100%;flex-direction:column;align-items:stretch;gap:6px;padding:8px 0 4px}
+    .nav-links.open{display:flex}
+    .nav-links a{text-align:center;border:1px solid var(--bd);padding:11px}
+  }
+
+  /* Layout + type */
+  .container{max-width:1000px;padding:0 20px}
+  .hero{padding:56px 0 40px;text-align:center}
+  .hero-kicker{font-size:.7rem;letter-spacing:.12em;padding:7px 16px}
+  .hero h1{font-size:clamp(2rem,6vw,3.4rem);line-height:1.05;margin:14px 0}
+  .hero p{max-width:620px;margin:0 auto 26px;font-size:1rem;line-height:1.7}
+  .hero-actions{display:flex;justify-content:center;gap:10px;flex-wrap:wrap}
+  .btn{padding:13px 24px;border-radius:12px;font-size:.9rem;font-weight:800}
+  .btn-ghost{border:1.5px solid var(--bd)}
+
+  /* Stats */
+  .stats-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin:30px 0 8px}
+  .stat-pill{padding:16px 12px;border-radius:16px}
+  .stat-pill .val{font-size:1.25rem}
+  .stat-pill .lbl{font-size:.62rem}
+
+  /* Sections */
+  .section{padding:44px 0}
+  .section h2{font-size:clamp(1.3rem,3.4vw,1.9rem);margin-bottom:8px}
+  .section-label{font-size:.68rem;letter-spacing:.14em;margin-bottom:10px}
+  .section>p{font-size:.9rem;line-height:1.7;max-width:640px}
+
+  /* Code */
+  .code-wrap{border-radius:14px;overflow:hidden}
+  .code-wrap-inner{padding:16px}
+  pre{overflow-x:auto;font-size:.8rem;line-height:1.7;padding:0;background:none}
+
+  /* Endpoints */
+  .endpoint-card{border-radius:14px;overflow:hidden}
+  .ep-header{flex-wrap:wrap;gap:8px;padding:14px 16px}
+  .ep-body{padding:16px;overflow-x:auto}
+  .params-table{min-width:460px;width:100%;font-size:.8rem}
+
+  /* Forms — full width, touch friendly */
+  .form-card{padding:22px;border-radius:16px}
+  .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .form-grid .fld{min-width:0}
+  .fld label{font-size:.72rem;font-weight:700;margin-bottom:7px}
+  .fld input,.fld textarea{width:100%;font-size:16px;padding:13px 15px;border-radius:11px;background:var(--bg);border:1.5px solid var(--bd);color:var(--ink)}
+  .fld textarea{min-height:90px;resize:vertical}
+  .fld input:focus,.fld textarea:focus{border-color:var(--green);outline:none}
+  @media(max-width:640px){ .form-grid{grid-template-columns:1fr} }
+  .form-submit{margin-top:16px}
+  .form-msg{font-size:.78rem;margin-top:10px}
+  .form-msg.err{color:#FF6B81}
+
+  /* Tier picker */
+  #tierPicker .tier-opt{transition:transform .12s}
+  #tierPicker .tier-opt:hover{transform:translateY(-2px)}
+  @media(max-width:420px){ #tierPicker{grid-template-columns:1fr 1fr} }
+
+  /* Key success */
+  .key-success{border-radius:16px;padding:20px}
+  .key-success-title{font-size:1.05rem}
+
+  /* Pricing table scrolls on small screens */
+  @media(max-width:640px){
+    .rate-card,.tbl-wrap,table{display:block;overflow-x:auto;white-space:nowrap}
+  }
+</style>
 </head>
 <body>
 
 <!-- NAV -->
 <nav>
   <a href="index.html" class="nav-logo">NEPA<em>Watch</em></a>
-  <div class="nav-links">
+  <button class="nav-burger" id="navBurger" onclick="toggleNav()" aria-label="Menu">
+    <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M2 4.5h14M2 9h14M2 13.5h14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+  </button>
+  <div class="nav-links" id="navLinks">
     <a href="index.html">← App</a>
     <a href="developer.html">Developer Dashboard</a>
     <a href="#request" class="btn-nav">Get API Key</a>
   </div>
 </nav>
+<script>
+function toggleNav(){document.getElementById('navLinks').classList.toggle('open');}
+document.querySelectorAll('#navLinks a').forEach(function(a){a.addEventListener('click',function(){document.getElementById('navLinks').classList.remove('open');});});
+</script>
 
 <!-- HERO -->
 <div class="container">
@@ -554,6 +639,7 @@
         Request Free API Key
       </a>
       <a href="#endpoints" class="btn btn-ghost">View Endpoints</a>
+      <a href="developer.html" class="btn btn-ghost" style="border-color:var(--green);color:var(--green)">Open Developer Dashboard</a>
     </div>
   </div>
 
