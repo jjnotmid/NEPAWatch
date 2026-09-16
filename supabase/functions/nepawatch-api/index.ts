@@ -108,12 +108,12 @@ Deno.serve(async (req) => {
   const apiKey = req.headers.get('X-API-Key')
   if (!apiKey) {
     return fail('MISSING_API_KEY',
-      'Missing X-API-Key header. Get a free key at nepawatch.app/api.html', 401)
+      'Missing X-API-Key header. Get a free key at nepawatch.app/developer.html', 401)
   }
 
   const { data: k, error: kErr } = await supabase
     .from('api_keys')
-    .select('id, status, tier, requests_today, total_requests, last_reset_date')
+    .select('id, status, tier, daily_limit, requests_today, total_requests, last_reset_date')
     .eq('key', apiKey)
     .maybeSingle()
 
@@ -124,7 +124,10 @@ Deno.serve(async (req) => {
 
   const today = new Date().toISOString().split('T')[0]
   const requestsToday = k.last_reset_date !== today ? 0 : (k.requests_today ?? 0)
-  const dailyLimit = k.tier === 'pro' ? 10000 : 100
+  const TIER_FALLBACK: Record<string, number> = {
+  free: 100, starter: 1000, pro: 10000, scale: 50000, business: 200000,
+};
+const dailyLimit = k.daily_limit ?? TIER_FALLBACK[k.tier ?? 'free'] ?? 100
   const resetAt = today + 'T23:59:59Z'
 
   /* Standard rate-limit headers on every response, not just on 429, so
@@ -146,7 +149,7 @@ Deno.serve(async (req) => {
       daily_limit: dailyLimit,
       requests_today: requestsToday,
       resets_at: resetAt,
-      upgrade: 'https://nepawatch.app/api.html#pro-request',
+      upgrade: 'https://nepawatch.app/developer.html',
     }, 429, { ...rateHeaders(0), 'Retry-After': String(secondsToMidnight) })
   }
 

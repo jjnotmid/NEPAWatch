@@ -742,7 +742,7 @@ console.log(data); <span class="hl-comment">// Array of outage reports</span></p
             <tr>
               <td>state</td>
               <td><span class="param-type">string</span></td>
-              <td>Filter by state name (partial match). E.g. <code style="font-size:.75rem;color:var(--ink3)">Lagos</code></td>
+              <td>State name — case-insensitive and punctuation-insensitive. <code style="font-size:.75rem;color:var(--ink3)">lagos</code>, <code style="font-size:.75rem;color:var(--ink3)">Cross River</code> and <code style="font-size:.75rem;color:var(--ink3)">abuja</code> (maps to FCT) all work. Unknown states return <code style="font-size:.75rem;color:var(--ink3)">UNKNOWN_STATE</code> with a valid-states list.</td>
             </tr>
             <tr>
               <td>lga</td>
@@ -841,6 +841,7 @@ console.log(data); <span class="hl-comment">// Array of outage reports</span></p
           <tbody>
             <tr><td>401</td><td><code style="font-family:monospace;font-size:.75rem;color:var(--am)">MISSING_API_KEY</code></td><td>No <code style="font-family:monospace;font-size:.75rem">X-API-Key</code> header was sent</td></tr>
             <tr><td>403</td><td><code style="font-family:monospace;font-size:.75rem;color:var(--am)">INVALID_API_KEY</code></td><td>Key not recognised</td></tr>
+            <tr><td>403</td><td><code style="font-family:monospace;font-size:.75rem;color:var(--am)">KEY_PENDING</code></td><td>Key exists but payment is still being confirmed — completes in seconds</td></tr>
             <tr><td>403</td><td><code style="font-family:monospace;font-size:.75rem;color:var(--am)">KEY_REVOKED</code></td><td>Key was revoked</td></tr>
             <tr><td>400</td><td><code style="font-family:monospace;font-size:.75rem;color:var(--am)">UNKNOWN_STATE</code></td><td>State not recognised. The response lists every valid state in <code style="font-family:monospace;font-size:.75rem">valid_states</code>.</td></tr>
             <tr><td>400</td><td><code style="font-family:monospace;font-size:.75rem;color:var(--am)">INVALID_TYPE</code></td><td>type must be <code style="font-family:monospace;font-size:.75rem">out</code> or <code style="font-family:monospace;font-size:.75rem">bck</code></td></tr>
