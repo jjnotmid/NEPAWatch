@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Developer Dashboard — NEPAWatch API</title>
+<meta name="description" content="Manage your NEPAWatch API keys, monitor usage, and handle your plan — all in one place.">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#AAFF00">
+<link rel="icon" type="image/jpeg" href="/logo.jpg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@700;900&family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+:root{--bg:#0A0D0B;--sf:#111815;--sf2:#17201A;--bd:#1F2D23;--bd2:#283622;--ink:#ECF2EE;--ink2:#9AB8A2;--ink3:#4A6652;--p:#AAFF00;--pd:#88DD00;--pp:rgba(170,255,0,.07);--pb:rgba(170,255,0,.18);--am:#FFB800;--rd:#FF4055;--r:16px;--fd:'Bricolage Grotesque',sans-serif;--fb:'DM Sans',sans-serif}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--ink);font-family:var(--fb);min-height:100vh}
+header{position:sticky;top:0;z-index:20;background:rgba(10,13,11,.9);backdrop-filter:blur(10px);border-bottom:1px solid var(--bd)}
+.h-in{max-width:760px;margin:0 auto;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;gap:10px}
+.logo{display:flex;align-items:center;gap:10px;text-decoration:none;color:var(--ink)}
+.logo-icon{width:28px;height:28px;border-radius:8px;overflow:hidden;border:1px solid rgba(255,255,255,.12);flex-shrink:0}
+.logo-icon img{width:100%;height:100%;object-fit:cover;display:block}
+.logo-txt{font-family:var(--fd);font-weight:900;font-size:1rem}
+.logo-txt em{font-style:normal;color:var(--p)}
+.hdr-r{display:flex;align-items:center;gap:8px}
+.ico-btn{background:none;border:1px solid var(--bd);color:var(--ink2);width:32px;height:32px;border-radius:10px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+main{max-width:760px;margin:0 auto;padding:24px 16px 60px}
+h1{font-family:var(--fd);font-weight:900;font-size:1.4rem;letter-spacing:-.02em}
+.sub{color:var(--ink2);font-size:.82rem;margin-top:4px}
+.card{background:var(--sf);border:1px solid var(--bd);border-radius:var(--r);padding:16px;margin-top:16px}
+.card-hd{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;gap:10px}
+.card-title{font-weight:800;font-size:.9rem}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px}
+.stat{background:var(--sf);border:1px solid var(--bd);border-radius:14px;padding:14px}
+.stat-n{font-family:var(--fd);font-weight:900;font-size:1.3rem}
+.stat-l{font-size:.62rem;color:var(--ink3);text-transform:uppercase;letter-spacing:.08em;margin-top:3px}
+.btn{background:var(--p);color:#0A0D0B;border:none;border-radius:10px;padding:10px 16px;font-weight:800;font-size:.8rem;cursor:pointer;font-family:var(--fb)}
+.btn.ghost{background:transparent;border:1.5px solid var(--bd);color:var(--ink2)}
+.btn.danger{background:transparent;border:1.5px solid rgba(255,64,85,.35);color:var(--rd)}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.fld{margin-top:12px}
+.fld label{font-size:.7rem;font-weight:700;color:var(--ink2);display:block;margin-bottom:6px}
+.fld input{width:100%;background:var(--bg);border:1.5px solid var(--bd);border-radius:10px;padding:12px;color:var(--ink);font-size:.9rem;font-family:var(--fb)}
+.fld input:focus{border-color:var(--p);outline:none}
+.key-row{background:var(--sf2);border:1px solid var(--bd);border-radius:12px;padding:13px;margin-bottom:10px}
+.key-top{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+.key-name{font-weight:800;font-size:.82rem}
+.badge{font-size:.6rem;font-weight:700;padding:3px 9px;border-radius:100px}
+.b-active{background:rgba(170,255,0,.12);color:var(--p)}
+.b-pending{background:rgba(255,184,0,.12);color:var(--am)}
+.b-revoked{background:rgba(255,64,85,.12);color:var(--rd)}
+.key-val{font-family:monospace;font-size:.76rem;color:var(--ink2);margin-top:8px;word-break:break-all}
+.key-meta{font-size:.68rem;color:var(--ink3);margin-top:6px;display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.bar{height:6px;background:var(--bg);border-radius:3px;overflow:hidden;margin-top:8px}
+.bar-fill{height:100%;background:var(--p);border-radius:3px}
+.key-acts{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+.mini{background:var(--bg);border:1px solid var(--bd);color:var(--ink2);border-radius:8px;padding:5px 10px;font-size:.66rem;font-weight:700;cursor:pointer;font-family:var(--fb)}
+.plan-grid{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:center}
+.toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--sf);border:1px solid var(--p);color:var(--ink);padding:11px 18px;border-radius:12px;font-size:.8rem;z-index:99;transition:transform .25s;max-width:90vw}
+.toast.show{transform:translateX(-50%) translateY(0)}
+.toast.err{border-color:var(--rd)}
+#authScreen{max-width:400px;margin:60px auto;padding:0 16px}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="h-in">
+    <a class="logo" href="/index.html">
+      <div class="logo-icon"><img src="logo.jpg" alt="NEPAWatch"></div>
+      <span class="logo-txt">NEPA<em>Watch</em></span>
+    </a>
+    <div class="hdr-r">
+      <span style="font-size:.7rem;color:var(--ink3)">Developer Dashboard</span>
+      <button class="ico-btn" id="logoutBtn" style="display:none" onclick="doLogout()" title="Sign out">
+        <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M6 2H3.5A1.5 1.5 0 0 0 2 3.5v9A1.5 1.5 0 0 0 3.5 14H6M11 5l3 3-3 3M14 8H6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+    </div>
+  </div>
+</header>
+
+<main>
+  <!-- AUTH -->
+  <div id="authScreen">
+    <h1>Developer Dashboard</h1>
+    <p class="sub">Sign in to manage your API keys, usage and plan.</p>
+    <div class="card">
+      <div class="fld" style="margin-top:0"><label>Email</label><input type="email" id="aEmail" placeholder="you@example.com"></div>
+      <div class="fld"><label>Password</label><input type="password" id="aPass" placeholder="••••••••"></div>
+      <div style="display:flex;gap:8px;margin-top:14px">
+        <button class="btn" id="signInBtn" onclick="doSignIn()">Sign In</button>
+        <button class="btn ghost" onclick="doSignUp()">Create Account</button>
+      </div>
+      <div style="font-size:.7rem;color:var(--ink3);margin-top:10px" id="authMsg">Use the same email/password as your NEPAWatch account.</div>
+    </div>
+  </div>
+
+  <!-- DASHBOARD -->
+  <div id="dashScreen" style="display:none">
+    <h1>Developer Dashboard</h1>
+    <p class="sub" id="dashEmail">—</p>
+
+    <div class="stats" style="margin-top:14px">
+      <div class="stat"><div class="stat-n" id="stKeys">0</div><div class="stat-l">API Keys</div></div>
+      <div class="stat"><div class="stat-n" id="stToday">0</div><div class="stat-l">Requests Today</div></div>
+      <div class="stat"><div class="stat-n" id="stAll">0</div><div class="stat-l">Requests All Time</div></div>
+    </div>
+
+    <div class="card">
+      <div class="card-hd"><div class="card-title">Plan &amp; Billing</div></div>
+      <div id="planBox"><span class="spinner" style="color:var(--ink3);font-size:.75rem">Loading…</span></div>
+    </div>
+
+    <div class="card">
+      <div class="card-hd">
+        <div class="card-title">API Keys</div>
+        <button class="btn" onclick="showCreate()">+ Create Key</button>
+      </div>
+      <div id="createBox" style="display:none;margin-bottom:12px">
+        <div class="fld" style="margin-top:0"><label>Key name (for your reference)</label><input type="text" id="newKeyName" placeholder="e.g. My backend server"></div>
+        <div style="display:flex;gap:8px;margin-top:10px">
+          <button class="btn" onclick="doCreateKey()">Create Free Key</button>
+          <button class="btn ghost" onclick="showCreate(true)">Cancel</button>
+        </div>
+      </div>
+      <div id="keysList"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-hd"><div class="card-title">Link an existing key</div></div>
+      <p style="font-size:.72rem;color:var(--ink3);line-height:1.6">Got a key from before (free or Pro)? Paste it here to attach it to your account so it shows in this dashboard.</p>
+      <div class="fld"><label>Your API key</label><input type="text" id="claimKeyIn" placeholder="nw_… or legacy hex key"></div>
+      <div style="margin-top:10px"><button class="btn ghost" onclick="doClaim()">Link Key</button></div>
+    </div>
+  </div>
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const SUPA_URL  = 'https://djurokbkkqrmpafcxlez.supabase.co';
+const BACKEND   = `${SUPA_URL}/functions/v1/developer-portal`;
+const SUPA_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRqdXJva2Jra3FybXBhZmN4bGV6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI1NzE5OTUsImV4cCI6MjA4ODE0Nzk5NX0.ZLOtWFB7qy_J0mitjb_pcZ88wxmRjMe-3OdbQCRL8xE';
+const sb = supabase.createClient(SUPA_URL, SUPA_ANON);
+
+let _session = null;
+
+function toast(msg, type='ok'){const t=document.getElementById('toast');t.textContent=msg;t.className=`toast ${type} show`;setTimeout(()=>t.classList.remove('show'),4000);}
+async function api(action, extra={}){
+  const res = await fetch(BACKEND, {method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${_session.access_token}`},body:JSON.stringify({action,...extra})});
+  return res.json();
+}
+const nf = x => Number(x||0).toLocaleString();
+
+async function boot(){
+  const {data:{session}} = await sb.auth.getSession();
+  if(session){ _session=session; showDash(); } else { showAuth(); }
+}
+function showAuth(){ document.getElementById('authScreen').style.display='block'; document.getElementById('dashScreen').style.display='none'; document.getElementById('logoutBtn').style.display='none'; }
+function showDash(){
+  document.getElementById('authScreen').style.display='none';
+  document.getElementById('dashScreen').style.display='block';
+  document.getElementById('logoutBtn').style.display='flex';
+  document.getElementById('dashEmail').textContent = _session.user?.email||'';
+  loadAll();
+}
+async function doSignIn(){
+  const email=document.getElementById('aEmail').value.trim(), pass=document.getElementById('aPass').value;
+  const msg=document.getElementById('authMsg');
+  if(!email||!pass){msg.textContent='Enter your email and password.';return;}
+  const {data,error}=await sb.auth.signInWithPassword({email,password:pass});
+  if(error){msg.textContent=error.message;return;}
+  _session=data.session; showDash();
+}
+async function doSignUp(){
+  const email=document.getElementById('aEmail').value.trim(), pass=document.getElementById('aPass').value;
+  const msg=document.getElementById('authMsg');
+  if(!email||!pass){msg.textContent='Enter your email and password.';return;}
+  const {data,error}=await sb.auth.signUp({email,password:pass});
+  if(error){msg.textContent=error.message;return;}
+  if(data.session){_session=data.session;showDash();}
+  else msg.textContent='Check your email to confirm your account, then sign in.';
+}
+async function doLogout(){ await sb.auth.signOut(); _session=null; showAuth(); }
+
+async function loadAll(){
+  const d = await api('me');
+  if(!d.success){ toast(d.error||'Could not load','err'); return; }
+  document.getElementById('stKeys').textContent = d.totals.keys;
+  document.getElementById('stToday').textContent = nf(d.totals.requestsToday);
+  document.getElementById('stAll').textContent = nf(d.totals.requestsAll);
+  renderPlan(d.keys);
+  renderKeys(d.keys);
+}
+
+function renderPlan(keys){
+  const box=document.getElementById('planBox');
+  const sub = (keys||[]).map(k=>k.subscription).find(s=>s&&(s.status==='active'||s.status==='past_due'||s.status==='pending'));
+  const sub2 = (keys||[]).map(k=>k.subscription).find(s=>s&&s.status==='cancelled');
+  if(sub){
+    const tier=String(sub.tier||'pro');
+    const label={'starter':'Starter','pro':'Pro','scale':'Scale','business':'Business'}[tier]||tier;
+    const renew=sub.renews_at?new Date(sub.renews_at).toLocaleDateString('en-NG',{day:'numeric',month:'short',year:'numeric'}):'—';
+    const statusTxt = sub.status==='active' ? 'Active' : sub.status==='past_due' ? `Payment overdue — grace until ${sub.grace_ends_at?new Date(sub.grace_ends_at).toLocaleDateString('en-NG',{day:'numeric',month:'short'}):'—'}` : 'Processing';
+    const col = sub.status==='active'?'var(--p)':sub.status==='past_due'?'var(--am)':'var(--ink2)';
+    box.innerHTML=`<div class="plan-grid">
+      <div>
+        <div style="font-weight:800;font-size:.95rem">${label} · ₦${nf(sub.price)}/month</div>
+        <div style="font-size:.72rem;color:${col};margin-top:3px">${statusTxt}${sub.status==='active'?` · renews ${renew}`:''}</div>
+      </div>
+      <a href="/api.html#pro-request" class="btn ghost" style="text-decoration:none">${sub.status==='active'?'Change plan':'Complete payment'}</a>
+    </div>`;
+  } else if(sub2){
+    box.innerHTML=`<div class="plan-grid"><div><div style="font-weight:800;font-size:.95rem">Free</div><div style="font-size:.72rem;color:var(--ink3);margin-top:3px">100 requests/day · previous subscription cancelled</div></div><a href="/api.html#pro-request" class="btn" style="text-decoration:none">Upgrade</a></div>`;
+  } else {
+    box.innerHTML=`<div class="plan-grid"><div><div style="font-weight:800;font-size:.95rem">Free</div><div style="font-size:.72rem;color:var(--ink3);margin-top:3px">100 requests/day</div></div><a href="/api.html#pro-request" class="btn" style="text-decoration:none">Upgrade</a></div>`;
+  }
+}
+
+function renderKeys(keys){
+  const el=document.getElementById('keysList');
+  if(!keys.length){el.innerHTML='<div style="font-size:.78rem;color:var(--ink3);text-align:center;padding:18px">No keys yet — create one or link an existing key below.</div>';return;}
+  el.innerHTML=keys.map(k=>{
+    const limit=Number(k.daily_limit||100);
+    const pct=Math.min(100,Math.round(Number(k.requests_today||0)/limit*100));
+    const st=k.status==='active'?'b-active':k.status==='pending'?'b-pending':'b-revoked';
+    return `<div class="key-row">
+      <div class="key-top">
+        <span class="key-name">${(k.name||'Key').replace(/[<>&]/g,'')}</span>
+        <span class="badge ${st}">${k.status}</span>
+      </div>
+      <div class="key-val">${k.key}</div>
+      <div class="key-meta">
+        <span>${nf(k.requests_today)} / ${nf(limit)} req today</span>
+        <span>${nf(k.total_requests)} all time</span>
+        <span>${k.tier} tier</span>
+        <span>${k.created_at?new Date(k.created_at).toLocaleDateString('en-NG',{day:'numeric',month:'short'}):''}</span>
+      </div>
+      <div class="bar"><div class="bar-fill" style="width:${pct}%"></div></div>
+      <div class="key-acts">
+        <button class="mini" onclick="copyKey('${k.key}')">Copy</button>
+        ${k.status!=='revoked'?`<button class="mini" style="border-color:rgba(255,64,85,.35);color:var(--rd)" onclick="doRevoke('${k.id}')">Revoke</button>`:''}
+      </div>
+    </div>`;
+  }).join('');
+}
+function copyKey(k){navigator.clipboard.writeText(k).then(()=>toast('Key copied','ok'));}
+
+function showCreate(forceClose){
+  const el=document.getElementById('createBox');
+  el.style.display = (el.style.display==='none'||forceClose)?'block':'none';
+}
+async function doCreateKey(){
+  const name=document.getElementById('newKeyName').value.trim();
+  const d=await api('create',{name});
+  if(!d.success){toast(d.error||'Could not create','err');return;}
+  document.getElementById('newKeyName').value='';
+  showCreate();
+  toast('Key created — copy it below','ok');
+  loadAll();
+}
+async function doClaim(){
+  const key=document.getElementById('claimKeyIn').value.trim();
+  if(!key){toast('Paste your key first','err');return;}
+  const d=await api('claim',{key});
+  if(!d.success){toast(d.error||'Could not link key','err');return;}
+  toast(d.alreadyYours?'Already linked to you':'Key linked to your account','ok');
+  document.getElementById('claimKeyIn').value='';
+  loadAll();
+}
+async function doRevoke(id){
+  if(!confirm('Revoke this key? Apps using it will stop working.'))return;
+  const d=await api('revoke',{id});
+  if(!d.success){toast(d.error||'Could not revoke','err');return;}
+  toast('Key revoked','ok');
+  loadAll();
+}
+
+window.addEventListener('load', boot);
+</script>
+</body>
+</html>

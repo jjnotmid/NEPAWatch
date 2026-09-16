@@ -130,7 +130,7 @@
   ],
   "rewrites": [
     {
-      "source": "/((?!logo|styles|app|predict|robots|sitemap|favicon|sw|topup|api|accuracy|privacy|terms|contact|ops).*)",
+      "source": "/((?!logo|styles|app|predict|robots|sitemap|favicon|sw|topup|api|accuracy|privacy|terms|contact|ops|developer).*)",
       "destination": "/index.html"
     }
   ]
