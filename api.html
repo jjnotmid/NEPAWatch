@@ -619,7 +619,7 @@
   <div class="nav-links" id="navLinks">
     <a href="index.html">← App</a>
     <a href="developer.html">Developer Dashboard</a>
-    <a href="#request" class="btn-nav">Get API Key</a>
+    <a href="developer.html" class="btn-nav">Get API Key</a>
   </div>
 </nav>
 <script>
@@ -634,9 +634,9 @@ document.querySelectorAll('#navLinks a').forEach(function(a){a.addEventListener(
     <h1>Nigerian Electricity<br><span>Data API</span></h1>
     <p>Build on real-time power outage and restoration data from <strong style="color:var(--ink)" id="heroUserCount">our reporter network</strong> across all 36 states and the FCT. Filter by state, LGA, area, or event type.</p>
     <div class="hero-actions">
-      <a href="#request" class="btn btn-primary">
+      <a href="developer.html" class="btn btn-primary">
         <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="1" y="4.5" width="12" height="7" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M4.5 4.5V3.5a2.5 2.5 0 0 1 5 0v1" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><circle cx="7" cy="8" r="1.2" fill="currentColor"/></svg>
-        Request Free API Key
+        Get Your API Key
       </a>
       <a href="#endpoints" class="btn btn-ghost">View Endpoints</a>
       <a href="developer.html" class="btn btn-ghost" style="border-color:var(--green);color:var(--green)">Open Developer Dashboard</a>
@@ -906,7 +906,7 @@ X-RateLimit-Reset: 2026-08-05T23:59:59Z</pre></div></div>
               </td>
               <td>10,000 requests/day</td>
               <td>Resets at midnight UTC</td>
-              <td class="rate-price">₦5,000/mo &nbsp;<a href="#pro-request" style="color:var(--green);font-size:.75rem;font-weight:600">Request access →</a></td>
+              <td class="rate-price">₦5,000/mo &nbsp;<a href="developer.html" style="color:var(--green);font-size:.75rem;font-weight:600">Sign in to upgrade →</a></td>
             </tr>
           </tbody>
         </table>
@@ -917,126 +917,29 @@ X-RateLimit-Reset: 2026-08-05T23:59:59Z</pre></div></div>
   </div>
 
   <!-- REQUEST KEY FORM -->
-  <div class="section" id="request">
-    <div class="section-label">Get Access</div>
-    <h2>Get your free API key instantly</h2>
-    <p>No approval needed — your key is generated the moment you submit. Keep it safe; it won't be shown again.</p>
-
-    <div class="form-card">
-      <form id="apiKeyForm" onsubmit="submitRequest(event)">
-        <div class="form-grid">
-          <div class="fld">
-            <label for="devName">Developer Name *</label>
-            <input type="text" id="devName" name="developer_name" placeholder="Your full name" required>
-          </div>
-          <div class="fld">
-            <label for="devEmail">Email Address *</label>
-            <input type="email" id="devEmail" name="email" placeholder="you@example.com" required>
-          </div>
-          <div class="fld">
-            <label for="appName">App / Project Name</label>
-            <input type="text" id="appName" name="app_name" placeholder="e.g. PowerAlert Nigeria">
-          </div>
-          <div class="fld span2">
-            <label for="useCase">Use Case</label>
-            <textarea id="useCase" name="use_case" placeholder="Describe what you're building and how you'll use the data…"></textarea>
-          </div>
-        </div>
-        <div class="form-submit">
-          <button type="submit" class="btn btn-primary" id="submitBtn">
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M1.5 7h11M8 3l4.5 4L8 11" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            Generate API Key
-          </button>
-          <div id="formMsg" class="form-msg"></div>
-        </div>
-      </form>
-
-      <!-- shown immediately after key is created -->
-      <div class="key-success" id="keySuccess">
-        <div class="key-success-title">Your API key is ready</div>
-        <div class="key-success-sub">Copy it now — this is the only time it will be displayed.</div>
-        <div class="key-display-row">
-          <span class="key-value" id="keyValue"></span>
-          <button class="btn-copy" id="copyBtn" onclick="copyKey()">Copy</button>
-        </div>
-        <div class="key-warn">
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style="flex-shrink:0;margin-top:1px"><path d="M7 1.5L13 12.5H1L7 1.5Z" stroke="#F5A623" stroke-width="1.3" stroke-linejoin="round"/><path d="M7 5.5v3" stroke="#F5A623" stroke-width="1.3" stroke-linecap="round"/><circle cx="7" cy="10" r=".7" fill="#F5A623"/></svg>
-          Store this key securely (e.g. in an env var). Do not commit it to source control. If lost, request a new key.
-        </div>
-        <div class="key-next-steps">
-          <a href="#quickstart" class="btn btn-secondary" style="font-size:.8rem;padding:8px 16px">View Quickstart</a>
-          <a href="#request" class="btn btn-secondary" style="font-size:.8rem;padding:8px 16px" onclick="resetForm()">Request another key</a>
-        </div>
+  <div class="section" id="get-started" style="text-align:center">
+    <div class="section-label">Get Started</div>
+    <h2>Keys live in your Developer Dashboard</h2>
+    <p style="margin:0 auto 22px">Sign in (or create an account), generate your free key instantly, pick a paid plan when you need more — everything in one place.</p>
+    <div style="display:flex;justify-content:center;gap:10px;flex-wrap:wrap;margin-bottom:26px">
+      <a href="developer.html" class="btn btn-primary">Open Developer Dashboard</a>
+      <a href="#quickstart" class="btn btn-ghost">See Quick Start</a>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;text-align:left">
+      <div class="card-mini" style="background:var(--sf);border:1px solid var(--bd);border-radius:14px;padding:16px">
+        <div style="font-weight:800;font-size:.85rem;margin-bottom:4px">Free</div>
+        <div style="font-size:.7rem;color:var(--ink3);line-height:1.6">100 requests/day — generate a key in seconds, no approval, no card.</div>
+      </div>
+      <div class="card-mini" style="background:var(--sf);border:1px solid var(--bd);border-radius:14px;padding:16px">
+        <div style="font-weight:800;font-size:.85rem;margin-bottom:4px">Paid plans</div>
+        <div style="font-size:.7rem;color:var(--ink3);line-height:1.6">Starter ₦1,000 · Pro ₦5,000 · Scale ₦15,000 · Business ₦30,000 per month — billed via Flutterwave, cancel anytime.</div>
+      </div>
+      <div class="card-mini" style="background:var(--sf);border:1px solid var(--bd);border-radius:14px;padding:16px">
+        <div style="font-weight:800;font-size:.85rem;margin-bottom:4px">Manage everything</div>
+        <div style="font-size:.7rem;color:var(--ink3);line-height:1.6">Keys, usage, billing and renewal dates — all in your dashboard. Old keys can be linked too.</div>
       </div>
     </div>
   </div>
-
-  <!-- PRO ACCESS REQUEST -->
-  <div class="section" id="pro-request">
-    <div class="section-label">Pro Access</div>
-    <h2>Need more than 100 requests a day?</h2>
-    <p>Pro gives you 10,000 requests/day at ₦5,000/month, billed monthly. Pay by card or transfer — your key is issued instantly after payment. Cancel anytime.</p>
-
-    <div class="form-card">
-      <form id="proForm" onsubmit="submitProRequest(event)">
-        <div class="form-grid">
-          <div class="fld">
-            <label for="proName">Full Name *</label>
-            <input type="text" id="proName" placeholder="Your full name" required>
-          </div>
-          <div class="fld">
-            <label for="proEmail">Email Address *</label>
-            <input type="email" id="proEmail" placeholder="you@company.com" required>
-          </div>
-          <div class="fld">
-            <label for="proCompany">Company / Project</label>
-            <input type="text" id="proCompany" placeholder="e.g. PowerAlert Nigeria">
-          </div>
-          <div class="fld">
-            <label for="proPhone">Phone / WhatsApp</label>
-            <input type="text" id="proPhone" placeholder="+234…">
-          </div>
-          <div class="fld span2">
-            <label for="proVolume">Expected monthly request volume</label>
-            <input type="text" id="proVolume" placeholder="e.g. ~200,000 requests/month">
-          </div>
-          <div class="fld span2">
-            <label for="proUseCase">What are you building? *</label>
-            <textarea id="proUseCase" placeholder="Describe your product and how you'll use NEPAWatch data…" required></textarea>
-          </div>
-        </div>
-        <div class="fld span2" style="margin-top:6px">
-          <label>Plan</label>
-          <div id="tierPicker" style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-            <div style="grid-column:1/-1;font-size:.72rem;color:var(--ink3)">Loading plans…</div>
-          </div>
-        </div>
-        <div class="form-submit">
-          <button type="submit" class="btn btn-primary" id="proSubmitBtn">
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M1.5 7h11M8 3l4.5 4L8 11" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            Pay ₦5,000/month
-          </button>
-          <div id="proMsg" class="form-msg"></div>
-        </div>
-      </form>
-
-      <div class="key-success" id="proSuccess">
-        <div class="key-success-title" id="proStatusTitle">Processing payment…</div>
-        <div class="key-success-sub" id="proStatusSub">Confirming your subscription — this takes a few seconds.</div>
-        <div id="proKeyWrap" style="display:none;margin:16px 0;text-align:left">
-          <div style="font-size:.68rem;letter-spacing:.08em;color:var(--ink3);margin-bottom:6px">YOUR PRO API KEY</div>
-          <div style="background:var(--bg,#0A0D0B);border:1px solid var(--bd,#1F2D23);border-radius:10px;padding:12px 14px;font-family:monospace;font-size:.85rem;word-break:break-all" id="proKeyOut"></div>
-          <div style="font-size:.7rem;color:var(--ink3);margin-top:8px">Use it in the X-API-Key header. <span id="proLimitOut">10,000</span> requests/day reset daily.</div>
-          <button type="button" id="proCopyBtn" onclick="copyProKey()" style="margin-top:10px;background:transparent;border:1px solid var(--bd,#1F2D23);color:var(--ink2);border-radius:8px;padding:8px 14px;font-size:.75rem;cursor:pointer;font-family:inherit">Copy Key</button>
-        </div>
-        <div class="key-next-steps" style="border-top:none;padding-top:0;margin-top:0">
-          <a href="#request" class="btn btn-secondary" style="font-size:.8rem;padding:8px 16px">Start on the free tier meanwhile</a>
-        </div>
-      </div>
-    </div>
-  </div>
-
-</div>
 
 <!-- FOOTER -->
 <footer>
@@ -1049,8 +952,7 @@ X-RateLimit-Reset: 2026-08-05T23:59:59Z</pre></div></div>
   const SUPA_URL  = 'https://djurokbkkqrmpafcxlez.supabase.co';
   const SUPA_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRqdXJva2Jra3FybXBhZmN4bGV6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI1NzE5OTUsImV4cCI6MjA4ODE0Nzk5NX0.ZLOtWFB7qy_J0mitjb_pcZ88wxmRjMe-3OdbQCRL8xE';
 
-  /* Live reporter count — HEAD request returns only a Content-Range header,
-     no row data, so this costs a few bytes of egress rather than a payload. */
+  /* Live reporter count — HEAD request, a few bytes of egress. */
   (async function loadUserCount() {
     try {
       const res = await fetch(`${SUPA_URL}/rest/v1/profiles?select=id`, {
@@ -1062,7 +964,7 @@ X-RateLimit-Reset: 2026-08-05T23:59:59Z</pre></div></div>
           'Range': '0-0'
         }
       });
-      const range = res.headers.get('content-range');   // e.g. "0-0/1523"
+      const range = res.headers.get('content-range');
       const total = range ? parseInt(range.split('/')[1], 10) : NaN;
       if (!isNaN(total) && total > 0) {
         const rounded = total >= 100 ? Math.floor(total / 100) * 100 : total;
@@ -1072,7 +974,7 @@ X-RateLimit-Reset: 2026-08-05T23:59:59Z</pre></div></div>
         if (stat) stat.textContent = display;
         if (hero) hero.textContent = display + ' active users';
       }
-    } catch (e) { /* leave placeholder text */ }
+    } catch (e) {}
   })();
 
   function switchTab(el, lang) {
@@ -1080,229 +982,6 @@ X-RateLimit-Reset: 2026-08-05T23:59:59Z</pre></div></div>
     el.classList.add('active');
     document.getElementById('code-curl').style.display = lang === 'curl' ? '' : 'none';
     document.getElementById('code-js').style.display   = lang === 'js'   ? '' : 'none';
-  }
-
-  function generateApiKey() {
-    const bytes = new Uint8Array(16);
-    crypto.getRandomValues(bytes);
-    const hex = Array.from(bytes).map(b => b.toString(16).padStart(2,'0')).join('');
-    return 'nw_live_' + hex;
-  }
-
-  async function submitRequest(e) {
-    e.preventDefault();
-    const btn = document.getElementById('submitBtn');
-    const msg = document.getElementById('formMsg');
-    msg.className = 'form-msg';
-    msg.textContent = '';
-
-    const devName = document.getElementById('devName').value.trim();
-    const email   = document.getElementById('devEmail').value.trim();
-    const appName = document.getElementById('appName').value.trim();
-    const useCase = document.getElementById('useCase').value.trim();
-
-    if (!devName || !email) {
-      msg.className = 'form-msg err';
-      msg.textContent = 'Please fill in your name and email.';
-      return;
-    }
-
-    btn.innerHTML = 'Generating…';
-    btn.disabled = true;
-
-    const apiKey = generateApiKey();
-
-    try {
-      const res = await fetch(`${SUPA_URL}/rest/v1/api_keys`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'apikey': SUPA_ANON,
-          'Authorization': `Bearer ${SUPA_ANON}`,
-          'Prefer': 'return=minimal'
-        },
-        body: JSON.stringify({
-          key: apiKey,
-          developer_name: devName,
-          email,
-          app_name: appName || null,
-          use_case: useCase || null,
-          status: 'active',
-          tier: 'free'
-        })
-      });
-
-      if (!res.ok) {
-        const errBody = await res.json().catch(() => ({}));
-        throw new Error(errBody.message || errBody.error || `HTTP ${res.status}`);
-      }
-
-      // Show the key immediately
-      document.getElementById('keyValue').textContent = apiKey;
-      document.getElementById('keySuccess').classList.add('show');
-      document.getElementById('apiKeyForm').style.display = 'none';
-
-    } catch (err) {
-      msg.className = 'form-msg err';
-      msg.textContent = 'Error: ' + err.message;
-      btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M1.5 7h11M8 3l4.5 4L8 11" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg> Generate API Key';
-      btn.disabled = false;
-    }
-  }
-
-  function copyKey() {
-    const key = document.getElementById('keyValue').textContent;
-    navigator.clipboard.writeText(key).then(() => {
-      const btn = document.getElementById('copyBtn');
-      btn.textContent = 'Copied!';
-      setTimeout(() => { btn.textContent = 'Copy'; }, 2000);
-    });
-  }
-
-  let _selectedTier = 'pro';
-
-  async function loadTiers() {
-    const el = document.getElementById('tierPicker');
-    try {
-      const res = await fetch(`${SUPA_URL}/functions/v1/api-billing`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'plans' }),
-      });
-      const d = await res.json();
-      if (!d.success || !d.tiers?.length) { el.innerHTML = '<div style="grid-column:1/-1;font-size:.72rem;color:var(--ink3)">Plans unavailable — refresh the page</div>'; return; }
-      el.innerHTML = d.tiers.map(t => `
-        <div class="tier-opt ${t.id === _selectedTier ? 'sel' : ''}" id="tier-${t.id}" onclick="selectTier('${t.id}')" style="cursor:pointer;border:1.5px solid ${t.id === _selectedTier ? 'var(--green,#79c0ff)' : 'var(--bd,#1F2D23)'};border-radius:10px;padding:10px;text-align:center">
-          <div style="font-weight:700;font-size:.8rem">${t.label}</div>
-          <div style="font-size:.72rem;color:var(--ink2)">₦${t.price.toLocaleString()}/mo</div>
-          <div style="font-size:.64rem;color:var(--ink3)">${t.dailyLimit.toLocaleString()} req/day</div>
-        </div>`).join('');
-      _tierData = d.tiers;
-    } catch (e) {
-      el.innerHTML = '<div style="grid-column:1/-1;font-size:.72rem;color:var(--ink3)">Plans unavailable — refresh the page</div>';
-    }
-  }
-  let _tierData = [];
-  function selectTier(id) {
-    _selectedTier = id;
-    _tierData.forEach(t => {
-      const el = document.getElementById('tier-' + t.id);
-      if (el) el.style.borderColor = t.id === id ? 'var(--green,#79c0ff)' : 'var(--bd,#1F2D23)';
-    });
-    const t = _tierData.find(x => x.id === id);
-    document.getElementById('proSubmitBtn').innerHTML = '<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M1.5 7h11M8 3l4.5 4L8 11" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg> Pay ₦' + ((t?.price||0)).toLocaleString() + '/month';
-  }
-  function copyProKey() {
-    const txt = document.getElementById('proKeyOut').textContent;
-    if (!txt || txt === '—') return;
-    navigator.clipboard.writeText(txt).then(() => {
-      const b = document.getElementById('proCopyBtn');
-      b.textContent = 'Copied'; setTimeout(() => { b.textContent = 'Copy Key'; }, 1500);
-    });
-  }
-
-  async function submitProRequest(e) {
-    e.preventDefault();
-    const btn = document.getElementById('proSubmitBtn');
-    const msg = document.getElementById('proMsg');
-    msg.className = 'form-msg';
-    msg.textContent = '';
-
-    const name    = document.getElementById('proName').value.trim();
-    const email   = document.getElementById('proEmail').value.trim();
-    const company = document.getElementById('proCompany').value.trim();
-    const phone   = document.getElementById('proPhone').value.trim();
-    const volume  = document.getElementById('proVolume').value.trim();
-    const useCase = document.getElementById('proUseCase').value.trim();
-
-    if (!name || !email || !useCase) {
-      msg.className = 'form-msg err';
-      msg.textContent = 'Please fill in your name, email, and what you’re building.';
-      return;
-    }
-
-    btn.innerHTML = 'Starting payment…';
-    btn.disabled = true;
-
-    const notes = [
-      company ? `Company: ${company}` : null,
-      phone   ? `Phone: ${phone}`     : null,
-      volume  ? `Volume: ${volume}`   : null,
-    ].filter(Boolean).join(' | ');
-
-    try {
-      const res = await fetch(`${SUPA_URL}/functions/v1/api-billing`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'initiate',
-          tier: _selectedTier,
-          developer_name: name,
-          email,
-          app_name: company || null,
-          use_case: `${useCase}${notes ? ' | ' + notes : ''}`,
-        }),
-      });
-      const d = await res.json();
-      if (!d.success || !d.checkoutUrl) throw new Error(d.error || 'Could not start payment');
-      window.location.href = d.checkoutUrl;
-    } catch (err) {
-      msg.className = 'form-msg err';
-      msg.textContent = 'Error: ' + err.message;
-      btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M1.5 7h11M8 3l4.5 4L8 11" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg> Pay ₦5,000/month';
-      btn.disabled = false;
-    }
-  }
-
-  /* After the FLW checkout redirects back with ?tx_ref=…, poll until the
-     webhook has activated the key (usually a few seconds). */
-  async function pollProStatus(txRef, attempt) {
-    attempt = attempt || 0;
-    try {
-      const res = await fetch(`${SUPA_URL}/functions/v1/api-billing`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'status', tx_ref: txRef }),
-      });
-      const d = await res.json();
-      if (d.success && d.keyStatus === 'active') {
-        document.getElementById('proForm').style.display = 'none';
-        document.getElementById('proStatusTitle').textContent = 'Subscription active';
-        document.getElementById('proStatusSub').textContent =
-          '₦5,000/month · renews ' + new Date(d.renewsAt).toLocaleDateString('en-NG', { day: 'numeric', month: 'short', year: 'numeric' });
-        document.getElementById('proKeyOut').textContent = d.key || '—';
-        document.getElementById('proLimitOut').textContent = (d.dailyLimit || 10000).toLocaleString();
-        document.getElementById('proKeyWrap').style.display = 'block';
-        document.getElementById('proSuccess').classList.add('show');
-        window.history.replaceState({}, '', window.location.pathname);
-        return;
-      }
-      if (d.success && d.status === 'past_due') {
-        document.getElementById('proForm').style.display = 'none';
-        document.getElementById('proStatusTitle').textContent = 'Payment incomplete';
-        document.getElementById('proStatusSub').textContent = 'Your payment did not complete — try again or contact support.';
-        document.getElementById('proSuccess').classList.add('show');
-        return;
-      }
-      if (attempt < 24) setTimeout(() => pollProStatus(txRef, attempt + 1), 2500);
-    } catch (e) {
-      if (attempt < 24) setTimeout(() => pollProStatus(txRef, attempt + 1), 2500);
-    }
-  }
-
-  (function () {
-    loadTiers();
-    const tx = new URLSearchParams(window.location.search).get('tx_ref');
-    if (tx) pollProStatus(tx, 0);
-  })();
-
-  function resetForm() {
-    document.getElementById('apiKeyForm').reset();
-    document.getElementById('apiKeyForm').style.display = '';
-    document.getElementById('keySuccess').classList.remove('show');
-    document.getElementById('keyValue').textContent = '';
-    const btn = document.getElementById('submitBtn');
-    btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M1.5 7h11M8 3l4.5 4L8 11" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg> Generate API Key';
-    btn.disabled = false;
   }
 </script>
 </body>

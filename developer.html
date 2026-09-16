@@ -110,7 +110,9 @@ h1{font-family:var(--fd);font-weight:900;font-size:1.4rem;letter-spacing:-.02em}
 
     <div class="card">
       <div class="card-hd"><div class="card-title">Plan &amp; Billing</div></div>
-      <div id="planBox"><span class="spinner" style="color:var(--ink3);font-size:.75rem">Loading…</span></div>
+      <div id="planBox"><span style="color:var(--ink3);font-size:.75rem">Loading…</span></div>
+      <div id="tierPicker" style="display:none;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-top:12px"></div>
+      <div id="upgradeMsg" style="display:none;font-size:.72rem;color:var(--ink3);margin-top:10px"></div>
     </div>
 
     <div class="card">
@@ -165,6 +167,8 @@ function showDash(){
   document.getElementById('logoutBtn').style.display='flex';
   document.getElementById('dashEmail').textContent = _session.user?.email||'';
   loadAll();
+  const tx=new URLSearchParams(window.location.search).get('tx_ref');
+  if(tx) pollUpgrade(tx,0);
 }
 async function doSignIn(){
   const email=document.getElementById('aEmail').value.trim(), pass=document.getElementById('aPass').value;
@@ -213,9 +217,9 @@ function renderPlan(keys){
       <a href="/api.html#pro-request" class="btn ghost" style="text-decoration:none">${sub.status==='active'?'Change plan':'Complete payment'}</a>
     </div>`;
   } else if(sub2){
-    box.innerHTML=`<div class="plan-grid"><div><div style="font-weight:800;font-size:.95rem">Free</div><div style="font-size:.72rem;color:var(--ink3);margin-top:3px">100 requests/day · previous subscription cancelled</div></div><a href="/api.html#pro-request" class="btn" style="text-decoration:none">Upgrade</a></div>`;
+    box.innerHTML=`<div class="plan-grid"><div><div style="font-weight:800;font-size:.95rem">Free</div><div style="font-size:.72rem;color:var(--ink3);margin-top:3px">100 requests/day · previous subscription cancelled</div></div><button class="btn" onclick="showUpgrade()">Upgrade</button></div>`;
   } else {
-    box.innerHTML=`<div class="plan-grid"><div><div style="font-weight:800;font-size:.95rem">Free</div><div style="font-size:.72rem;color:var(--ink3);margin-top:3px">100 requests/day</div></div><a href="/api.html#pro-request" class="btn" style="text-decoration:none">Upgrade</a></div>`;
+    box.innerHTML=`<div class="plan-grid"><div><div style="font-weight:800;font-size:.95rem">Free</div><div style="font-size:.72rem;color:var(--ink3);margin-top:3px">100 requests/day</div></div><button class="btn" onclick="showUpgrade()">Upgrade</button></div>`;
   }
 }
 
@@ -247,6 +251,63 @@ function renderKeys(keys){
   }).join('');
 }
 function copyKey(k){navigator.clipboard.writeText(k).then(()=>toast('Key copied','ok'));}
+
+/* ── Upgrade: pick a plan and pay ── */
+let _tiers=[], _pickedTier='pro';
+async function showUpgrade(){
+  const picker=document.getElementById('tierPicker');
+  if(!_tiers.length){
+    try{
+      const d=await apiBilling('plans');
+      if(!d.success||!d.tiers?.length){toast('Could not load plans','err');return;}
+      _tiers=d.tiers;
+      picker.innerHTML=_tiers.map(t=>`
+        <div onclick="pickTier('${t.id}')" id="pt-${t.id}" style="cursor:pointer;border:1.5px solid ${t.id===_pickedTier?'var(--p)':'var(--bd)'};border-radius:10px;padding:10px;text-align:center">
+          <div style="font-weight:800;font-size:.78rem">${t.label}</div>
+          <div style="font-size:.7rem;color:var(--ink2);margin-top:2px">₦${nf(t.price)}/mo</div>
+          <div style="font-size:.62rem;color:var(--ink3);margin-top:2px">${nf(t.dailyLimit)} req/day</div>
+        </div>`).join('');
+    }catch(e){toast('Could not load plans','err');return;}
+  }
+  picker.style.display='grid';
+  const msg=document.getElementById('upgradeMsg');
+  msg.style.display='block';
+  msg.innerHTML=`<button class="btn" style="margin-top:10px" id="payBtn" onclick="doUpgrade()">Pay ₦${nf((_tiers.find(t=>t.id===_pickedTier)||{price:5000}).price)}/month</button>`;
+}
+function pickTier(id){
+  _pickedTier=id;
+  _tiers.forEach(t=>{const el=document.getElementById('pt-'+t.id);if(el)el.style.borderColor=t.id===id?'var(--p)':'var(--bd)';});
+  const t=_tiers.find(x=>x.id===id);
+  document.getElementById('payBtn').textContent='Pay ₦'+nf(t?.price||5000)+'/month';
+}
+async function apiBilling(action, extra={}){
+  const res=await fetch(`${SUPA_URL}/functions/v1/api-billing`,{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${_session.access_token}`,...(_session?{Authorization:`Bearer ${_session.access_token}`}:{})},body:JSON.stringify({action,...extra})});
+  return res.json();
+}
+async function doUpgrade(){
+  const btn=document.getElementById('payBtn');
+  btn.disabled=true; btn.textContent='Starting payment…';
+  const email=_session.user?.email||'';
+  const d=await apiBilling('initiate',{tier:_pickedTier,developer_name:email,email,app_name:'',use_case:'Upgrade from developer dashboard'});
+  if(!d.success||!d.checkoutUrl){toast(d.error||'Could not start payment','err');btn.disabled=false;btn.textContent='Pay ₦'+nf((_tiers.find(t=>t.id===_pickedTier)||{price:5000}).price)+'/month';return;}
+  window.location.href=d.checkoutUrl;
+}
+
+/* After checkout returns with ?tx_ref=…, poll until the key activates */
+async function pollUpgrade(txRef, attempt){
+  attempt=attempt||0;
+  try{
+    const d=await apiBilling('status',{tx_ref:txRef});
+    if(d.success&&d.keyStatus==='active'){
+      window.history.replaceState({},'',window.location.pathname);
+      toast('Subscription active — your key is in the list','ok');
+      loadAll();
+      return;
+    }
+    if(d.success&&d.status==='past_due'){toast('Payment incomplete — try again','err');loadAll();return;}
+    if(attempt<24)setTimeout(()=>pollUpgrade(txRef,attempt+1),2500);
+  }catch(e){ if(attempt<24)setTimeout(()=>pollUpgrade(txRef,attempt+1),2500); }
+}
 
 function showCreate(forceClose){
   const el=document.getElementById('createBox');

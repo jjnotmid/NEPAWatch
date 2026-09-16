@@ -279,6 +279,18 @@ serve(async (req) => {
       try { planId = await ensurePlan(tierId); }
       catch (e) { return json({ success: false, error: (e as Error).message }); }
 
+      /* If the buyer is signed in (developer dashboard), link the pending
+         key to their account immediately — uid comes from the verified JWT,
+         never from the client payload. */
+      let ownerId: string | null = null;
+      try {
+        const token = (req.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, "");
+        if (token) {
+          const { data: { user } } = await adminClient().auth.getUser(token);
+          ownerId = user?.id ?? null;
+        }
+      } catch (_) {}
+
       const { data: keyRows, error: keyErr } = await adminClient()
         .from("api_keys").insert({
           developer_name: name,
@@ -287,6 +299,7 @@ serve(async (req) => {
           use_case:       `[${tierId.toUpperCase()}] ${useCase}`,
           status:         "pending",
           tier:           tierId,
+          ...(ownerId ? { user_id: ownerId } : {}),
         }).select("id");
       if (keyErr || !keyRows?.[0]) {
         return json({ success: false, error: keyErr?.message ?? "Could not create key" });
@@ -308,7 +321,7 @@ serve(async (req) => {
           tx_ref:       txRef,
           amount:       t.price,
           currency:     "NGN",
-          redirect_url: `${origin}/api.html`,
+          redirect_url: `${origin}/developer.html`,
           payment_plan: planId,
           customer:     { email, name },
           customizations: {
