@@ -34,6 +34,7 @@
   "potentialAction": {"@type": "SearchAction", "target": "https://nepawatch.app/?q={search_term_string}", "query-input": "required name=search_term_string"}
 }
 </script>
+<script>window.NEPAWATCH_MAINTENANCE = true;</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <meta name="google-adsense-account" content="ca-pub-6609646474162645">
 <!-- Google AdSense -->
@@ -313,8 +314,206 @@ body.lp-active #nepaBotBubble, body.lp-active #botWin, body.lp-active #botNotif 
 <style>/* Prevent iOS zoom on input focus */
 input,select,textarea{font-size:max(16px,1em)!important}
 </style>
+<style>
+/* Temporary app-wide maintenance notice. Keep this inline so it is available
+   before any cached application styles or scripts finish loading. */
+body.maintenance-active {
+  margin: 0;
+  min-height: 100svh;
+  overflow: hidden;
+  background: #07090a;
+}
+body.maintenance-active > *:not(#maintenanceOverlay):not(script):not(noscript):not(link):not(style) {
+  visibility: hidden !important;
+}
+#maintenanceOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483647;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  padding: 24px;
+  overflow-y: auto;
+  visibility: visible !important;
+  background:
+    radial-gradient(circle at 50% 5%, rgba(170,255,0,.13), transparent 34%),
+    radial-gradient(circle at 8% 92%, rgba(54,118,255,.09), transparent 30%),
+    #07090a;
+  color: #eef4ee;
+  font-family: 'DM Sans', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+}
+#maintenanceOverlay::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  opacity: .035;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.82' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+.maintenance-card {
+  position: relative;
+  width: min(100%, 510px);
+  box-sizing: border-box;
+  padding: clamp(28px, 6vw, 44px);
+  overflow: hidden;
+  text-align: center;
+  background: linear-gradient(155deg, rgba(18,25,21,.98), rgba(10,14,12,.98));
+  border: 1px solid rgba(255,255,255,.1);
+  border-radius: 28px;
+  box-shadow: 0 30px 100px rgba(0,0,0,.55), 0 0 0 1px rgba(170,255,0,.03) inset;
+}
+.maintenance-card::after {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(170,255,0,.65), transparent);
+}
+.maintenance-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 30px;
+  font-family: 'Bebas Neue', 'Bricolage Grotesque', sans-serif;
+  font-size: 1.45rem;
+  letter-spacing: .055em;
+}
+.maintenance-brand img {
+  width: 34px;
+  height: 34px;
+  object-fit: cover;
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: 9px;
+}
+.maintenance-brand em { color: #aaff00; font-style: normal; }
+.maintenance-visual {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 96px;
+  height: 96px;
+  margin: 0 auto 26px;
+}
+.maintenance-visual::before,
+.maintenance-visual::after {
+  content: '';
+  position: absolute;
+  border-radius: 50%;
+}
+.maintenance-visual::before {
+  inset: 0;
+  border: 1px solid rgba(170,255,0,.18);
+  box-shadow: 0 0 35px rgba(170,255,0,.09);
+  animation: maintenance-pulse 2.4s ease-in-out infinite;
+}
+.maintenance-visual::after {
+  inset: 12px;
+  background: rgba(170,255,0,.08);
+  border: 1px solid rgba(170,255,0,.2);
+}
+.maintenance-visual svg { position: relative; z-index: 1; color: #aaff00; }
+.maintenance-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+  padding: 7px 12px;
+  color: #c9ff5e;
+  background: rgba(170,255,0,.07);
+  border: 1px solid rgba(170,255,0,.16);
+  border-radius: 999px;
+  font-size: .67rem;
+  font-weight: 700;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+.maintenance-status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #aaff00;
+  box-shadow: 0 0 10px rgba(170,255,0,.8);
+  animation: maintenance-blink 1.7s ease-in-out infinite;
+}
+.maintenance-card h1 {
+  max-width: 400px;
+  margin: 0 auto 14px;
+  color: #f2f7f2;
+  font-family: 'Bricolage Grotesque', sans-serif;
+  font-size: clamp(1.85rem, 7vw, 2.65rem);
+  font-weight: 900;
+  letter-spacing: -.035em;
+  line-height: 1.06;
+}
+.maintenance-copy {
+  max-width: 410px;
+  margin: 0 auto;
+  color: rgba(238,244,238,.58);
+  font-size: clamp(.88rem, 3vw, .98rem);
+  line-height: 1.75;
+}
+.maintenance-reassurance {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin: 24px 0 0;
+  padding-top: 20px;
+  color: rgba(238,244,238,.4);
+  border-top: 1px solid rgba(255,255,255,.07);
+  font-size: .75rem;
+  line-height: 1.45;
+}
+.maintenance-reassurance svg { flex: 0 0 auto; color: #aaff00; opacity: .75; }
+.maintenance-footer {
+  margin-top: 18px;
+  color: rgba(238,244,238,.25);
+  font-size: .68rem;
+}
+@keyframes maintenance-pulse {
+  0%, 100% { transform: scale(1); opacity: .75; }
+  50% { transform: scale(1.07); opacity: 1; }
+}
+@keyframes maintenance-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: .35; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .maintenance-visual::before,
+  .maintenance-status-dot { animation: none; }
+}
+@media (max-width: 520px) {
+  #maintenanceOverlay { align-items: flex-end; padding: 14px; }
+  .maintenance-card { border-radius: 24px; }
+  .maintenance-brand { margin-bottom: 24px; }
+}
+</style>
 </head>
-<body class="pre-auth">
+<body class="pre-auth maintenance-active">
+
+<div id="maintenanceOverlay" role="dialog" aria-modal="true" aria-labelledby="maintenanceTitle" aria-describedby="maintenanceDescription">
+  <main class="maintenance-card">
+    <div class="maintenance-brand">
+      <img src="logo.jpg" alt="">
+      <span>NEPA<em>Watch</em></span>
+    </div>
+    <div class="maintenance-visual" aria-hidden="true">
+      <svg width="42" height="42" viewBox="0 0 42 42" fill="none">
+        <path d="M23.4 3.5L10.7 23.1h9.1l-1.2 15.4 12.7-20.1h-9.2l1.3-14.9Z" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round"/>
+      </svg>
+    </div>
+    <div class="maintenance-status"><span class="maintenance-status-dot"></span>Maintenance in progress</div>
+    <h1 id="maintenanceTitle">We’re making NEPAWatch better</h1>
+    <p class="maintenance-copy" id="maintenanceDescription">We’re currently carrying out maintenance and adding some exciting new features to make power updates, outage reports, and alerts faster and more reliable. The app will be back shortly.</p>
+    <p class="maintenance-reassurance">
+      <svg width="15" height="15" viewBox="0 0 15 15" fill="none" aria-hidden="true"><path d="M7.5 1.5 9 5l3.5.4-2.6 2.4.8 3.5-3.2-1.8-3.2 1.8.8-3.5L2.5 5.4 6 5l1.5-3.5Z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>
+      Your account and saved places are safe.
+    </p>
+    <p class="maintenance-footer">Thanks for your patience. Please check back soon.</p>
+  </main>
+</div>
 
 <!-- ═══════════════════════════════════════════════════════════
      LANDING PAGE
@@ -915,12 +1114,17 @@ input,select,textarea{font-size:max(16px,1em)!important}
 </div>
 
 <!-- Google Maps removed — using Leaflet -->
-<script src="predict.js"></script>
 <script src="nigeria_data.js"></script>
-<script src="app.js"></script>
-<script src="nepabot.js" onerror="console.warn('nepabot.js not found — chatbot disabled')"></script>
+<script>
+if (!window.NEPAWATCH_MAINTENANCE) {
+  document.write('<script src="predict.js"><\/script>');
+  document.write('<script src="app.js"><\/script>');
+  document.write('<script src="nepabot.js"><\/script>');
+}
+</script>
 
 <script>
+if (!window.NEPAWATCH_MAINTENANCE) {
 /* ═══════════════════════════════════════════════════════════
    LANDING PAGE LOGIC
    ════════════════════════════════════════════════════════════ */
@@ -1394,6 +1598,7 @@ function _silentRefresh() {
     const activePage = document.querySelector('.page.active')?.id;
     if (activePage === 'page-myarea' && typeof renderMyArea === 'function') renderMyArea();
   }).catch(() => {});
+}
 }
 </script>
 

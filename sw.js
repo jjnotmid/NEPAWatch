@@ -3,8 +3,8 @@
    To deploy: update version.json (one-line JSON file).
    SW version here only needs bumping when SW logic changes.
    ===================================================== */
-const VERSION = 'v2.6.0';
-const MAINTENANCE = false;  // flip to true to cut all Supabase traffic
+const VERSION = 'v2.6.1';
+const MAINTENANCE = true;  // flip to false when maintenance is complete
 const CACHE   = `nepawatch-${VERSION}`;
 
 const PRECACHE = [
