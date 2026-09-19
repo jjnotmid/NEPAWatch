@@ -414,29 +414,6 @@ body.maintenance-active > *:not(#maintenanceOverlay):not(script):not(noscript):n
   border: 1px solid rgba(170,255,0,.2);
 }
 .maintenance-visual svg { position: relative; z-index: 1; color: #aaff00; }
-.maintenance-status {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 16px;
-  padding: 7px 12px;
-  color: #c9ff5e;
-  background: rgba(170,255,0,.07);
-  border: 1px solid rgba(170,255,0,.16);
-  border-radius: 999px;
-  font-size: .67rem;
-  font-weight: 700;
-  letter-spacing: .12em;
-  text-transform: uppercase;
-}
-.maintenance-status-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: #aaff00;
-  box-shadow: 0 0 10px rgba(170,255,0,.8);
-  animation: maintenance-blink 1.7s ease-in-out infinite;
-}
 .maintenance-card h1 {
   max-width: 400px;
   margin: 0 auto 14px;
@@ -476,13 +453,8 @@ body.maintenance-active > *:not(#maintenanceOverlay):not(script):not(noscript):n
   0%, 100% { transform: scale(1); opacity: .75; }
   50% { transform: scale(1.07); opacity: 1; }
 }
-@keyframes maintenance-blink {
-  0%, 100% { opacity: 1; }
-  50% { opacity: .35; }
-}
 @media (prefers-reduced-motion: reduce) {
-  .maintenance-visual::before,
-  .maintenance-status-dot { animation: none; }
+  .maintenance-visual::before { animation: none; }
 }
 @media (max-width: 520px) {
   #maintenanceOverlay { align-items: flex-end; padding: 14px; }
@@ -504,7 +476,6 @@ body.maintenance-active > *:not(#maintenanceOverlay):not(script):not(noscript):n
         <path d="M23.4 3.5L10.7 23.1h9.1l-1.2 15.4 12.7-20.1h-9.2l1.3-14.9Z" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round"/>
       </svg>
     </div>
-    <div class="maintenance-status"><span class="maintenance-status-dot"></span>Maintenance in progress</div>
     <h1 id="maintenanceTitle">We’re making NEPAWatch better</h1>
     <p class="maintenance-copy" id="maintenanceDescription">We’re currently carrying out maintenance and adding some exciting new features to make power updates, outage reports, and alerts faster and more reliable. The app will be back shortly.</p>
     <p class="maintenance-reassurance">
