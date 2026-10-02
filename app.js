@@ -2295,6 +2295,8 @@ const AI_ALERT_COOLDOWN_MS=30*60*1000;
 let savedPlaces=[];
 let _placeSel=null,_placeType="home",_editPlaceId=null;
 let _userCount=0,_totalReportsCount=0,_nearbyAreas=[],_userLat=null,_userLng=null,_pollTimer=null;
+let _lastReportPollAt=null;
+let _lastReportReconcileAt=0;
 let _leafletMap=null,_leafletUserMarker=null,_leafletPowerMarkers=[];
 let userExactLat=null,userExactLng=null;
 
@@ -2652,6 +2654,10 @@ async function loadReports(){
     if(error) throw error;
     const mapRow=r=>({id:r.id,name:r.location_name,area:r.location_area,type:r.type,time:new Date(r.created_at).getTime(),confirms:r.confirms||1,userId:r.user_id,isAI:r.user_id===AI_USER_ID||(r.ai_prob!=null),aiProb:r.ai_prob||null,wrongVotes:r.wrong_votes||0,flagged:(r.wrong_votes||0)>=3});
     const dbReports=(data||[]).map(mapRow);
+    if(data?.length){
+      const newest=data[0].created_at;
+      if(!_lastReportPollAt||newest>_lastReportPollAt)_lastReportPollAt=newest;
+    }
     dbReports.sort((a,b)=>b.time-a.time);
     // Preserve: optimistic inserts (local-/ai- prefix) AND in-memory AI reports not in this DB batch
     const dbIds=new Set(dbReports.map(r=>String(r.id)));
@@ -2676,16 +2682,43 @@ async function loadReports(){
 }
 
 async function pollReports(){try{
+  if(document.visibilityState==='hidden')return;
+  if(!_lastReportPollAt){await loadReports();return;}
   const _mapRow=r=>({id:r.id,name:r.location_name,area:r.location_area,type:r.type,time:new Date(r.created_at).getTime(),confirms:r.confirms||1,userId:r.user_id,isAI:r.user_id===AI_USER_ID||(r.ai_prob!=null),aiProb:r.ai_prob||null,wrongVotes:r.wrong_votes||0,flagged:(r.wrong_votes||0)>=3});
-  let _pollRes=await sb.from("reports").select("id,user_id,location_name,location_area,type,confirms,created_at,ai_prob,wrong_votes").order("created_at",{ascending:false}).limit(1000);
-  if(_pollRes.error&&(_pollRes.error.code==='42703'||_pollRes.error.message?.includes('column'))){_pollRes=await sb.from("reports").select("id,user_id,location_name,location_area,type,confirms,created_at").order("created_at",{ascending:false}).limit(1000);}
-  const{data,error}=_pollRes;if(error||!data)return;const dbReports=data.map(_mapRow);const dbIds=new Set(dbReports.map(r=>String(r.id)));const pending=reports.filter(r=>{const sid=String(r.id);if(sid.startsWith("local-")||sid.startsWith("ai-"))return true;if((r.isAI||r.userId===AI_USER_ID)&&!dbIds.has(sid))return true;return false;});const newList=[...pending,...dbReports];const oldIds=reports.filter(r=>!String(r.id).startsWith("local-")&&!String(r.id).startsWith("ai-")).map(r=>r.id+r.confirms).join(",");const newIds=dbReports.map(r=>r.id+r.confirms).join(",");if(oldIds!==newIds){reports=newList;render();if(_nearbyAreas.length)renderNearbyDashboard();renderSavedPlacesHome();renderMyPlacesList();}}catch(e){}}
+  const reconcile=Date.now()-_lastReportReconcileAt>=10*60*1000;
+  let query=sb.from("reports").select("id,user_id,location_name,location_area,type,confirms,created_at,ai_prob,wrong_votes");
+  if(!reconcile)query=query.gte("created_at",_lastReportPollAt);
+  let _pollRes=await query.order("created_at",{ascending:!reconcile}).limit(100);
+  if(_pollRes.error&&(_pollRes.error.code==='42703'||_pollRes.error.message?.includes('column'))){
+    let fallback=sb.from("reports").select("id,user_id,location_name,location_area,type,confirms,created_at");
+    if(!reconcile)fallback=fallback.gte("created_at",_lastReportPollAt);
+    _pollRes=await fallback.order("created_at",{ascending:!reconcile}).limit(100);
+  }
+  const{data,error}=_pollRes;if(error||!data)return;
+  if(reconcile)_lastReportReconcileAt=Date.now();
+  if(!data.length)return;
+  // A full delta page may have more rows at the same timestamp. Refresh the
+  // bounded feed so advancing the cursor cannot hide the remaining reports.
+  if(!reconcile&&data.length===100){await loadReports();return;}
+  const newest=reconcile?data[0].created_at:data[data.length-1].created_at;
+  if(newest>_lastReportPollAt)_lastReportPollAt=newest;
+  const byId=new Map(reports.map(r=>[String(r.id),r]));
+  let changed=false;
+  for(const row of data){
+    const next=_mapRow(row),old=byId.get(String(next.id));
+    if(!old){byId.set(String(next.id),next);changed=true;}
+    else if(old.confirms!==next.confirms||old.wrongVotes!==next.wrongVotes){Object.assign(old,next);changed=true;}
+  }
+  if(!changed)return;
+  reports=[...byId.values()].sort((a,b)=>b.time-a.time).slice(0,2000);
+  render();if(_nearbyAreas.length)renderNearbyDashboard();renderSavedPlacesHome();renderMyPlacesList();
+}catch(e){}}
 
 function startPolling(){
   if(_pollTimer)clearInterval(_pollTimer);
-  _pollTimer=setInterval(pollReports,5000);
+  // Realtime handles live changes. This fetches only reports missed by the socket.
+  _pollTimer=setInterval(pollReports,60000);
   if(window._fullSyncTimer)clearInterval(window._fullSyncTimer);
-  window._fullSyncTimer=setInterval(()=>{loadReports().catch(()=>{});},60000);
 }
 
 async function pushReport(loc,type){
@@ -4398,8 +4431,7 @@ window.showAIFeedbackPopup = showAIFeedbackPopup;
 
 let _rtChannel=null,_recentAlerts=new Set(),_rtWatchdog=null;
 // ── Silent background auto-refresh (no visible spinner) ─────────────────
-// Feed updates automatically every 5s via pollReports() + realtime subscriptions.
-// No pull-to-refresh needed — data arrives the moment it changes.
+// Realtime delivers live changes; a small incremental poll recovers missed inserts.
 
 function startRealtime(){try{if(_rtChannel){try{sb.removeChannel(_rtChannel);}catch(e){}} _rtChannel=sb.channel("realtime-reports-"+Date.now()).on("postgres_changes",{event:"INSERT",schema:"public",table:"reports"},payload=>{try{const r=payload.new;if(!r||reports.find(x=>String(x.id)===String(r.id)))return;const newRep={id:String(r.id),name:String(r.location_name||""),area:String(r.location_area||""),type:String(r.type||""),time:new Date(r.created_at).getTime(),confirms:Number(r.confirms)||1,userId:r.user_id,isAI:r.user_id===AI_USER_ID||r.ai_prob!=null,aiProb:r.ai_prob||null,wrongVotes:r.wrong_votes||0,flagged:(r.wrong_votes||0)>=3};// Replace optimistic local/ai entry if it matches area+type within last 60s
 const matchIdx=reports.findIndex(x=>(String(x.id).startsWith('local-')||String(x.id).startsWith('ai-'))&&x.area===newRep.area&&x.type===newRep.type&&Math.abs(x.time-newRep.time)<60000);if(matchIdx!==-1){reports[matchIdx]=newRep;}else{reports.unshift(newRep);/* launch: keep up to 2000 reports in memory — don't trim today */if(reports.length>2000){reports.splice(2000,1);}}// Live-train AI history with every incoming report
