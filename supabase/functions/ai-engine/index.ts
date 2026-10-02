@@ -421,6 +421,23 @@ async function notifyArea(area: string, type: 'out' | 'bck') {
   } catch { /* non-fatal */ }
 }
 
+async function emailArea(area: string, type: 'out' | 'bck', reportId: string) {
+  try {
+    const subject = `${type === 'out' ? 'Power Outage' : 'Power Restored'} — ${area}, Nigeria · NEPAWatch AI`;
+    const body = `${type === 'out' ? 'Power outage' : 'Power restored'} near ${area}.\n\nSee live updates: https://nepawatch.app/`;
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/send-alert`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': REQ_AUTH || `Bearer ${SERVICE_KEY}` },
+      body: JSON.stringify({ mode: 'area_alert', area, repName: area, repType: type, subject, body,
+        html: `<p>${body.replace(/\n/g, '<br>')}</p>`, confirmRequest: true, isAI: true, reportId }),
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!res.ok) console.warn(`[ai-engine] Email alert failed for ${area}: HTTP ${res.status}`);
+  } catch (e) {
+    console.warn(`[ai-engine] Email alert failed for ${area}: ${String(e)}`);
+  }
+}
+
 /* ─── WEATHER FETCHER ────────────────────────────────────────────────────── */
 async function fetchWeather(areas: string[]): Promise<Map<string, { code: number | null; rain: number; wind: number }>> {
   const cache = new Map<string, { code: number | null; rain: number; wind: number }>();
@@ -561,6 +578,7 @@ Deno.serve(async (req) => {
   log(`Candidates ${outCandidates.length}/${results.length} — ${withHistory} areas have human history, top prob ${topProb.toFixed(2)}`);
 
   let outFired = 0, bootFired = 0;
+  const notifications: Promise<void>[] = [];
   for (const { area, prob, hasHistory } of outCandidates) {
     if (outFired >= AI_MAX_PER_SCAN) break;
     const isBoot = !hasHistory;
@@ -574,7 +592,7 @@ Deno.serve(async (req) => {
       state[area] = { ai_status: 'out', last_ai_out_at: now.toISOString(), last_ai_report_id: rid };
       await sb.from('ai_predictions').insert({ report_id: rid, area, disco: getAreaDisco(area), type: 'out', probability: parseFloat(prob.toFixed(4)) }).then(() => {}).catch(() => {});
       outFired++; if (isBoot) bootFired++;
-      notifyArea(area, 'out');
+      notifications.push(notifyArea(area, 'out'), emailArea(area, 'out', rid));
       log(`OUT ${area} @ ${Math.round(prob * 100)}%${isBoot ? ' [boot]' : ''}`);
     } else if (insErr) {
       /* Surfaced so a permissions/FK failure is visible in the run log
@@ -618,7 +636,7 @@ Deno.serve(async (req) => {
     if (!insErr && ins) {
       state[area] = { ...s, ai_status: 'bck', last_ai_report_id: String(ins.id) };
       bckFired++;
-      notifyArea(area, 'bck');
+      notifications.push(notifyArea(area, 'bck'), emailArea(area, 'bck', String(ins.id)));
       log(`BCK ${area} [${isStale ? 'stale' : 'prob'}]`);
     } else if (insErr) {
       log(`BCK insert FAILED for ${area}: ${insErr.message}`);
@@ -646,6 +664,8 @@ Deno.serve(async (req) => {
     });
     await sb.from('weather_log').insert(wxRows).then(() => {}).catch(() => {});
   }
+
+  await Promise.allSettled(notifications);
 
   return new Response(JSON.stringify({
     run_at:            now.toISOString(),

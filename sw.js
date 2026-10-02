@@ -3,7 +3,7 @@
    To deploy: update version.json (one-line JSON file).
    SW version here only needs bumping when SW logic changes.
    ===================================================== */
-const VERSION = 'v2.6.1';
+const VERSION = 'v2.6.2';
 const MAINTENANCE = true;  // flip to false when maintenance is complete
 const CACHE   = `nepawatch-${VERSION}`;
 
@@ -54,6 +54,13 @@ self.addEventListener('fetch', event => {
         headers: { 'Content-Type': 'application/json' }
       }))
     );
+    return;
+  }
+
+  // Public API responses already have short CDN TTLs. Never save one in the
+  // service worker cache, which would otherwise serve it indefinitely.
+  if (url.origin === self.location.origin && url.pathname.startsWith('/api/')) {
+    event.respondWith(fetch(request));
     return;
   }
 

@@ -41,9 +41,7 @@ async function loadModelStatus() {
   if (window.NW_MAINTENANCE) return;
   if (typeof SUPA_URL === 'undefined') return;
   try {
-    const res = await fetch(`${SUPA_URL}/functions/v1/model-status`, {
-      headers: { 'apikey': typeof SUPA_ANON !== 'undefined' ? SUPA_ANON : '' },
-    });
+    const res = await fetch('/api/public?type=status');
     if (res.ok) {
       _modelStatus = await res.json();
       if (typeof renderPredictPage === 'function') renderPredictPage();
@@ -69,8 +67,8 @@ async function _loadAccuracyFromSupabase() {
   if (window.NW_MAINTENANCE) return;
   if (typeof sb === 'undefined') return;
   try {
-    const { data, error } = await sb.from('ai_accuracy_weights').select('area, weight');
-    if (!error && data?.length) {
+    const data = await fetchPublicRows('weights');
+    if (data.length) {
       for (const row of data) _aiAreaAccuracy[row.area] = parseFloat(row.weight);
       try { localStorage.setItem(_AI_ACCURACY_KEY, JSON.stringify(_aiAreaAccuracy)); } catch(e2) {}
       console.log(`[NEPAWatch AI] Loaded ${data.length} accuracy weights from Supabase.`);
@@ -81,8 +79,8 @@ async function _loadNercBaselines() {
   if (window.NW_MAINTENANCE) return;
   if (typeof sb === 'undefined') return;
   try {
-    const { data, error } = await sb.from('nerc_baselines').select('disco, band, outage_prob, supply_hours');
-    if (!error && data?.length) {
+    const data = await fetchPublicRows('nerc');
+    if (data.length) {
       for (const row of data) {
         if (!DISCO_BAND_BASELINE[row.disco]) DISCO_BAND_BASELINE[row.disco] = {};
         if (!DISCO_BAND_SUPPLY_HOURS[row.disco]) DISCO_BAND_SUPPLY_HOURS[row.disco] = {};
@@ -789,9 +787,8 @@ async function loadAreaPredictions() {
        JSONB blob per area — across ~291 areas it dominated the payload and
        nothing in the browser consumed it (predictOutage computes locally).
        Dropping it takes this fetch from ~230 KB to ~15 KB per session.     */
-    const { data, error } = await sb.from('area_predictions')
-      .select('area, current_prob, ai_status, last_ai_out_at');
-    if (!error && data?.length) {
+    const data = await fetchPublicRows('predictions');
+    if (data.length) {
       _areaStatusCache = {};
       for (const row of data) _areaStatusCache[row.area] = row;
       console.log(`[NEPAWatch] Loaded ${data.length} server predictions from area_predictions.`);

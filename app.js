@@ -102,6 +102,20 @@ const sb = supabase.createClient(SUPA_URL, SUPA_ANON, {
   auth: { autoRefreshToken: true, persistSession: true, detectSessionInUrl: true }
 });
 
+async function fetchPublicRows(type){
+  const res=await fetch(`/api/public?type=${encodeURIComponent(type)}`,{signal:AbortSignal.timeout(8000)});
+  if(!res.ok)throw new Error(`Public data unavailable (${res.status})`);
+  const rows=await res.json();
+  if(!Array.isArray(rows))throw new Error('Invalid public data response');
+  return rows;
+}
+
+async function fetchPublicStats(){
+  const res=await fetch('/api/public?type=stats',{signal:AbortSignal.timeout(8000)});
+  if(!res.ok)throw new Error(`Public stats unavailable (${res.status})`);
+  return res.json();
+}
+
 const LAGOS = {
   "Ikeja GRA": [
     "Isaac John Street", "Oduduwa Crescent", "Joel Ogunnaike Street", "Oba Akinjobi Road",
@@ -2352,7 +2366,7 @@ async function initAuth(){
       PR=null;savedPlaces=[];
       document.getElementById("locTag").classList.remove("on");
     }
-    updateBanner();renderAccount();if(CU)loadSavedPlaces();
+    updateBanner();renderAccount();if(CU)loadSavedPlaces();else startRealtime();
   });
   // Periodic session health check — every 2 min; proactively refreshes token
   // before it expires so the app never silently stops working mid-session
@@ -2381,12 +2395,12 @@ async function loadProfile(){if(!CU)return;try{const{data,error}=await sb.from("
 
 async function doRegister(name,email,pass){const{data,error}=await sb.auth.signUp({email,password:pass,options:{data:{name},emailRedirectTo:APP_URL+"?mode=reset"}});if(error){if(error.message?.toLowerCase().includes("rate limit")||error.message?.toLowerCase().includes("over_email_send_rate_limit"))throw new Error("RATE_LIMIT");throw new Error(error.message);}if(data.user){await sb.from("profiles").upsert({id:data.user.id,email,name,notif_on:true,referral_code:_genReferralCode()},{onConflict:"id"});}if(data.session){CU=data.user;await loadProfile();renderAccount();updateBanner();toast(`Welcome, ${name}!`,"ok");_maybeStartTour();}sendEmail(email,"Welcome to NEPAWatch Nigeria",`Hi ${name},\n\nWelcome to NEPAWatch Nigeria!\n\nYou will receive real-time email alerts whenever power goes out or is restored near your street.\n\nOpen the app and set your location to activate alerts.\n\nStay powered,\nNEPAWatch Nigeria`,buildEmailHtml({type:'welcome',name,appUrl:APP_URL}));return data;}
 async function doLogin(email,pass){const{data,error}=await sb.auth.signInWithPassword({email,password:pass});if(error)throw new Error(error.message);return data;}
-async function doLogout(){try{await sb.auth.signOut();}catch(e){}CU=null;PR=null;savedPlaces=[];document.getElementById("locTag").classList.remove("on");updateBanner();renderAccount();toast("Signed out","info");}
+async function doLogout(){try{await sb.auth.signOut();}catch(e){}CU=null;PR=null;savedPlaces=[];document.getElementById("locTag").classList.remove("on");updateBanner();renderAccount();startRealtime();toast("Signed out","info");}
 
-async function loadSavedPlaces(){if(!CU)return;try{const{data,error}=await sb.from("saved_places").select("*").eq("user_id",CU.id).order("created_at",{ascending:true});if(!error&&data)savedPlaces=data;}catch(e){savedPlaces=[];}renderSavedPlacesHome();renderMyPlacesList();}
+async function loadSavedPlaces(){if(!CU)return;try{const{data,error}=await sb.from("saved_places").select("*").eq("user_id",CU.id).order("created_at",{ascending:true});if(!error&&data)savedPlaces=data;}catch(e){savedPlaces=[];}renderSavedPlacesHome();renderMyPlacesList();startRealtime();}
 async function savePlaceToDB(placeObj){if(!CU)return null;try{if(placeObj.id&&!String(placeObj.id).startsWith("local-")){const{data,error}=await sb.from("saved_places").update({type:placeObj.type,custom_label:placeObj.custom_label,location_id:placeObj.location_id,location_name:placeObj.location_name,location_area:placeObj.location_area,location_label:placeObj.location_label,notif_on:placeObj.notif_on!==false}).eq("id",placeObj.id).select().single();if(error)throw error;return data;}else{const{data,error}=await sb.from("saved_places").insert({user_id:CU.id,type:placeObj.type,custom_label:placeObj.custom_label||null,location_id:placeObj.location_id,location_name:placeObj.location_name,location_area:placeObj.location_area,location_label:placeObj.location_label,notif_on:true}).select().single();if(error)throw error;return data;}}catch(e){return{id:"local-"+Date.now(),...placeObj};}}
-async function deleteSavedPlace(id){savedPlaces=savedPlaces.filter(p=>p.id!==id);if(!String(id).startsWith("local-")){try{await sb.from("saved_places").delete().eq("id",id);}catch(e){}}renderSavedPlacesHome();renderMyPlacesList();toast("Place removed","info");}
-async function togglePlaceNotif(id){const p=savedPlaces.find(x=>x.id===id);if(!p)return;p.notif_on=!p.notif_on;if(!String(id).startsWith("local-")){try{await sb.from("saved_places").update({notif_on:p.notif_on}).eq("id",id);}catch(e){}}toast(p.notif_on?"Alerts on for this place":"Alerts off for this place","info");renderMyPlacesList();}
+async function deleteSavedPlace(id){savedPlaces=savedPlaces.filter(p=>p.id!==id);if(!String(id).startsWith("local-")){try{await sb.from("saved_places").delete().eq("id",id);}catch(e){}}renderSavedPlacesHome();renderMyPlacesList();startRealtime();toast("Place removed","info");}
+async function togglePlaceNotif(id){const p=savedPlaces.find(x=>x.id===id);if(!p)return;p.notif_on=!p.notif_on;if(!String(id).startsWith("local-")){try{await sb.from("saved_places").update({notif_on:p.notif_on}).eq("id",id);}catch(e){}}toast(p.notif_on?"Alerts on for this place":"Alerts off for this place","info");renderMyPlacesList();startRealtime();}
 function getPlaceDisplayName(p){if(p.custom_label)return _escHtml(p.custom_label);const names={home:"Home",work:"Work",school:"School",custom:"My Place"};return names[p.type]||"My Place";}
 function getPlaceStatus(area){if(!area)return"unk";const r=reports.filter(x=>areaMatches(x.area,area)||areaMatches(area,x.area));if(!r.length)return"unk";return r[0].type==="out"?"out":"on";}
 
@@ -2550,6 +2564,7 @@ async function submitSavedPlace(){
   if(saved){
     if(_editPlaceId){const idx=savedPlaces.findIndex(p=>p.id===_editPlaceId);if(idx!==-1)savedPlaces[idx]={...savedPlaces[idx],...saved};}
     else{savedPlaces.push(saved);}
+    startRealtime();
     renderSavedPlacesHome();renderMyPlacesList();toast(_editPlaceId?"Place updated":"Place saved","ok");
   }
   btn.innerHTML=_editPlaceId?"Save Changes":"Add Place";btn.disabled=false;
@@ -2602,13 +2617,13 @@ function clearLoc(){filterArea="";setAreaFilterUI("");document.getElementById("l
 
 function renderNearbyDashboard(){const el=document.getElementById("nearbyDashboard");if(!_nearbyAreas.length){el.innerHTML="";return;}const cards=_nearbyAreas.slice(0,10).map(({area,dist})=>{const status=getPlaceStatus(area);const statusCls=status==="out"?"nb-status s-out":status==="on"?"nb-status s-on":"nb-status s-unk";const statusTxt=status==="out"?"Power Out":status==="on"?"Power On":"No data";const statusIco=status==="out"?IC.out:status==="on"?IC.bck:IC.pin;const distStr=dist<1?`${Math.round(dist*1000)}m`:`${dist.toFixed(1)}km`;return`<div class="nb-card" onclick="jumpToArea('${area}')"><div class="nb-area">${area}</div><div class="nb-dist">${distStr} away</div><div class="${statusCls}">${statusIco}&nbsp;${statusTxt}</div></div>`;}).join("");el.innerHTML=`<div class="slbl">Nearby Areas</div><div class="nearby-scroll">${cards}</div>`;}
 
-async function loadUserCount(){try{const{count,error}=await sb.from("profiles").select("id",{count:"exact",head:true});if(!error&&count!=null){_userCount=count;const pill=document.getElementById("userCountPill");const num=document.getElementById("userCountNum");if(pill&&num&&count>=2){num.textContent=count.toLocaleString();pill.style.display="flex";}}}catch(e){}}
+async function loadUserCount(){try{const{users:count}=await fetchPublicStats();if(count!=null){_userCount=count;const pill=document.getElementById("userCountPill");const num=document.getElementById("userCountNum");if(pill&&num&&count>=2){num.textContent=count.toLocaleString();pill.style.display="flex";}}}catch(e){}}
 
-async function saveLocation(loc){if(!CU)return;const u={location_id:loc.id,location_name:loc.name,location_area:loc.area,location_label:loc.label};try{await sb.from("profiles").update(u).eq("id",CU.id);}catch(e){}PR={...PR,...u};document.getElementById("locTag").classList.add("on");document.getElementById("locLabel").textContent=loc.label;updateBanner();toast(`Location set — ${loc.name}`,"ok");}
+async function saveLocation(loc){if(!CU)return;const u={location_id:loc.id,location_name:loc.name,location_area:loc.area,location_label:loc.label};try{await sb.from("profiles").update(u).eq("id",CU.id);}catch(e){}PR={...PR,...u};document.getElementById("locTag").classList.add("on");document.getElementById("locLabel").textContent=loc.label;updateBanner();startRealtime();toast(`Location set — ${loc.name}`,"ok");}
 async function toggleNotif(){if(!CU||!PR)return;const next=!PR.notif_on;try{await sb.from("profiles").update({notif_on:next}).eq("id",CU.id);}catch(e){}PR.notif_on=next;const btn=document.getElementById("notifToggle");if(btn)btn.classList.toggle("on",next);toast(next?"Email alerts enabled":"Email alerts disabled","info");renderAccount();}
 async function togglePushNotif(){const status=getPushStatus();if(status==='enabled'){await disablePush();}else if(status==='blocked'){toast('Notifications blocked — go to browser Settings and allow notifications for this site','info');}else if(status==='ios-needs-install'){toast('On iPhone, add NEPAWatch to your Home Screen first: Safari › Share › Add to Home Screen','info');}else if(status==='unsupported'){toast('Push notifications are not supported in this browser','info');}else{await requestPushPermission();}}
 
-async function loadCustomLocations(){try{const{data,error}=await sb.from("custom_locations").select("*").order("created_at",{ascending:true});if(!error&&data&&data.length){data.forEach(loc=>{if(!LOCS.find(l=>l.id===loc.id)){LOCS.unshift({id:loc.id,name:loc.street_name,area:loc.area_name,street:loc.street_name,label:`${loc.street_name} — ${loc.area_name}`,custom:true,lat:loc.lat||null,lng:loc.lng||null});}else{const ex=LOCS.find(l=>l.id===loc.id);if(ex&&!ex.lat&&loc.lat){ex.lat=loc.lat;ex.lng=loc.lng;}}});buildFilter();}}catch(e){}}
+async function loadCustomLocations(){try{const data=await fetchPublicRows('locations');if(data.length){data.forEach(loc=>{if(!LOCS.find(l=>l.id===loc.id)){LOCS.unshift({id:loc.id,name:loc.street_name,area:loc.area_name,street:loc.street_name,label:`${loc.street_name} — ${loc.area_name}`,custom:true,lat:loc.lat||null,lng:loc.lng||null});}else{const ex=LOCS.find(l=>l.id===loc.id);if(ex&&!ex.lat&&loc.lat){ex.lat=loc.lat;ex.lng=loc.lng;}}});buildFilter();}}catch(e){}}
 async function _geocodeLoc(street,area){try{const q=encodeURIComponent(`${street}, ${area}, Nigeria`);const res=await fetch(`https://nominatim.openstreetmap.org/search?q=${q}&format=json&limit=3&countrycodes=ng&addressdetails=1`,{headers:{"Accept-Language":"en","User-Agent":"NEPAWatch/1.0"}});const d=await res.json();if(d&&d[0])return{lat:parseFloat(d[0].lat),lng:parseFloat(d[0].lon)};return null;}catch(e){return null;}}
 function _findDupLoc(lat,lng,radiusM=180){if(!lat||!lng)return null;for(const l of LOCS){if(l.lat&&l.lng){const dist=haversine(lat,lng,l.lat,l.lng)*1000;if(dist<=radiusM)return l;}}return null;}
 async function submitCustomLocation(street,area,lat=null,lng=null){if(!CU)return null;try{// Geocode if no coords provided
@@ -2616,48 +2631,29 @@ if(!lat||!lng){const gc=await _geocodeLoc(street,area);if(gc){lat=gc.lat;lng=gc.
 if(lat&&lng){const dup=_findDupLoc(lat,lng,180);if(dup){toast(`Merged with "${dup.name}" — same location`,"ok");return dup;}}const{data,error}=await sb.from("custom_locations").insert({street_name:street,area_name:area,lat:lat||null,lng:lng||null}).select().single();if(error)throw error;const newLoc={id:data.id,name:street,area,street,label:`${street} — ${area}`,custom:true,lat:lat||null,lng:lng||null};if(!LOCS.find(l=>l.id===data.id))LOCS.unshift(newLoc);toast(`"${data.street_name}" added for everyone!`,"ok");return newLoc;}catch(e){toast(e.message||"Could not add location","err");return null;}}
 
 async function loadReports(){
-  const fetchWithTimeout=(promise,ms)=>Promise.race([
-    promise,
-    new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')),ms))
-  ]);
   try{
-    /* Try extended schema (ai_prob, wrong_votes). If those columns don't exist yet
-       the DB returns 400 — we catch that and fall back to the base columns so the
-       app never breaks while the migration is pending. */
-    // Fetch true total count in parallel — not limited by the 1000-row page
-    sb.from("reports").select("id",{count:"exact",head:true}).then(({count})=>{
+    // Fetch true total count in parallel; the public feed itself is CDN-cached.
+    fetchPublicStats().then(({reports:count})=>{
       if(count!=null&&count>_totalReportsCount){_totalReportsCount=count;renderStats();}
     }).catch(()=>{});
-
-    let data, error;
-    const extResult = await fetchWithTimeout(
-      sb.from("reports")
-        .select("id,user_id,location_name,location_area,type,confirms,created_at,ai_prob,wrong_votes")
-        .order("created_at",{ascending:false})
-        .limit(400),   /* egress diet — 400 rows covers the visible feed */
-      8000
-    );
-    if(extResult.error && (extResult.error.code==='42703'||extResult.error.message?.includes('column')||(extResult.error.details||'').includes('ai_prob')||(extResult.error.details||'').includes('wrong_votes'))) {
-      // Columns missing — fall back to base schema
-      console.warn('[loadReports] ai_prob/wrong_votes columns missing — run the migration SQL');
-      const base = await fetchWithTimeout(
-        sb.from("reports")
-          .select("id,user_id,location_name,location_area,type,confirms,created_at")
-          .order("created_at",{ascending:false})
-          .limit(200),
-        8000
-      );
-      data = base.data; error = base.error;
-    } else {
-      data = extResult.data; error = extResult.error;
-    }
-    if(error) throw error;
+    const data=await fetchPublicRows('feed');
     const mapRow=r=>({id:r.id,name:r.location_name,area:r.location_area,type:r.type,time:new Date(r.created_at).getTime(),confirms:r.confirms||1,userId:r.user_id,isAI:r.user_id===AI_USER_ID||(r.ai_prob!=null),aiProb:r.ai_prob||null,wrongVotes:r.wrong_votes||0,flagged:(r.wrong_votes||0)>=3});
-    const dbReports=(data||[]).map(mapRow);
-    if(data?.length){
+    const currentById=new Map(reports.map(r=>[String(r.id),r]));
+    const dbReports=data.map(row=>{
+      const next=mapRow(row),current=currentById.get(String(next.id));
+      if(current){
+        // CDN copies can trail a vote or Realtime update. Vote counts only rise.
+        next.confirms=Math.max(next.confirms,current.confirms||0);
+        next.wrongVotes=Math.max(next.wrongVotes,current.wrongVotes||0);
+        next.flagged=next.wrongVotes>=3;
+      }
+      return next;
+    });
+    if(data.length){
       const newest=data[0].created_at;
       if(!_lastReportPollAt||newest>_lastReportPollAt)_lastReportPollAt=newest;
     }
+    _lastReportReconcileAt=Date.now();
     dbReports.sort((a,b)=>b.time-a.time);
     // Preserve: optimistic inserts (local-/ai- prefix) AND in-memory AI reports not in this DB batch
     const dbIds=new Set(dbReports.map(r=>String(r.id)));
@@ -2665,6 +2661,7 @@ async function loadReports(){
       const sid=String(r.id);
       if(sid.startsWith("seed-"))return false; // drop seed/demo reports once real data arrives
       if(sid.startsWith("local-")||sid.startsWith("ai-"))return true; // optimistic
+      if(!dbIds.has(sid)&&r.time>Date.now()-2*60*1000)return true; // CDN may lag a fresh saved report
       if((r.isAI||r.userId===AI_USER_ID)&&!dbIds.has(sid))return true; // AI report not in batch
       return false;
     });
@@ -2685,29 +2682,25 @@ async function pollReports(){try{
   if(document.visibilityState==='hidden')return;
   if(!_lastReportPollAt){await loadReports();return;}
   const _mapRow=r=>({id:r.id,name:r.location_name,area:r.location_area,type:r.type,time:new Date(r.created_at).getTime(),confirms:r.confirms||1,userId:r.user_id,isAI:r.user_id===AI_USER_ID||(r.ai_prob!=null),aiProb:r.ai_prob||null,wrongVotes:r.wrong_votes||0,flagged:(r.wrong_votes||0)>=3});
-  const reconcile=Date.now()-_lastReportReconcileAt>=10*60*1000;
-  let query=sb.from("reports").select("id,user_id,location_name,location_area,type,confirms,created_at,ai_prob,wrong_votes");
-  if(!reconcile)query=query.gte("created_at",_lastReportPollAt);
-  let _pollRes=await query.order("created_at",{ascending:!reconcile}).limit(100);
-  if(_pollRes.error&&(_pollRes.error.code==='42703'||_pollRes.error.message?.includes('column'))){
-    let fallback=sb.from("reports").select("id,user_id,location_name,location_area,type,confirms,created_at");
-    if(!reconcile)fallback=fallback.gte("created_at",_lastReportPollAt);
-    _pollRes=await fallback.order("created_at",{ascending:!reconcile}).limit(100);
-  }
-  const{data,error}=_pollRes;if(error||!data)return;
-  if(reconcile)_lastReportReconcileAt=Date.now();
+  if(Date.now()-_lastReportReconcileAt>=10*60*1000){await loadReports();return;}
+  const data=await fetchPublicRows('recent');
   if(!data.length)return;
-  // A full delta page may have more rows at the same timestamp. Refresh the
-  // bounded feed so advancing the cursor cannot hide the remaining reports.
-  if(!reconcile&&data.length===100){await loadReports();return;}
-  const newest=reconcile?data[0].created_at:data[data.length-1].created_at;
+  // If every row in the small recent page is newer than our cursor, fetch the
+  // larger cached feed so a busy interval cannot hide additional inserts.
+  if(data.length===50&&data.every(r=>r.created_at>_lastReportPollAt)){await loadReports();return;}
+  const newest=data[0].created_at;
   if(newest>_lastReportPollAt)_lastReportPollAt=newest;
   const byId=new Map(reports.map(r=>[String(r.id),r]));
   let changed=false;
   for(const row of data){
     const next=_mapRow(row),old=byId.get(String(next.id));
     if(!old){byId.set(String(next.id),next);changed=true;}
-    else if(old.confirms!==next.confirms||old.wrongVotes!==next.wrongVotes){Object.assign(old,next);changed=true;}
+    else{
+      next.confirms=Math.max(next.confirms,old.confirms||0);
+      next.wrongVotes=Math.max(next.wrongVotes,old.wrongVotes||0);
+      next.flagged=next.wrongVotes>=3;
+      if(old.confirms!==next.confirms||old.wrongVotes!==next.wrongVotes){Object.assign(old,next);changed=true;}
+    }
   }
   if(!changed)return;
   reports=[...byId.values()].sort((a,b)=>b.time-a.time).slice(0,2000);
@@ -2716,8 +2709,8 @@ async function pollReports(){try{
 
 function startPolling(){
   if(_pollTimer)clearInterval(_pollTimer);
-  // Realtime handles live changes. This fetches only reports missed by the socket.
-  _pollTimer=setInterval(pollReports,60000);
+  // One shared CDN URL per request; area Realtime handles immediate local changes.
+  _pollTimer=setInterval(pollReports,120000);
   if(window._fullSyncTimer)clearInterval(window._fullSyncTimer);
 }
 
@@ -3203,7 +3196,7 @@ async function sendEmail(to, subject, body, htmlBody) {
     });
   } catch(e) {}
 }
-async function sendAreaAlerts(repName,repArea,repType,isAI=false){if(!repArea)return;
+async function sendAreaAlerts(repName,repArea,repType,isAI=false,localOnly=false){if(!repArea)return;
   // Count recent cluster reports (last 30 min) to gauge verification weight
   const _cluster=reports.filter(r=>areaMatches(r.area,repArea)&&r.type===repType&&(Date.now()-r.time)<30*60*1000).length;
   let pushTitle,pushBody,pushNotifType;
@@ -3227,6 +3220,9 @@ async function sendAreaAlerts(repName,repArea,repType,isAI=false){if(!repArea)re
       :`Power restored near ${repName}. Tap to confirm.`;
   }
   _fireNotification(pushTitle,pushBody,pushNotifType,repArea,'/');
+  // Receiving browsers may show a local alert, but must never request a
+  // nationwide email send. The report creator (or AI engine) does that once.
+  if(localOnly)return;
 const _aKey=repArea+'|'+repType;const _now=Date.now();if(isAI){if(_aiAlertCooldowns[repArea]&&(_now-_aiAlertCooldowns[repArea])<AI_ALERT_COOLDOWN_MS)return;_aiAlertCooldowns[repArea]=_now;}if(_alertCooldowns[_aKey]&&(_now-_alertCooldowns[_aKey])<ALERT_COOLDOWN_MS)return;_alertCooldowns[_aKey]=_now;try{const _src=isAI?' · NEPAWatch AI':'';const subject=repType==="out"?`Power Outage — ${repArea}, Nigeria${_src}`:`Power Restored — ${repArea}, Nigeria${_src}`;const time=new Date().toLocaleTimeString("en-NG",{hour:"2-digit",minute:"2-digit"});const body=`${repType==="out"?"Power outage":"Power restored"} near ${repName}, ${repArea}.\n\nTime: ${time}\n\nSee live updates: ${APP_URL}\n\n— ${isAI?'NEPAWatch AI':'NEPAWatch'}`;const alertHtml=buildEmailHtml({type:repType,area:repArea,street:repName,time,appUrl:APP_URL});let edgeSent=false;try{const res=await fetch(EMAIL_FN,{method:"POST",headers:{"Content-Type":"application/json","apikey":SUPA_ANON,"Authorization":`Bearer ${SUPA_ANON}`},body:JSON.stringify({mode:"area_alert",area:repArea,repName,repType,subject,body,html:alertHtml,time,confirmRequest:true,isAI})});if(res.ok){const json=await res.json().catch(()=>({}));const count=json.sent||0;edgeSent=true;if(count>0){emailLog.unshift({subject,to:`${count} watcher${count!==1?"s":""} in ${repArea}`,time});if(emailLog.length>8)emailLog.pop();}}}catch(fe){}if(CU&&savedPlaces.length){const matchingPlaces=savedPlaces.filter(p=>strictAreaMatch(repArea,p.location_area)&&p.notif_on!==false);if(matchingPlaces.length&&CU.email&&!edgeSent){const placeNames=matchingPlaces.map(p=>getPlaceDisplayName(p)).join(", ");const placeHtml=buildEmailHtml({type:repType,area:repArea,street:repName,time,places:placeNames,appUrl:APP_URL});await sendEmail(CU.email,subject,body,placeHtml);emailLog.unshift({subject,to:CU.email+"  (saved place)",time});if(emailLog.length>8)emailLog.pop();toast("Alert sent for your saved place","ok");if(document.getElementById("page-account").classList.contains("active"))renderAccount();}}else if(!edgeSent&&CU&&PR&&strictAreaMatch(repArea,PR.location_area)&&PR.notif_on&&CU.email){const userHtml=buildEmailHtml({type:repType,area:repArea,street:repName,time,appUrl:APP_URL});await sendEmail(CU.email,subject,body,userHtml);emailLog.unshift({subject,to:CU.email,time});if(emailLog.length>8)emailLog.pop();toast("Alert sent to your email","ok");if(document.getElementById("page-account").classList.contains("active"))renderAccount();}}catch(e){}finally{_saveEmailLog();}}
 
 function openModal(type){mType=type;mSel=null;document.getElementById("shTitle").textContent=type==="out"?"Report Power Outage":"Report Power Restored";document.getElementById("shDesc").textContent=type==="out"?"Search your street or area in Lagos.":"Great news! Tell your community.";const btn=document.getElementById("mBtn");btn.textContent=type==="out"?"Confirm Outage":"Confirm Restored";btn.className="mconfirm "+(type==="out"?"out":"bck");btn.disabled=true;document.getElementById("mSearch").value="";if(PR?.location_id){mSel=LOCS.find(l=>l.id===PR.location_id)||null;if(mSel){btn.disabled=false;btn.textContent=type==="out"?`Report — ${mSel.name}`:`Restored — ${mSel.name}`;}}renderMList(LOCS.slice(0,60));document.getElementById("repOverlay").classList.add("open");}
@@ -3247,6 +3243,7 @@ let _areaFilterPicker=null;
    (geolocation, push notification tap, jumpToArea, etc). */
 function setAreaFilterUI(area){
   if(_areaFilterPicker)_areaFilterPicker.set(area||"All Nigeria areas");
+  setTimeout(startRealtime,0);
 }
 function buildFilter(){
   const mount=document.getElementById("areaFilterPicker");if(!mount)return;
@@ -3259,6 +3256,7 @@ function buildFilter(){
   _areaFilterPicker=initAreaPicker("areaFilterPicker",list,label,a=>{
     filterArea=(a==="All Nigeria areas")?"":a;
     feedPage=1;renderFeed("liveFeed");
+    startRealtime();
   });
 }
 function applyFilter(){feedPage=1;renderFeed("liveFeed");}
@@ -3520,14 +3518,9 @@ async function renderCommunity(){
     const weekStartUtc=new Date(monMidWAT.getTime()-3600000).toISOString();
 
     /* ── Query this week's reports (exclude AI) ── */
-    const{data:repData,error:repErr}=await sb.from("reports")
-      .select("user_id,display_name,location_area,type,created_at")
-      .not("user_id","is",null)
-      .neq("user_id",AI_USER_ID)
-      .gte("created_at",weekStartUtc)
-      .order("created_at",{ascending:false})
-      .limit(300);
-    if(repErr)throw repErr;
+    const repData=(await fetchPublicRows('week'))
+      .filter(r=>r.created_at>=weekStartUtc)
+      .slice(0,300);
 
     /* ── Build per-user count map ── */
     const countMap={};
@@ -4083,8 +4076,7 @@ async function _fireWeeklySummaryNotif(){
     const monMid=new Date(Date.now()+3600000-daysBack*86400000);
     monMid.setUTCHours(0,0,0,0);
     const wStart=new Date(monMid.getTime()-3600000).toISOString();
-    const{data}=await sb.from('reports').select('user_id').gte('created_at',wStart).neq('user_id',AI_USER_ID).limit(500);
-    if(!data)return;
+    const data=(await fetchPublicRows('week')).filter(r=>r.created_at>=wStart);
 
     /* Build real counts and rank from live DB data */
     const cm={};data.forEach(r=>{if(r.user_id)cm[r.user_id]=(cm[r.user_id]||0)+1;});
@@ -4429,20 +4421,90 @@ async function _submitAIFeedback(repId, isCorrect) {
 // Expose globally so predict.js can call it after saving an AI report
 window.showAIFeedbackPopup = showAIFeedbackPopup;
 
-let _rtChannel=null,_recentAlerts=new Set(),_rtWatchdog=null;
-// ── Silent background auto-refresh (no visible spinner) ─────────────────
-// Realtime delivers live changes; a small incremental poll recovers missed inserts.
+let _rtChannel=null,_rtAreasKey='',_recentAlerts=new Set(),_rtWatchdog=null;
 
-function startRealtime(){try{if(_rtChannel){try{sb.removeChannel(_rtChannel);}catch(e){}} _rtChannel=sb.channel("realtime-reports-"+Date.now()).on("postgres_changes",{event:"INSERT",schema:"public",table:"reports"},payload=>{try{const r=payload.new;if(!r||reports.find(x=>String(x.id)===String(r.id)))return;const newRep={id:String(r.id),name:String(r.location_name||""),area:String(r.location_area||""),type:String(r.type||""),time:new Date(r.created_at).getTime(),confirms:Number(r.confirms)||1,userId:r.user_id,isAI:r.user_id===AI_USER_ID||r.ai_prob!=null,aiProb:r.ai_prob||null,wrongVotes:r.wrong_votes||0,flagged:(r.wrong_votes||0)>=3};// Replace optimistic local/ai entry if it matches area+type within last 60s
-const matchIdx=reports.findIndex(x=>(String(x.id).startsWith('local-')||String(x.id).startsWith('ai-'))&&x.area===newRep.area&&x.type===newRep.type&&Math.abs(x.time-newRep.time)<60000);if(matchIdx!==-1){reports[matchIdx]=newRep;}else{reports.unshift(newRep);/* launch: keep up to 2000 reports in memory — don't trim today */if(reports.length>2000){reports.splice(2000,1);}}// Live-train AI history with every incoming report
-if(typeof PredictHistory!=='undefined')PredictHistory.addReport(r);renderStats();prependReportCard(newRep,"liveFeed");renderDiscos();if(_nearbyAreas.length)renderNearbyDashboard();renderSavedPlacesHome();renderMyPlacesList();if(r.user_id&&r.user_id!==CU?.id){const alertKey=r.id+r.type;if(!_recentAlerts.has(alertKey)){_recentAlerts.add(alertKey);setTimeout(()=>_recentAlerts.delete(alertKey),30000);sendAreaAlerts(r.location_name,r.location_area,r.type);}}// Show in-app confirm/feedback popup for reports in user's area
-setTimeout(()=>{ if(!document.getElementById('confirmOverlay').classList.contains('open')){if(newRep.isAI)showAIFeedbackPopup(newRep);else showConfirmPopup(newRep);}},800);}catch(e){}}).on("postgres_changes",{event:"UPDATE",schema:"public",table:"reports"},payload=>{try{const r=payload.new;const existing=reports.find(x=>String(x.id)===String(r.id));if(existing){existing.confirms=Number(r.confirms)||1;const confirmsEl=document.querySelector(`[data-confirms="${existing.id}"]`);if(confirmsEl)confirmsEl.textContent=`${existing.confirms} confirmation${existing.confirms!==1?"s":""}`;else{renderFeed("liveFeed");renderFeed("myFeed",PR?.location_area||null);}}}catch(e){}}).subscribe(status=>{
-    // If realtime drops, restart it after 5s
-    if(status==='CHANNEL_ERROR'||status==='TIMED_OUT'){
-      clearTimeout(_rtWatchdog);
-      _rtWatchdog=setTimeout(startRealtime,5000);
+function stopRealtime(){
+  clearTimeout(_rtWatchdog);
+  const old=_rtChannel;
+  _rtChannel=null;_rtAreasKey='';
+  if(old){try{Promise.resolve(sb.removeChannel(old)).catch(()=>{});}catch(e){}}
+}
+
+function watchedRealtimeAreas(){
+  // The national feed uses the CDN. Live sockets cover only watched areas.
+  return [...new Set([
+    filterArea,PR?.location_area,
+    ...savedPlaces.filter(p=>p.notif_on!==false).map(p=>p.location_area),
+  ].filter(Boolean))].slice(0,5);
+}
+
+function handleRealtimeInsert(payload){
+  try{
+    const r=payload.new;
+    if(!r||reports.some(x=>String(x.id)===String(r.id)))return;
+    const newRep={id:String(r.id),name:String(r.location_name||''),area:String(r.location_area||''),type:String(r.type||''),time:new Date(r.created_at).getTime(),confirms:Number(r.confirms)||1,userId:r.user_id,isAI:r.user_id===AI_USER_ID||r.ai_prob!=null,aiProb:r.ai_prob||null,wrongVotes:r.wrong_votes||0,flagged:(r.wrong_votes||0)>=3};
+    const matchIdx=reports.findIndex(x=>(String(x.id).startsWith('local-')||String(x.id).startsWith('ai-'))&&x.area===newRep.area&&x.type===newRep.type&&Math.abs(x.time-newRep.time)<60000);
+    if(matchIdx!==-1)reports[matchIdx]=newRep;
+    else{reports.unshift(newRep);if(reports.length>2000)reports.pop();}
+    if(typeof PredictHistory!=='undefined')PredictHistory.addReport(r);
+    renderStats();prependReportCard(newRep,'liveFeed');renderDiscos();
+    if(_nearbyAreas.length)renderNearbyDashboard();
+    renderSavedPlacesHome();renderMyPlacesList();
+    if(r.user_id&&r.user_id!==CU?.id){
+      const alertKey=String(r.id)+r.type;
+      if(!_recentAlerts.has(alertKey)){
+        _recentAlerts.add(alertKey);
+        setTimeout(()=>_recentAlerts.delete(alertKey),30000);
+        sendAreaAlerts(r.location_name,r.location_area,r.type,newRep.isAI,true);
+      }
     }
-  });}catch(e){clearTimeout(_rtWatchdog);_rtWatchdog=setTimeout(startRealtime,8000);}}
+    setTimeout(()=>{
+      if(!document.getElementById('confirmOverlay')?.classList.contains('open')){
+        if(newRep.isAI)showAIFeedbackPopup(newRep);
+        else showConfirmPopup(newRep);
+      }
+    },800);
+  }catch(e){}
+}
+
+function handleRealtimeUpdate(payload){
+  const r=payload.new;
+  const existing=reports.find(x=>String(x.id)===String(r?.id));
+  if(!existing)return;
+  existing.confirms=Math.max(existing.confirms||0,Number(r.confirms)||1);
+  existing.wrongVotes=Math.max(existing.wrongVotes||0,Number(r.wrong_votes)||0);
+  existing.flagged=existing.wrongVotes>=3;
+  renderFeed('liveFeed');renderFeed('myFeed',PR?.location_area||null);
+}
+
+function startRealtime(force=false){
+  if(document.visibilityState==='hidden'){stopRealtime();return;}
+  const areas=watchedRealtimeAreas();
+  const key=areas.slice().sort().join('|');
+  if(_rtChannel&&key===_rtAreasKey&&!force)return;
+  stopRealtime();
+  if(!areas.length)return;
+  try{
+    let channel=sb.channel('realtime-watched-'+Date.now());
+    for(const area of areas){
+      const value=/[(),"\\]/.test(area)?`"${area.replace(/\\/g,'\\\\').replace(/"/g,'\\"')}"`:area;
+      const filter=`location_area=eq.${value}`;
+      channel=channel.on('postgres_changes',{event:'INSERT',schema:'public',table:'reports',filter},handleRealtimeInsert);
+      channel=channel.on('postgres_changes',{event:'UPDATE',schema:'public',table:'reports',filter},handleRealtimeUpdate);
+    }
+    _rtChannel=channel;_rtAreasKey=key;
+    channel.subscribe(status=>{
+      if(channel!==_rtChannel)return;
+      if(status==='CHANNEL_ERROR'||status==='TIMED_OUT'){
+        clearTimeout(_rtWatchdog);
+        _rtWatchdog=setTimeout(()=>startRealtime(true),30000);
+      }
+    });
+  }catch(e){
+    clearTimeout(_rtWatchdog);
+    _rtWatchdog=setTimeout(()=>startRealtime(true),30000);
+  }
+}
 
 /* ── WAKE-UP HANDLER ────────────────────────────────────────────────────────
    PWA home-screen apps get frozen by iOS/Android when backgrounded.
@@ -4456,7 +4518,7 @@ function _onAppWake() {
   const awayMs = Date.now() - _lastActiveMs;
   _lastActiveMs = Date.now();
   // Only bother if we've been away for more than 20 seconds
-  if (awayMs < 20000) return;
+  if (awayMs < 20000) { startRealtime(); return; }
   console.log(`[NEPAWatch] App resumed after ${Math.round(awayMs/1000)}s — reconnecting…`);
   // Restart realtime subscription (silently dropped while backgrounded)
   startRealtime();
@@ -4472,6 +4534,7 @@ function _onAppWake() {
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'hidden') {
     _lastActiveMs = Date.now();
+    stopRealtime();
   } else {
     _onAppWake();
   }

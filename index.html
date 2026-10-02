@@ -1249,21 +1249,9 @@ function lpBuildAreaGrid() {
 
 async function lpLoadStats() {
   try {
-    const today = new Date(); today.setHours(0,0,0,0);
-    const allReps = _lpLiveReports.length ? _lpLiveReports :
-      (typeof reports !== 'undefined' ? reports : []);
-    const todayN = allReps.filter(r => r.time >= today.getTime()).length;
+    const { reportsToday: todayN, users: count } = await fetchPublicStats();
     const el = document.getElementById('lpStatReports');
     if (el && todayN > 0) el.textContent = todayN;
-    else if (el && _lpLiveReports.length === 0) {
-      // fetch from DB directly if we haven't loaded live reports yet
-      const todayIso = today.toISOString();
-      const { count: rCount } = await sb.from('reports')
-        .select('id', { count: 'exact', head: true })
-        .gte('created_at', todayIso);
-      if (el && rCount > 0) el.textContent = rCount;
-    }
-    const { count } = await sb.from('profiles').select('id', { count: 'exact', head: true });
     const uel = document.getElementById('lpStatUsers');
     if (uel && count > 0) uel.textContent = count.toLocaleString();
   } catch(e) {}
