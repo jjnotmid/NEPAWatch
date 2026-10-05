@@ -1065,16 +1065,10 @@ body.maintenance-active > *:not(#maintenanceOverlay):not(script):not(noscript):n
 
 <!-- Google Maps removed — using Leaflet -->
 <script src="nigeria_data.js"></script>
-<script>
-if (!window.NEPAWATCH_MAINTENANCE) {
-  document.write('<script src="predict.js"><\/script>');
-  document.write('<script src="app.js"><\/script>');
-  document.write('<script src="nepabot.js"><\/script>');
-}
-</script>
+<script src="predict.js"></script>
+<script src="app.js"></script>
 
 <script>
-if (!window.NEPAWATCH_MAINTENANCE) {
 /* ═══════════════════════════════════════════════════════════
    LANDING PAGE LOGIC
    ════════════════════════════════════════════════════════════ */
@@ -1536,7 +1530,6 @@ function _silentRefresh() {
     const activePage = document.querySelector('.page.active')?.id;
     if (activePage === 'page-myarea' && typeof renderMyArea === 'function') renderMyArea();
   }).catch(() => {});
-}
 }
 </script>
 
