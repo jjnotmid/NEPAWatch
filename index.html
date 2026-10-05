@@ -34,7 +34,7 @@
   "potentialAction": {"@type": "SearchAction", "target": "https://nepawatch.app/?q={search_term_string}", "query-input": "required name=search_term_string"}
 }
 </script>
-<script>window.NEPAWATCH_MAINTENANCE = true;</script>
+<script>window.NEPAWATCH_MAINTENANCE = false;</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <meta name="google-adsense-account" content="ca-pub-6609646474162645">
 <!-- Google AdSense -->
@@ -463,28 +463,7 @@ body.maintenance-active > *:not(#maintenanceOverlay):not(script):not(noscript):n
 }
 </style>
 </head>
-<body class="pre-auth maintenance-active">
-
-<div id="maintenanceOverlay" role="dialog" aria-modal="true" aria-labelledby="maintenanceTitle" aria-describedby="maintenanceDescription">
-  <main class="maintenance-card">
-    <div class="maintenance-brand">
-      <img src="logo.jpg" alt="">
-      <span>NEPA<em>Watch</em></span>
-    </div>
-    <div class="maintenance-visual" aria-hidden="true">
-      <svg width="42" height="42" viewBox="0 0 42 42" fill="none">
-        <path d="M23.4 3.5L10.7 23.1h9.1l-1.2 15.4 12.7-20.1h-9.2l1.3-14.9Z" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round"/>
-      </svg>
-    </div>
-    <h1 id="maintenanceTitle">We’re making NEPAWatch better</h1>
-    <p class="maintenance-copy" id="maintenanceDescription">We’re currently carrying out maintenance and adding some exciting new features to make power updates, outage reports, and alerts faster and more reliable. The app will be back shortly.</p>
-    <p class="maintenance-reassurance">
-      <svg width="15" height="15" viewBox="0 0 15 15" fill="none" aria-hidden="true"><path d="M7.5 1.5 9 5l3.5.4-2.6 2.4.8 3.5-3.2-1.8-3.2 1.8.8-3.5L2.5 5.4 6 5l1.5-3.5Z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>
-      Your account and saved places are safe.
-    </p>
-    <p class="maintenance-footer">Thanks for your patience. Please check back soon.</p>
-  </main>
-</div>
+<body class="pre-auth">
 
 <!-- ═══════════════════════════════════════════════════════════
      LANDING PAGE
