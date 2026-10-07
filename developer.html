@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Developer Dashboard — NEPAWatch API</title>
 <meta name="description" content="Manage your NEPAWatch API keys, monitor usage, and handle your plan — all in one place.">
 <meta name="robots" content="noindex, nofollow">
@@ -87,8 +87,8 @@ h1{font-family:var(--fd);font-weight:900;font-size:1.4rem;letter-spacing:-.02em}
     <h1>Developer Dashboard</h1>
     <p class="sub">Sign in to manage your API keys, usage and plan.</p>
     <div class="card">
-      <div class="fld" style="margin-top:0"><label>Email</label><input type="email" id="aEmail" placeholder="you@example.com"></div>
-      <div class="fld"><label>Password</label><input type="password" id="aPass" placeholder="••••••••"></div>
+      <div class="fld" style="margin-top:0"><label for="aEmail">Email</label><input type="email" id="aEmail" placeholder="you@example.com"></div>
+      <div class="fld"><label for="aPass">Password</label><input type="password" id="aPass" placeholder="••••••••"></div>
       <div style="display:flex;gap:8px;margin-top:14px">
         <button class="btn" id="signInBtn" onclick="doSignIn()">Sign In</button>
         <button class="btn ghost" onclick="doSignUp()">Create Account</button>
@@ -105,6 +105,7 @@ h1{font-family:var(--fd);font-weight:900;font-size:1.4rem;letter-spacing:-.02em}
     <div class="stats" style="margin-top:14px">
       <div class="stat"><div class="stat-n" id="stKeys">0</div><div class="stat-l">API Keys</div></div>
       <div class="stat"><div class="stat-n" id="stToday">0</div><div class="stat-l">Requests Today</div></div>
+      <div class="stat"><div class="stat-n" id="stRemaining">0</div><div class="stat-l">Remaining Today</div></div>
       <div class="stat"><div class="stat-n" id="stAll">0</div><div class="stat-l">Requests All Time</div></div>
     </div>
 
@@ -121,11 +122,17 @@ h1{font-family:var(--fd);font-weight:900;font-size:1.4rem;letter-spacing:-.02em}
         <button class="btn" onclick="showCreate()">+ Create Key</button>
       </div>
       <div id="createBox" style="display:none;margin-bottom:12px">
-        <div class="fld" style="margin-top:0"><label>Key name (for your reference)</label><input type="text" id="newKeyName" placeholder="e.g. My backend server"></div>
+        <div class="fld" style="margin-top:0"><label for="newKeyName">Key name (for your reference)</label><input type="text" id="newKeyName" placeholder="e.g. My backend server"></div>
         <div style="display:flex;gap:8px;margin-top:10px">
           <button class="btn" onclick="doCreateKey()">Create Free Key</button>
           <button class="btn ghost" onclick="showCreate(true)">Cancel</button>
         </div>
+      </div>
+      <div id="newKeyReveal" class="key-row" style="display:none" role="status">
+        <strong>Copy your new key now</strong>
+        <p class="sub">For security, this full key is shown once. It cannot be recovered from the dashboard.</p>
+        <div class="key-val" id="newKeyValue"></div>
+        <div class="key-acts"><button class="mini" onclick="copyNewKey()">Copy key</button><button class="mini" onclick="hideNewKey()">I have saved it</button></div>
       </div>
       <div id="keysList"></div>
     </div>
@@ -133,8 +140,17 @@ h1{font-family:var(--fd);font-weight:900;font-size:1.4rem;letter-spacing:-.02em}
     <div class="card">
       <div class="card-hd"><div class="card-title">Link an existing key</div></div>
       <p style="font-size:.72rem;color:var(--ink3);line-height:1.6">Got a key from before (free or Pro)? Paste it here to attach it to your account so it shows in this dashboard.</p>
-      <div class="fld"><label>Your API key</label><input type="text" id="claimKeyIn" placeholder="nw_… or legacy hex key"></div>
+      <div class="fld"><label for="claimKeyIn">Your API key</label><input type="password" id="claimKeyIn" autocomplete="off" placeholder="nw_… or legacy hex key"></div>
       <div style="margin-top:10px"><button class="btn ghost" onclick="doClaim()">Link Key</button></div>
+    </div>
+
+    <div class="card">
+      <div class="card-hd"><div class="card-title">Developer resources</div></div>
+      <p class="sub">Full keys are shown once when created or rotated. Store them in a server-side secret manager and rotate any key that has been pasted into chat, email, logs, or screenshots.</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
+        <a class="btn ghost" href="/api.html" style="text-decoration:none">API documentation</a>
+        <a class="btn ghost" href="mailto:nepawatchtechnologies@gmail.com?subject=NEPAWatch%20API%20support" style="text-decoration:none">Contact support</a>
+      </div>
     </div>
   </div>
 </main>
@@ -152,23 +168,31 @@ let _session = null;
 function toast(msg, type='ok'){const t=document.getElementById('toast');t.textContent=msg;t.className=`toast ${type} show`;setTimeout(()=>t.classList.remove('show'),4000);}
 async function api(action, extra={}){
   const res = await fetch(BACKEND, {method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${_session.access_token}`},body:JSON.stringify({action,...extra})});
-  return res.json();
+  const data=await res.json().catch(()=>({success:false,error:'Developer service returned an invalid response'}));
+  if(!res.ok&&!data.error)data.error='Developer service is temporarily unavailable';
+  return data;
 }
 const nf = x => Number(x||0).toLocaleString();
+const esc = x => String(x??'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
 async function boot(){
   const {data:{session}} = await sb.auth.getSession();
   if(session){ _session=session; showDash(); } else { showAuth(); }
 }
 function showAuth(){ document.getElementById('authScreen').style.display='block'; document.getElementById('dashScreen').style.display='none'; document.getElementById('logoutBtn').style.display='none'; }
-function showDash(){
+async function showDash(){
   document.getElementById('authScreen').style.display='none';
   document.getElementById('dashScreen').style.display='block';
   document.getElementById('logoutBtn').style.display='flex';
   document.getElementById('dashEmail').textContent = _session.user?.email||'';
-  loadAll();
-  const tx=new URLSearchParams(window.location.search).get('tx_ref');
-  if(tx) pollUpgrade(tx,0);
+  await loadAll();
+  const params=new URLSearchParams(window.location.search);
+  const tx=params.get('tx_ref');
+  if(tx){
+    const status=String(params.get('status')||'').toLowerCase();
+    if(status&&status!=='successful') await abandonCheckout(tx,true);
+    else pollUpgrade(tx,0);
+  }
 }
 async function doSignIn(){
   const email=document.getElementById('aEmail').value.trim(), pass=document.getElementById('aPass').value;
@@ -187,13 +211,15 @@ async function doSignUp(){
   if(data.session){_session=data.session;showDash();}
   else msg.textContent='Check your email to confirm your account, then sign in.';
 }
-async function doLogout(){ await sb.auth.signOut(); _session=null; showAuth(); }
+async function doLogout(){ hideNewKey(); await sb.auth.signOut(); _session=null; showAuth(); }
 
 async function loadAll(){
   const d = await api('me');
   if(!d.success){ toast(d.error||'Could not load','err'); return; }
   document.getElementById('stKeys').textContent = d.totals.keys;
   document.getElementById('stToday').textContent = nf(d.totals.requestsToday);
+  const fallbackRemaining=(d.keys||[]).filter(k=>k.status==='active').reduce((sum,k)=>sum+Math.max(0,Number(k.daily_limit||0)-Number(k.requests_today||0)),0);
+  document.getElementById('stRemaining').textContent = nf(d.totals.requestsRemaining??fallbackRemaining);
   document.getElementById('stAll').textContent = nf(d.totals.requestsAll);
   renderPlan(d.keys);
   renderKeys(d.keys);
@@ -201,41 +227,55 @@ async function loadAll(){
 
 function renderPlan(keys){
   const box=document.getElementById('planBox');
-  const sub = (keys||[]).map(k=>k.subscription).find(s=>s&&(s.status==='active'||s.status==='past_due'||s.status==='pending'));
-  const sub2 = (keys||[]).map(k=>k.subscription).find(s=>s&&s.status==='cancelled');
+  const activeEntry=(keys||[]).find(k=>k.status==='active'&&k.subscription&&(k.subscription.status==='active'||k.subscription.status==='past_due'));
+  const sub=activeEntry?.subscription;
+  const pending=(keys||[]).filter(k=>k.status==='pending'&&k.subscription?.status==='pending');
   if(sub){
     const tier=String(sub.tier||'pro');
     const label={'starter':'Starter','pro':'Pro','scale':'Scale','business':'Business'}[tier]||tier;
     const renew=sub.renews_at?new Date(sub.renews_at).toLocaleDateString('en-NG',{day:'numeric',month:'short',year:'numeric'}):'—';
-    const statusTxt = sub.status==='active' ? 'Active' : sub.status==='past_due' ? `Payment overdue — grace until ${sub.grace_ends_at?new Date(sub.grace_ends_at).toLocaleDateString('en-NG',{day:'numeric',month:'short'}):'—'}` : 'Processing';
-    const col = sub.status==='active'?'var(--p)':sub.status==='past_due'?'var(--am)':'var(--ink2)';
+    const statusTxt = sub.status==='active' ? 'Active' : `Payment overdue — grace until ${sub.grace_ends_at?new Date(sub.grace_ends_at).toLocaleDateString('en-NG',{day:'numeric',month:'short'}):'—'}`;
+    const col = sub.status==='active'?'var(--p)':'var(--am)';
     box.innerHTML=`<div class="plan-grid">
       <div>
         <div style="font-weight:800;font-size:.95rem">${label} · ₦${nf(sub.price)}/month</div>
         <div style="font-size:.72rem;color:${col};margin-top:3px">${statusTxt}${sub.status==='active'?` · renews ${renew}`:''}</div>
       </div>
-      <a href="/api.html#pro-request" class="btn ghost" style="text-decoration:none">${sub.status==='active'?'Change plan':'Complete payment'}</a>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <a href="mailto:nepawatchtechnologies@gmail.com?subject=API%20plan%20change" class="btn ghost" style="text-decoration:none">Change plan</a>
+        <button class="btn danger" onclick="doCancelPlan('${activeEntry.id}')">Cancel plan</button>
+      </div>
     </div>`;
-  } else if(sub2){
-    box.innerHTML=`<div class="plan-grid"><div><div style="font-weight:800;font-size:.95rem">Free</div><div style="font-size:.72rem;color:var(--ink3);margin-top:3px">100 requests/day · previous subscription cancelled</div></div><button class="btn" onclick="showUpgrade()">Upgrade</button></div>`;
   } else {
-    box.innerHTML=`<div class="plan-grid"><div><div style="font-weight:800;font-size:.95rem">Free</div><div style="font-size:.72rem;color:var(--ink3);margin-top:3px">100 requests/day</div></div><button class="btn" onclick="showUpgrade()">Upgrade</button></div>`;
+    box.innerHTML=`<div class="plan-grid"><div><div style="font-weight:800;font-size:.95rem">Free</div><div style="font-size:.72rem;color:var(--ink3);margin-top:3px">No paid plan is active · 100 requests/day</div></div><button class="btn" onclick="showUpgrade()">Choose a paid plan</button></div>`;
+  }
+  if(pending.length){
+    pending.forEach(k=>{
+      const p=k.subscription;
+      const label={'starter':'Starter','pro':'Pro','scale':'Scale','business':'Business'}[p.tier]||p.tier;
+      const note=document.createElement('div');note.className='key-row';note.style.marginTop='12px';note.style.marginBottom='0';
+      note.innerHTML=`<div class="key-top"><strong>Unconfirmed ${esc(label)} checkout</strong><span class="badge b-pending">No payment confirmed</span></div><p class="sub">This is not an active plan or usable API key. It expires within one hour.</p>${p.tx_ref?`<div class="key-acts"><button class="mini" onclick="abandonCheckout('${p.tx_ref}',false)">Cancel attempt</button></div>`:''}`;
+      box.appendChild(note);
+    });
   }
 }
 
 function renderKeys(keys){
   const el=document.getElementById('keysList');
-  if(!keys.length){el.innerHTML='<div style="font-size:.78rem;color:var(--ink3);text-align:center;padding:18px">No keys yet — create one or link an existing key below.</div>';return;}
-  el.innerHTML=keys.map(k=>{
+  const visible=keys.filter(k=>k.status!=='pending');
+  if(!visible.length){el.innerHTML='<div style="font-size:.78rem;color:var(--ink3);text-align:center;padding:18px">No issued keys yet — create one or link an existing key below.</div>';return;}
+  el.innerHTML=visible.map(k=>{
     const limit=Number(k.daily_limit||100);
     const pct=Math.min(100,Math.round(Number(k.requests_today||0)/limit*100));
     const st=k.status==='active'?'b-active':k.status==='pending'?'b-pending':'b-revoked';
+    const hint=k.keyHint||(k.key?`••••${String(k.key).slice(-4)}`:'Hidden');
+    const paidSub=k.subscription&&(k.subscription.status==='active'||k.subscription.status==='past_due');
     return `<div class="key-row">
       <div class="key-top">
-        <span class="key-name">${(k.name||'Key').replace(/[<>&]/g,'')}</span>
+        <span class="key-name">${esc(k.name||'Key')}</span>
         <span class="badge ${st}">${k.status}</span>
       </div>
-      <div class="key-val">${k.key}</div>
+      <div class="key-val">${esc(hint)}</div>
       <div class="key-meta">
         <span>${nf(k.requests_today)} / ${nf(limit)} req today</span>
         <span>${nf(k.total_requests)} all time</span>
@@ -244,13 +284,22 @@ function renderKeys(keys){
       </div>
       <div class="bar"><div class="bar-fill" style="width:${pct}%"></div></div>
       <div class="key-acts">
-        <button class="mini" onclick="copyKey('${k.key}')">Copy</button>
-        ${k.status!=='revoked'?`<button class="mini" style="border-color:rgba(255,64,85,.35);color:var(--rd)" onclick="doRevoke('${k.id}')">Revoke</button>`:''}
+        ${k.status==='active'?`<button class="mini" onclick="doRotate('${k.id}')">Rotate</button>`:''}
+        ${k.status==='active'&&!paidSub?`<button class="mini" style="border-color:rgba(255,64,85,.35);color:var(--rd)" onclick="doRevoke('${k.id}')">Revoke</button>`:''}
       </div>
     </div>`;
   }).join('');
 }
-function copyKey(k){navigator.clipboard.writeText(k).then(()=>toast('Key copied','ok'));}
+let _newKey=null;
+function hideNewKey(){_newKey=null;document.getElementById('newKeyValue').textContent='';document.getElementById('newKeyReveal').style.display='none';}
+function copyNewKey(){if(_newKey)navigator.clipboard.writeText(_newKey).then(()=>toast('Key copied','ok')).catch(()=>toast('Could not copy; select the key manually','err'));}
+
+function revealNewKey(key){
+  hideNewKey();
+  _newKey=key;
+  document.getElementById('newKeyValue').textContent=key;
+  document.getElementById('newKeyReveal').style.display='block';
+}
 
 /* ── Upgrade: pick a plan and pay ── */
 let _tiers=[], _pickedTier='pro';
@@ -314,22 +363,50 @@ async function pollUpgrade(txRef, attempt){
       loadAll();
       return;
     }
-    if(d.success&&d.status==='past_due'){toast('Payment incomplete — try again','err');loadAll();return;}
+    if(d.success&&(d.status==='past_due'||d.status==='cancelled')){window.history.replaceState({},'',window.location.pathname);toast('Payment not confirmed; no paid plan activated','err');loadAll();return;}
     if(attempt<24)setTimeout(()=>pollUpgrade(txRef,attempt+1),2500);
+    else{window.history.replaceState({},'',window.location.pathname);toast('Payment still unconfirmed. Refresh later; check your receipt before paying again.','err');loadAll();}
   }catch(e){ if(attempt<24)setTimeout(()=>pollUpgrade(txRef,attempt+1),2500); }
+}
+
+async function abandonCheckout(txRef,fromReturn){
+  try{
+    const d=await apiBilling('abandon',{tx_ref:txRef});
+    if(!d.success){toast(d.error||'Could not cancel checkout','err');return;}
+    if(fromReturn)window.history.replaceState({},'',window.location.pathname);
+    toast('Checkout cancelled. No paid plan or API key was activated.','ok');
+    await loadAll();
+  }catch(e){toast('Could not cancel checkout. Refresh and try again.','err');}
+}
+
+async function doCancelPlan(apiKeyId){
+  if(!confirm('Cancel this paid plan? Billing will stop and its API key will be revoked.'))return;
+  const d=await apiBilling('cancel',{api_key_id:apiKeyId});
+  if(!d.success){toast(d.error||'Could not cancel plan','err');return;}
+  toast('Paid plan cancelled and key revoked','ok');
+  loadAll();
 }
 
 function showCreate(forceClose){
   const el=document.getElementById('createBox');
-  el.style.display = (el.style.display==='none'||forceClose)?'block':'none';
+  el.style.display = forceClose?'none':el.style.display==='none'?'block':'none';
 }
 async function doCreateKey(){
   const name=document.getElementById('newKeyName').value.trim();
   const d=await api('create',{name});
   if(!d.success){toast(d.error||'Could not create','err');return;}
   document.getElementById('newKeyName').value='';
-  showCreate();
-  toast('Key created — copy it below','ok');
+  showCreate(true);
+  revealNewKey(d.key.key);
+  toast('Key created — copy it now; it will not be shown again','ok');
+  loadAll();
+}
+async function doRotate(id){
+  if(!confirm('Rotate this key? The old key will stop working immediately.'))return;
+  const d=await api('rotate',{id});
+  if(!d.success||!d.key){toast(d.error||'Could not rotate key','err');return;}
+  revealNewKey(d.key);
+  toast('Key rotated — copy the replacement now','ok');
   loadAll();
 }
 async function doClaim(){

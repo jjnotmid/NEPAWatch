@@ -696,11 +696,10 @@ tr:hover td{background:rgba(128,128,128,.04)}
 
       <!-- Export -->
       <div class="card">
-        <div class="card-hd"><div class="card-title">Training Data Export</div><span style="font-size:.64rem;color:var(--ink3)">Requires an active Pro API key</span></div>
+        <div class="card-hd"><div class="card-title">Training Data Export</div><span style="font-size:.64rem;color:var(--ink3)">Admin access only</span></div>
         <div style="padding:16px;display:flex;flex-direction:column;gap:12px">
           <p style="font-size:.78rem;color:var(--ink2)">Download the full ML-ready dataset for use in Google Colab, XGBoost training, or any Python pipeline. Includes reports, prediction outcomes, NERC baselines, accuracy weights, and area reliability scores.</p>
           <div style="display:flex;gap:10px;flex-wrap:wrap">
-            <input type="text" id="dpApiKey" placeholder="Your Pro API key…" style="background:var(--bg3);border:1px solid var(--bd);border-radius:8px;padding:9px 13px;font-size:.8rem;color:var(--ink);flex:1;min-width:200px;outline:none">
             <select id="dpDays" style="background:var(--bg3);border:1px solid var(--bd);border-radius:8px;padding:9px 13px;font-size:.8rem;color:var(--ink);outline:none">
               <option value="30">Last 30 days</option>
               <option value="90" selected>Last 90 days</option>
@@ -1893,10 +1892,9 @@ async function loadApiKeys() {
       headers: { 'Content-Type': 'application/json', 'apikey': SUPA_ANON, 'Authorization': `Bearer ${jwt}` },
       body: JSON.stringify({ action: 'list_api_keys', adminEmail: adminUser?.email })
     });
-    // Fall back to direct query since anon with admin session can read if RLS allows
-    const { data, error } = await sb.from('api_keys').select('*').order('created_at', { ascending: false }).limit(500);
-    if (error) throw error;
-    allApiKeys = data || [];
+    const result = await res.json().catch(() => ({}));
+    if (!res.ok || !result.ok) throw new Error(result.error || 'Admin API request failed');
+    allApiKeys = result.keys || [];
     const pending = allApiKeys.filter(k => k.status === 'pending').length;
     const active = allApiKeys.filter(k => k.status === 'active').length;
     const totalReq = allApiKeys.reduce((s, k) => s + (k.total_requests || 0), 0);
@@ -1908,7 +1906,7 @@ async function loadApiKeys() {
     if (badge) { badge.textContent = pending; badge.style.display = pending > 0 ? 'inline-block' : 'none'; }
     renderApiKeys();
   } catch(e) {
-    tb.innerHTML = `<tr><td colspan="9" class="empty-state">Failed to load API keys: ${e.message}<br><small style="color:var(--ink3)">Run api-schema.sql in your Supabase SQL Editor first, then add an RLS policy allowing admin reads.</small></td></tr>`;
+    tb.innerHTML = `<tr><td colspan="9" class="empty-state">Failed to load API keys: ${_escHtml(e.message)}<br><small style="color:var(--ink3)">Confirm the admin-action Edge Function is deployed.</small></td></tr>`;
   }
 }
 
@@ -1921,20 +1919,22 @@ function renderApiKeys() {
     const statusColor = k.status === 'active' ? 'var(--p)' : k.status === 'pending' ? 'var(--am)' : 'var(--rd)';
     const lastUsed = k.last_request_at ? ago(k.last_request_at) : '—';
     const applied = k.created_at ? new Date(k.created_at).toLocaleDateString('en-NG', { day: 'numeric', month: 'short' }) : '—';
-    const keyMasked = k.key ? k.key.substring(0, 8) + '…' : '—';
+    const keyMasked = k.key_hint || '—';
     return `<tr>
-      <td><div style="font-weight:600;font-size:.78rem">${k.developer_name || '—'}</div><div class="mono" style="font-size:.6rem;color:var(--ink3);margin-top:2px">${keyMasked}</div></td>
-      <td style="font-size:.72rem;color:var(--ink2)">${k.email || '—'}</td>
-      <td style="font-size:.7rem;color:var(--ink2);max-width:180px"><div style="font-weight:500">${k.app_name || '—'}</div><div style="color:var(--ink3);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:180px">${(k.use_case || '').substring(0, 60)}</div></td>
-      <td><span style="font-size:.68rem;font-weight:700;color:${statusColor}">${k.status}</span></td>
-      <td><span class="badge ${k.tier === 'pro' ? 'bck' : ''}" style="font-size:.6rem">${k.tier || 'free'}</span></td>
+      <td><div style="font-weight:600;font-size:.78rem">${_escHtml(k.developer_name || '—')}</div><div class="mono" style="font-size:.6rem;color:var(--ink3);margin-top:2px">${_escHtml(keyMasked)}</div></td>
+      <td style="font-size:.72rem;color:var(--ink2)">${_escHtml(k.email || '—')}</td>
+      <td style="font-size:.7rem;color:var(--ink2);max-width:180px"><div style="font-weight:500">${_escHtml(k.app_name || '—')}</div><div style="color:var(--ink3);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:180px">${_escHtml((k.use_case || '').substring(0, 60))}</div></td>
+      <td><span style="font-size:.68rem;font-weight:700;color:${statusColor}">${_escHtml(k.status)}</span></td>
+      <td><span class="badge ${k.tier === 'pro' ? 'bck' : ''}" style="font-size:.6rem">${_escHtml(k.tier || 'free')}</span></td>
       <td style="font-size:.72rem;color:var(--ink2)">${(k.total_requests || 0).toLocaleString()}<div style="font-size:.6rem;color:var(--ink3)">${k.requests_today || 0} today</div></td>
       <td style="font-size:.68rem;color:var(--ink3)">${lastUsed}</td>
       <td style="font-size:.68rem;color:var(--ink3)">${applied}</td>
       <td style="white-space:nowrap">
-        ${k.status === 'pending' ? `<button class="btn btn-primary" style="font-size:.65rem;padding:4px 10px" onclick="approveApiKey('${k.id}')">Approve</button>` : ''}
-        ${k.status === 'active' ? `<button class="del-btn" onclick="revokeApiKey('${k.id}')">Revoke</button>` : ''}
-        ${k.status === 'revoked' ? `<button class="btn btn-ghost" style="font-size:.65rem;padding:4px 8px" onclick="approveApiKey('${k.id}')">Re-activate</button>` : ''}
+        ${k.status === 'pending' && k.tier === 'free' ? `<button class="btn btn-primary" style="font-size:.65rem;padding:4px 10px" onclick="approveApiKey('${k.id}')">Approve</button>` : ''}
+        ${k.status === 'pending' && k.tier !== 'free' ? `<span style="font-size:.62rem;color:var(--am)">Awaiting verified payment</span>` : ''}
+        ${k.status === 'active' && k.tier === 'free' ? `<button class="del-btn" onclick="revokeApiKey('${k.id}')">Revoke</button>` : ''}
+        ${k.status === 'active' && k.tier !== 'free' ? `<span style="font-size:.62rem;color:var(--ink3)">Managed billing</span>` : ''}
+        ${k.status === 'revoked' && k.tier === 'free' ? `<button class="btn btn-ghost" style="font-size:.65rem;padding:4px 8px" onclick="approveApiKey('${k.id}')">Re-activate</button>` : ''}
       </td>
     </tr>`;
   }).join('');
@@ -1949,11 +1949,8 @@ async function approveApiKey(keyId) {
       headers: { 'Content-Type': 'application/json', 'apikey': SUPA_ANON, 'Authorization': `Bearer ${jwt}` },
       body: JSON.stringify({ action: 'approve_api_key', keyId, adminEmail: adminUser?.email })
     });
-    if (!res.ok) {
-      // Fall back: direct update (requires admin RLS policy)
-      const { error } = await sb.from('api_keys').update({ status: 'active', approved_at: new Date().toISOString() }).eq('id', keyId);
-      if (error) throw error;
-    }
+    const result = await res.json().catch(() => ({}));
+    if (!res.ok || !result.ok) throw new Error(result.error || 'Admin API request failed');
     toast('API key approved', 'ok');
     loadApiKeys();
   } catch(e) { toast('Failed: ' + e.message, 'err'); }
@@ -1969,10 +1966,8 @@ async function revokeApiKey(keyId) {
       headers: { 'Content-Type': 'application/json', 'apikey': SUPA_ANON, 'Authorization': `Bearer ${jwt}` },
       body: JSON.stringify({ action: 'revoke_api_key', keyId, adminEmail: adminUser?.email })
     });
-    if (!res.ok) {
-      const { error } = await sb.from('api_keys').update({ status: 'revoked', revoked_at: new Date().toISOString() }).eq('id', keyId);
-      if (error) throw error;
-    }
+    const result = await res.json().catch(() => ({}));
+    if (!res.ok || !result.ok) throw new Error(result.error || 'Admin API request failed');
     toast('API key revoked', 'ok');
     loadApiKeys();
   } catch(e) { toast('Failed: ' + e.message, 'err'); }
@@ -2061,9 +2056,7 @@ async function loadDataPipeline() {
 }
 
 async function downloadTrainingData(format) {
-  const key  = document.getElementById('dpApiKey').value.trim();
   const days = document.getElementById('dpDays').value;
-  if (!key) { toast('Enter a Pro API key to download training data','err'); return; }
   const url  = `${SUPA_URL}/functions/v1/training-data?format=${format}&days=${days}`;
   const a = document.createElement('a');
   a.href = url;
@@ -2071,7 +2064,9 @@ async function downloadTrainingData(format) {
   // We need to fetch with the key header — use fetch + blob
   try {
     toast('Preparing export…', 'ok');
-    const res = await fetch(url, { headers: { 'X-API-Key': key, 'apikey': SUPA_ANON } });
+    const jwt = (await sb.auth.getSession()).data.session?.access_token;
+    if (!jwt) throw new Error('Sign in again');
+    const res = await fetch(url, { headers: { 'Authorization': `Bearer ${jwt}`, 'apikey': SUPA_ANON } });
     if (!res.ok) { const j = await res.json().catch(()=>({})); throw new Error(j.error || res.status); }
     const blob = await res.blob();
     const bUrl = URL.createObjectURL(blob);
