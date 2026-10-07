@@ -4,49 +4,48 @@ const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SERVICE_KEY  = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, apikey, content-type, x-api-key',
+  'Access-Control-Allow-Headers': 'authorization, apikey, content-type',
+  'Access-Control-Allow-Methods': 'GET, OPTIONS',
 };
+
+function jsonError(error: string, status: number) {
+  return new Response(JSON.stringify({ error }), {
+    status,
+    headers: { ...CORS_HEADERS, 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
+  });
+}
+
+function csvCell(value: unknown): string {
+  let text = String(value ?? '');
+  if (/^[=+\-@]/.test(text)) text = `'${text}`;
+  return `"${text.replace(/"/g, '""')}"`;
+}
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS_HEADERS });
-
-  // Require either a valid API key (paid tier) or service role for direct use
-  // For now: require any active API key — free tier can export small samples
-  const apiKey = req.headers.get('x-api-key') || req.headers.get('X-API-Key');
-  const authHeader = req.headers.get('Authorization') ?? '';
-  const isServiceRole = authHeader.includes(SERVICE_KEY);
+  if (req.method !== 'GET') return jsonError('Use GET', 405);
 
   const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
+  const token = (req.headers.get('Authorization') ?? '').replace(/^Bearer\s+/i, '');
+  if (!token) return jsonError('Sign in required', 401);
+  const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+  if (authError || !user) return jsonError('Sign in required', 401);
+  const { data: admin, error: adminError } = await supabase.from('admins')
+    .select('user_id').eq('user_id', user.id).maybeSingle();
+  if (adminError) return jsonError('Could not verify admin access', 500);
+  if (!admin) return jsonError('Forbidden', 403);
+
   const url = new URL(req.url);
-  const format    = url.searchParams.get('format') || 'json';  // json | csv
-  const days      = Math.min(parseInt(url.searchParams.get('days') || '90'), 365);
+  const format = url.searchParams.get('format') || 'json';
+  if (!['json', 'csv'].includes(format)) return jsonError('format must be json or csv', 400);
+  const rawDays = url.searchParams.get('days') || '90';
+  if (!/^\d+$/.test(rawDays)) return jsonError('days must be an integer from 1 to 365', 400);
+  const days = Number(rawDays);
+  if (days < 1 || days > 365) return jsonError('days must be an integer from 1 to 365', 400);
   const sinceDate = new Date(Date.now() - days * 24 * 3600 * 1000).toISOString();
 
-  let authorized = isServiceRole;
-  let tier = 'service';
-
-  if (!authorized && apiKey) {
-    const { data: keyRow } = await supabase
-      .from('api_keys')
-      .select('status, tier')
-      .eq('key', apiKey)
-      .eq('status', 'active')
-      .single();
-    if (keyRow) {
-      authorized = true;
-      tier = keyRow.tier;
-    }
-  }
-
-  if (!authorized) {
-    return new Response(JSON.stringify({ error: 'API key required. Request one at nepawatch.com/api' }), {
-      status: 401, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
-    });
-  }
-
-  // Limit by tier
-  const reportLimit      = tier === 'pro' || tier === 'service' ? 50000 : 1000;
-  const predictionLimit  = tier === 'pro' || tier === 'service' ? 10000 : 500;
+  const reportLimit = 50000;
+  const predictionLimit = 10000;
 
   const [reportsRes, predsRes, weightsRes, reliabilityRes, nercRes] = await Promise.all([
     supabase.from('reports')
@@ -71,7 +70,17 @@ Deno.serve(async (req) => {
       .order('disco').order('band'),
   ]);
 
-  const reports     = reportsRes.data     ?? [];
+  const queryError = reportsRes.error || predsRes.error || weightsRes.error ||
+    reliabilityRes.error || nercRes.error;
+  if (queryError) {
+    console.error('training-data export:', queryError);
+    return jsonError('Could not prepare export', 500);
+  }
+
+  const reports = (reportsRes.data ?? []).map(({ user_id, ...report }) => ({
+    ...report,
+    is_ai: user_id === '00000000-0000-0000-0000-000000000001',
+  }));
   const predictions = predsRes.data       ?? [];
   const weights     = weightsRes.data     ?? [];
   const reliability = reliabilityRes.data ?? [];
@@ -87,13 +96,13 @@ Deno.serve(async (req) => {
     // CSV export of reports — most useful for quick ML ingestion
     const headers = ['id','location_area','type','created_at','confirms','wrong_votes','is_ai'];
     const rows = reports.map(r => [
-      r.id,
-      `"${(r.location_area || '').replace(/"/g, '')}"`,
-      r.type,
-      r.created_at,
-      r.confirms ?? 1,
-      r.wrong_votes ?? 0,
-      r.user_id === '00000000-0000-0000-0000-000000000001' ? 1 : 0,
+      csvCell(r.id),
+      csvCell(r.location_area),
+      csvCell(r.type),
+      csvCell(r.created_at),
+      csvCell(r.confirms ?? 1),
+      csvCell(r.wrong_votes ?? 0),
+      csvCell(r.is_ai ? 1 : 0),
     ].join(','));
     const csv = [headers.join(','), ...rows].join('\n');
     return new Response(csv, {
@@ -101,6 +110,8 @@ Deno.serve(async (req) => {
         ...CORS_HEADERS,
         'Content-Type': 'text/csv',
         'Content-Disposition': `attachment; filename="nepawatch-reports-${days}d.csv"`,
+        'Cache-Control': 'private, no-store',
+        'X-Content-Type-Options': 'nosniff',
       },
     });
   }
@@ -109,7 +120,7 @@ Deno.serve(async (req) => {
     meta: {
       generated_at:      new Date().toISOString(),
       days_included:     days,
-      tier,
+      access:            'admin',
       total_reports:     reports.length,
       total_predictions: predictions.length,
       resolved_predictions: resolved.length,
@@ -127,6 +138,8 @@ Deno.serve(async (req) => {
       ...CORS_HEADERS,
       'Content-Type': 'application/json',
       'Content-Disposition': `attachment; filename="nepawatch-training-${days}d.json"`,
+      'Cache-Control': 'private, no-store',
+      'X-Content-Type-Options': 'nosniff',
     },
   });
 });

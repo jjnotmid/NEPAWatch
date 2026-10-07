@@ -62,8 +62,10 @@ CREATE POLICY "disco_alerts_write" ON disco_alerts FOR ALL
   USING (public.is_admin())
   WITH CHECK (public.is_admin());
 
--- api_keys: admins manage keys; the public insert policy stays as-is so the
--- self-serve signup form keeps working.
+-- api_keys: admins manage keys. Developer signup goes through the authenticated
+-- developer-portal function, never a direct public table insert.
+DROP POLICY IF EXISTS "api_keys_public_insert" ON api_keys;
+REVOKE ALL ON TABLE public.api_keys FROM anon, authenticated;
 DROP POLICY IF EXISTS "api_keys_admin_all" ON api_keys;
 CREATE POLICY "api_keys_admin_all" ON api_keys FOR ALL
   USING (public.is_admin())

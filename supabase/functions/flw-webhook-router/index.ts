@@ -14,8 +14,8 @@ import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
    signature checks unchanged.
 
    Routing:
-     charge.completed          → BOTH consumers (each matches its own
-                                 tx_ref; unknown refs are harmless no-ops)
+     charge.completed          → matching consumer only, based on tx_ref or
+                                 payment-plan fields
      everything else
      (subscription.*, etc.)    → api-billing only (only billing uses
                                  payment plans / subscriptions)
@@ -27,6 +27,7 @@ const CORS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
@@ -57,31 +58,43 @@ async function forward(url: string, headers: Headers, body: string) {
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
+  if (req.method !== "POST") return new Response("method not allowed", { status: 405 });
 
   const raw = await req.text();
-  if (req.headers.get("verif-hash") !== (Deno.env.get("FLW_WEBHOOK_HASH") ?? "")) {
+  const webhookHash = Deno.env.get("FLW_WEBHOOK_HASH");
+  if (!webhookHash || req.headers.get("verif-hash") !== webhookHash) {
     return new Response("invalid signature", { status: 401 });
   }
 
-  let event = "", txRef = "";
+  let event = "", txRef = "", hasPlan = false;
   try {
     const p = JSON.parse(raw);
     event = String(p.event ?? "");
     txRef = String(p.data?.tx_ref ?? p.tx_ref ?? "");
+    hasPlan = !!(p.data?.plan || p.data?.payment_plan || p.data?.flw_sub);
   } catch (_) {}
 
-  /* charge.completed → both consumers (each matches its own tx_ref).
-     Everything else → billing only (subscriptions live there). */
+  const statuses: number[] = [];
   if (event === "charge.completed") {
-    const b = await forward(CONSUMERS.billing, req.headers, raw);
-    const e = await forward(CONSUMERS.electricity, req.headers, raw);
-    console.log(`flw-router: charge.completed ${txRef} → billing:${b} electricity:${e}`);
+    if (txRef.startsWith("PRO-") || hasPlan) {
+      const b = await forward(CONSUMERS.billing, req.headers, raw);
+      statuses.push(b);
+      console.log(`flw-router: charge.completed ${txRef} → billing:${b}`);
+    } else if (txRef.startsWith("NW-")) {
+      const e = await forward(CONSUMERS.electricity, req.headers, raw);
+      statuses.push(e);
+      console.log(`flw-router: charge.completed ${txRef} → electricity:${e}`);
+    } else {
+      console.log(`flw-router: ignored unknown charge reference ${txRef}`);
+    }
   } else {
     const b = await forward(CONSUMERS.billing, req.headers, raw);
+    statuses.push(b);
     console.log(`flw-router: ${event} → billing:${b}`);
   }
 
-  /* Acknowledge FLW immediately regardless of consumer outcomes —
-     each consumer is idempotent and has its own retry surfaces. */
+  if (statuses.some((status) => status < 200 || status >= 300)) {
+    return new Response("consumer unavailable", { status: 502 });
+  }
   return new Response("ok", { status: 200 });
 });

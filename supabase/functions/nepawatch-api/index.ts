@@ -111,11 +111,11 @@ Deno.serve(async (req) => {
       'Missing X-API-Key header. Get a free key at nepawatch.app/developer.html', 401)
   }
 
-  const { data: k, error: kErr } = await supabase
-    .from('api_keys')
-    .select('id, status, tier, daily_limit, requests_today, total_requests, last_reset_date')
-    .eq('key', apiKey)
-    .maybeSingle()
+  /* The database function locks the key row, validates its status and reserves
+     this request in one transaction. Concurrent calls cannot outrun the cap. */
+  const { data: quotaRows, error: kErr } = await supabase
+    .rpc('consume_api_quota', { p_key: apiKey })
+  const k = quotaRows?.[0]
 
   if (kErr)  return fail('LOOKUP_FAILED', 'Could not validate API key.', 500)
   if (!k)    return fail('INVALID_API_KEY', 'Invalid API key.', 403)
@@ -123,7 +123,7 @@ Deno.serve(async (req) => {
   if (k.status === 'revoked') return fail('KEY_REVOKED', 'This API key has been revoked.', 403)
 
   const today = new Date().toISOString().split('T')[0]
-  const requestsToday = k.last_reset_date !== today ? 0 : (k.requests_today ?? 0)
+  const requestsToday = Number(k.requests_today ?? 0)
   const TIER_FALLBACK: Record<string, number> = {
   free: 100, starter: 1000, pro: 10000, scale: 50000, business: 200000,
 };
@@ -138,7 +138,7 @@ const dailyLimit = k.daily_limit ?? TIER_FALLBACK[k.tier ?? 'free'] ?? 100
     'X-RateLimit-Reset':     resetAt,
   })
 
-  if (requestsToday >= dailyLimit) {
+  if (!k.allowed) {
     const secondsToMidnight = Math.max(
       1, Math.floor((new Date(resetAt).getTime() - Date.now()) / 1000))
     return json({
@@ -244,14 +244,6 @@ const dailyLimit = k.daily_limit ?? TIER_FALLBACK[k.tier ?? 'free'] ?? 100
     }
   })
 
-  // Non-blocking usage update
-  supabase.from('api_keys').update({
-    requests_today: requestsToday + 1,
-    total_requests: (k.total_requests ?? 0) + 1,
-    last_request_at: new Date().toISOString(),
-    last_reset_date: today,
-  }).eq('id', k.id).then(() => {})
-
   supabase.from('api_logs').insert({
     api_key_id: k.id,
     endpoint: 'reports',
@@ -270,10 +262,10 @@ const dailyLimit = k.daily_limit ?? TIER_FALLBACK[k.tier ?? 'free'] ?? 100
       has_more: offset + data.length < total,
       source: source ?? 'all',
       order,
-      requests_today: requestsToday + 1,
-      requests_remaining: dailyLimit - requestsToday - 1,
+      requests_today: requestsToday,
+      requests_remaining: dailyLimit - requestsToday,
       daily_limit: dailyLimit,
       tier: k.tier ?? 'free',
     },
-  }, 200, rateHeaders(dailyLimit - requestsToday - 1))
+  }, 200, rateHeaders(dailyLimit - requestsToday))
 })
