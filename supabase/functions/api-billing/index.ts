@@ -50,6 +50,7 @@ function flwHeaders(): HeadersInit {
   return {
     Authorization:  `Bearer ${Deno.env.get("FLW_SECRET_KEY") ?? ""}`,
     "Content-Type": "application/json",
+    Accept: "application/json",
   };
 }
 function adminClient() {
@@ -72,6 +73,42 @@ function providerPlanId(value: unknown): string {
   return value == null ? "" : String(value);
 }
 
+const FLW_TEMPORARY_ERROR = "Flutterwave is temporarily unavailable. Please retry in a few minutes.";
+
+async function flwJson(
+  url: string,
+  init: RequestInit = {},
+  safeRetries = 0,
+): Promise<{ response: Response; data: Record<string, any> }> {
+  let lastError: unknown = null;
+  for (let attempt = 0; attempt <= safeRetries; attempt++) {
+    try {
+      const response = await fetch(url, init);
+      const raw = await response.text();
+      let data: Record<string, any>;
+      try {
+        data = JSON.parse(raw);
+      } catch (_) {
+        throw new Error("FLW_NON_JSON_RESPONSE");
+      }
+
+      if (response.status >= 500 && attempt < safeRetries) {
+        await new Promise((resolve) => setTimeout(resolve, 300 * (attempt + 1)));
+        continue;
+      }
+      return { response, data };
+    } catch (error) {
+      lastError = error;
+      if (attempt < safeRetries) {
+        await new Promise((resolve) => setTimeout(resolve, 300 * (attempt + 1)));
+        continue;
+      }
+    }
+  }
+  console.error("api-billing: Flutterwave returned an unavailable or non-JSON response", lastError);
+  throw new Error(FLW_TEMPORARY_ERROR);
+}
+
 async function authUser(req: Request): Promise<{ id: string; email?: string } | null> {
   const token = (req.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, "");
   if (!token) return null;
@@ -87,10 +124,16 @@ async function ensurePlan(tier: string): Promise<string> {
   const name = `NEPAWatch API ${t.label}`;
 
   const params = new URLSearchParams({
-    amount: String(t.price), currency: "NGN", interval: "monthly", status: "active", page: "1",
+    amount: String(t.price), currency: "NGN", page: "1",
   });
-  const r = await fetch(`${FLW}/payment-plans?${params}`, { headers: flwHeaders() });
-  const d = await r.json();
+  const { response: r, data: d } = await flwJson(
+    `${FLW}/payment-plans?${params}`,
+    { headers: flwHeaders() },
+    2,
+  );
+  if (r.status === 401 || r.status === 403) {
+    throw new Error("Flutterwave rejected the billing credentials. Check FLW_SECRET_KEY.");
+  }
   if (d.status === "success" && Array.isArray(d.data)) {
     const matching = d.data.find((p: Record<string, unknown>) =>
       p.name === name && Number(p.amount) === t.price &&
@@ -103,8 +146,11 @@ async function ensurePlan(tier: string): Promise<string> {
       return planCache[tier];
     }
   }
+  if (!r.ok || d.status !== "success" || !Array.isArray(d.data)) {
+    throw new Error(d.message ?? FLW_TEMPORARY_ERROR);
+  }
 
-  const c = await fetch(`${FLW}/payment-plans`, {
+  const { response: c, data: cd } = await flwJson(`${FLW}/payment-plans`, {
     method:  "POST",
     headers: flwHeaders(),
     body: JSON.stringify({
@@ -114,12 +160,14 @@ async function ensurePlan(tier: string): Promise<string> {
       interval: "monthly",
     }),
   });
-  const cd = await c.json();
   if (cd.status === "success" && cd.data?.id) {
     planCache[tier] = String(cd.data.id);
     return planCache[tier];
   }
-  throw new Error(cd.message ?? "Could not create the payment plan");
+  if (c.status === 401 || c.status === 403) {
+    throw new Error("Flutterwave rejected the billing credentials. Check FLW_SECRET_KEY.");
+  }
+  throw new Error(cd.message ?? FLW_TEMPORARY_ERROR);
 }
 
 /* ── Extend renews_at by one month from the later of now / renews_at ── */
@@ -435,7 +483,11 @@ serve(async (req) => {
 
       let planId: string;
       try { planId = await ensurePlan(tierId); }
-      catch (e) { return json({ success: false, error: (e as Error).message }); }
+      catch (e) {
+        const message = e instanceof Error ? e.message : FLW_TEMPORARY_ERROR;
+        const status = message === FLW_TEMPORARY_ERROR ? 503 : 500;
+        return json({ success: false, error: message }, status);
+      }
 
       /* If the buyer is signed in (developer dashboard), link the pending
          key to their account immediately — uid comes from the verified JWT,
@@ -491,7 +543,7 @@ serve(async (req) => {
       }
       let flw: Record<string, any>;
       try {
-        const flwRes = await fetch(`${FLW}/payments`, {
+        const result = await flwJson(`${FLW}/payments`, {
           method:  "POST",
           headers: flwHeaders(),
           body: JSON.stringify({
@@ -510,10 +562,13 @@ serve(async (req) => {
             meta: { api_key_id: keyId, email, tier: tierId },
           }),
         });
-        flw = await flwRes.json();
-      } catch (_) {
+        flw = result.data;
+      } catch (error) {
         await cleanupPendingKey(keyId);
-        return json({ success: false, error: "Could not reach Flutterwave. Please try again." });
+        return json({
+          success: false,
+          error: error instanceof Error ? error.message : FLW_TEMPORARY_ERROR,
+        }, 503);
       }
       if (flw.status !== "success" || !flw.data?.link) {
         await cleanupPendingKey(keyId);
