@@ -126,6 +126,15 @@ async function sweepExpiredGrace() {
   } catch (_) {}
 }
 
+/* Remove incomplete checkout records so a failed attempt does not leave a
+   pending API key in the developer dashboard. Subscriptions cascade from it. */
+async function cleanupPendingKey(keyId: string) {
+  try {
+    await adminClient().from("api_keys")
+      .delete().eq("id", keyId).eq("status", "pending");
+  } catch (_) {}
+}
+
 /* ══════════════════════════════════════════════════════════════ */
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
@@ -319,29 +328,39 @@ serve(async (req) => {
         .from("api_subscriptions").insert({
           api_key_id: keyId, email, tier: tierId, tx_ref: txRef, price: t.price,
         });
-      if (subErr) return json({ success: false, error: subErr.message });
+      if (subErr) {
+        await cleanupPendingKey(keyId);
+        return json({ success: false, error: subErr.message });
+      }
 
       const origin = req.headers.get("origin") ?? "https://nepawatch.app";
-      const flwRes = await fetch(`${FLW}/payments`, {
-        method:  "POST",
-        headers: flwHeaders(),
-        body: JSON.stringify({
-          tx_ref:       txRef,
-          amount:       t.price,
-          currency:     "NGN",
-          redirect_url: `${origin}/developer.html`,
-          payment_plan: planId,
-          customer:     { email, name },
-          customizations: {
-            title:       `NEPAWatch API — ${t.label}`,
-            description: `${t.daily.toLocaleString()} requests/day`,
-            logo:        `${origin}/logo2.jpg`,
-          },
-          meta: { api_key_id: keyId, email, tier: tierId },
-        }),
-      });
-      const flw = await flwRes.json();
-      if (flw.status !== "success") {
+      let flw: Record<string, any>;
+      try {
+        const flwRes = await fetch(`${FLW}/payments`, {
+          method:  "POST",
+          headers: flwHeaders(),
+          body: JSON.stringify({
+            tx_ref:       txRef,
+            amount:       t.price,
+            currency:     "NGN",
+            redirect_url: `${origin}/developer.html`,
+            payment_plan: planId,
+            customer:     { email, name },
+            customizations: {
+              title:       `NEPAWatch API — ${t.label}`,
+              description: `${t.daily.toLocaleString()} requests/day`,
+              logo:        `${origin}/logo2.jpg`,
+            },
+            meta: { api_key_id: keyId, email, tier: tierId },
+          }),
+        });
+        flw = await flwRes.json();
+      } catch (_) {
+        await cleanupPendingKey(keyId);
+        return json({ success: false, error: "Could not reach Flutterwave. Please try again." });
+      }
+      if (flw.status !== "success" || !flw.data?.link) {
+        await cleanupPendingKey(keyId);
         return json({ success: false, error: `Flutterwave init failed: ${flw.message ?? "unknown"}` });
       }
 

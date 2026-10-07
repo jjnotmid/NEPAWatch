@@ -1,6 +1,15 @@
 -- Run once in Supabase SQL Editor
 -- Flutterwave monthly billing for Pro API subscriptions
 
+-- Keep the API key tiers in sync with the plans offered by api-billing.
+-- The original schema only allowed free/pro, which blocked starter, scale,
+-- and business checkouts before Flutterwave could open.
+ALTER TABLE public.api_keys
+  DROP CONSTRAINT IF EXISTS api_keys_tier_check;
+ALTER TABLE public.api_keys
+  ADD CONSTRAINT api_keys_tier_check
+  CHECK (tier IN ('free','starter','pro','scale','business'));
+
 CREATE TABLE IF NOT EXISTS api_subscriptions (
   id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   api_key_id    uuid REFERENCES api_keys(id) ON DELETE CASCADE,

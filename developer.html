@@ -281,16 +281,26 @@ function pickTier(id){
   document.getElementById('payBtn').textContent='Pay ₦'+nf(t?.price||5000)+'/month';
 }
 async function apiBilling(action, extra={}){
-  const res=await fetch(`${SUPA_URL}/functions/v1/api-billing`,{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${_session.access_token}`,...(_session?{Authorization:`Bearer ${_session.access_token}`}:{})},body:JSON.stringify({action,...extra})});
-  return res.json();
+  const headers={'Content-Type':'application/json'};
+  if(_session?.access_token)headers.Authorization=`Bearer ${_session.access_token}`;
+  const res=await fetch(`${SUPA_URL}/functions/v1/api-billing`,{method:'POST',headers,body:JSON.stringify({action,...extra})});
+  const data=await res.json().catch(()=>({success:false,error:'Billing service returned an invalid response'}));
+  if(!res.ok&&!data.error)data.error='Billing service is temporarily unavailable';
+  return data;
 }
 async function doUpgrade(){
   const btn=document.getElementById('payBtn');
   btn.disabled=true; btn.textContent='Starting payment…';
-  const email=_session.user?.email||'';
-  const d=await apiBilling('initiate',{tier:_pickedTier,developer_name:email,email,app_name:'',use_case:'Upgrade from developer dashboard'});
-  if(!d.success||!d.checkoutUrl){toast(d.error||'Could not start payment','err');btn.disabled=false;btn.textContent='Pay ₦'+nf((_tiers.find(t=>t.id===_pickedTier)||{price:5000}).price)+'/month';return;}
-  window.location.href=d.checkoutUrl;
+  const reset=()=>{btn.disabled=false;btn.textContent='Pay ₦'+nf((_tiers.find(t=>t.id===_pickedTier)||{price:5000}).price)+'/month';};
+  try{
+    const email=_session?.user?.email||'';
+    const d=await apiBilling('initiate',{tier:_pickedTier,developer_name:email,email,app_name:'',use_case:'Upgrade from developer dashboard'});
+    if(!d.success||!d.checkoutUrl){toast(d.error||'Could not start payment','err');reset();return;}
+    window.location.href=d.checkoutUrl;
+  }catch(e){
+    toast('Could not reach the billing service. Please try again.','err');
+    reset();
+  }
 }
 
 /* After checkout returns with ?tx_ref=…, poll until the key activates */

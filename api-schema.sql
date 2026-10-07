@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS api_keys (
   use_case TEXT,
   key TEXT UNIQUE NOT NULL DEFAULT encode(gen_random_bytes(32), 'hex'),
   status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'active', 'revoked')),
-  tier TEXT NOT NULL DEFAULT 'free' CHECK (tier IN ('free', 'pro')),
+  tier TEXT NOT NULL DEFAULT 'free' CHECK (tier IN ('free', 'starter', 'pro', 'scale', 'business')),
   requests_today INT NOT NULL DEFAULT 0,
   total_requests BIGINT NOT NULL DEFAULT 0,
   last_request_at TIMESTAMPTZ,
