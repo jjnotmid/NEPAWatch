@@ -186,7 +186,12 @@ async function sweepExpiredCheckouts() {
   const cutoff = new Date(Date.now() - 60 * 60 * 1000).toISOString();
   const { data, error } = await adminClient().from("api_subscriptions")
     .select("id, api_key_id, checkout_url").eq("status", "pending").lt("created_at", cutoff).limit(50);
-  if (error) throw error;
+  if (error) {
+    if (error.code === "42703" || /checkout_url/i.test(error.message ?? "")) {
+      throw new Error("BILLING_SCHEMA_INCOMPLETE");
+    }
+    throw error;
+  }
   for (const sub of data ?? []) await retirePendingCheckout(sub);
 }
 
@@ -616,6 +621,13 @@ serve(async (req) => {
 
   } catch (err) {
     console.error("api-billing:", err);
+    if (err instanceof Error && err.message === "BILLING_SCHEMA_INCOMPLETE") {
+      return json({
+        success: false,
+        code: "BILLING_SCHEMA_INCOMPLETE",
+        error: "Billing database setup is incomplete. Run api-security-hotfix.sql in Supabase SQL Editor, then retry.",
+      }, 503);
+    }
     return json({ success: false, error: "Internal server error" }, 500);
   }
 });

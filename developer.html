@@ -357,6 +357,11 @@ async function pollUpgrade(txRef, attempt){
   attempt=attempt||0;
   try{
     const d=await apiBilling('status',{tx_ref:txRef});
+    if(!d.success){
+      window.history.replaceState({},'',window.location.pathname);
+      toast(d.error||'Could not verify payment status. Check billing logs before retrying.','err');
+      return;
+    }
     if(d.success&&d.keyStatus==='active'){
       window.history.replaceState({},'',window.location.pathname);
       toast('Subscription active — your key is in the list','ok');

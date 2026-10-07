@@ -98,3 +98,26 @@ Run these checks in order:
 
 After these checks pass, publish `developer.html` and `ops-7e11366b.html`.
 
+## If `api-billing` returns 500
+
+Repeated `500` responses after a checkout return usually mean the dashboard is
+polling payment status while the billing database migration is incomplete.
+
+In Supabase SQL Editor, run this read-only check:
+
+```sql
+SELECT column_name
+FROM information_schema.columns
+WHERE table_schema = 'public'
+  AND table_name = 'api_subscriptions'
+  AND column_name IN ('checkout_url', 'checkout_expires_at')
+ORDER BY column_name;
+```
+
+Both column names must be returned. If either is missing, run the complete
+`api-security-hotfix.sql` migration once. Also confirm the Edge Function secret
+is exactly `NW_PUBLIC_ORIGIN=https://nepawatch.app`, with no trailing slash.
+
+If both columns and the origin are correct, open **Edge Functions → api-billing
+→ Logs**, retry once, and inspect the newest line beginning with `api-billing:`.
+Do not copy access tokens, API keys, or secret values into support messages.
