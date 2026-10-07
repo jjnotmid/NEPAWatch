@@ -335,6 +335,7 @@ async function apiBilling(action, extra={}){
   const res=await fetch(`${SUPA_URL}/functions/v1/api-billing`,{method:'POST',headers,body:JSON.stringify({action,...extra})});
   const data=await res.json().catch(()=>({success:false,error:'Billing service returned an invalid response'}));
   if(!res.ok&&!data.error)data.error='Billing service is temporarily unavailable';
+  if(!res.ok)console.error(`[NEPAWatch Billing] ${action} failed (${res.status}): ${data.error||'Unknown error'}`);
   return data;
 }
 async function doUpgrade(){
@@ -344,7 +345,14 @@ async function doUpgrade(){
   try{
     const email=_session?.user?.email||'';
     const d=await apiBilling('initiate',{tier:_pickedTier,developer_name:email,email,app_name:'',use_case:'Upgrade from developer dashboard'});
-    if(!d.success||!d.checkoutUrl){toast(d.error||'Could not start payment','err');reset();return;}
+    if(!d.success||!d.checkoutUrl){
+      const error=d.error||'Could not start payment';
+      toast(error,'err');
+      const msg=document.getElementById('upgradeMsg');
+      msg.style.display='block';
+      msg.innerHTML=`<div style="margin-top:10px;color:var(--rd);font-size:.75rem;line-height:1.5">Payment could not start: ${esc(error)}</div><button class="btn" style="margin-top:10px" id="payBtn" onclick="doUpgrade()">Retry payment</button>`;
+      return;
+    }
     window.location.href=d.checkoutUrl;
   }catch(e){
     toast('Could not reach the billing service. Please try again.','err');
