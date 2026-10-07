@@ -106,8 +106,9 @@ serve(async (req) => {
         ...k,
         requests_today: k.last_reset_date === utcToday ? Number(k.requests_today ?? 0) : 0,
       }));
+      const portalKeys = displayKeys.filter((k) => k.status === "active" || k.status === "pending");
 
-      const ids = displayKeys.map((k) => k.id);
+      const ids = portalKeys.map((k) => k.id);
       let subs: Array<Record<string, unknown>> = [];
       if (ids.length) {
         const { data } = await sb
@@ -127,12 +128,12 @@ serve(async (req) => {
         }
       }
 
-      const activeKeys = displayKeys.filter((k) => k.status === "active");
+      const activeKeys = portalKeys.filter((k) => k.status === "active");
       const dailyLimit = activeKeys.reduce((s, k) => s + Number(k.daily_limit ?? 0), 0);
       const requestsToday = activeKeys.reduce((s, k) => s + Number(k.requests_today ?? 0), 0);
 
       const overview = {
-        keys: displayKeys.map((k) => ({
+        keys: portalKeys.map((k) => ({
           id: k.id,
           name: k.name,
           keyHint: k.status === "pending" ? "Not issued until payment is confirmed" : `••••${String(k.key).slice(-4)}`,

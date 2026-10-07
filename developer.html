@@ -262,7 +262,7 @@ function renderPlan(keys){
 
 function renderKeys(keys){
   const el=document.getElementById('keysList');
-  const visible=keys.filter(k=>k.status!=='pending');
+  const visible=keys.filter(k=>k.status==='active');
   if(!visible.length){el.innerHTML='<div style="font-size:.78rem;color:var(--ink3);text-align:center;padding:18px">No issued keys yet — create one or link an existing key below.</div>';return;}
   el.innerHTML=visible.map(k=>{
     const limit=Number(k.daily_limit||100);

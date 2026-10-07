@@ -96,3 +96,8 @@ test('dashboard supports one-time reveal and key rotation', () => {
   assert.match(dashboard, /Rotate/);
   assert.match(dashboard, /cannot be recovered from the dashboard/);
 });
+
+test('developer key list omits revoked and unpaid checkout records', () => {
+  assert.match(portal, /portalKeys = displayKeys\.filter\(\(k\) => k\.status === "active" \|\| k\.status === "pending"\)/);
+  assert.match(dashboard, /visible=keys\.filter\(k=>k\.status==='active'\)/);
+});
