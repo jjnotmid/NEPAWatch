@@ -17,7 +17,10 @@ CREATE TABLE IF NOT EXISTS api_keys (
   last_reset_date DATE,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   approved_at TIMESTAMPTZ,
-  revoked_at TIMESTAMPTZ
+  revoked_at TIMESTAMPTZ,
+  partner_granted_at TIMESTAMPTZ,
+  partner_granted_by UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+  partner_grant_reason TEXT
 );
 
 -- API Request Logs table

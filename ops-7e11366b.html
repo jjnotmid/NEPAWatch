@@ -1880,6 +1880,7 @@ async function _syncDiscoAlertToDb(alerts) {
 
 // ── API KEYS ──────────────────────────────────────────────────
 let allApiKeys = [];
+let starterDailyLimit = 1000;
 
 async function loadApiKeys() {
   const tb = document.getElementById('apiKeysTable');
@@ -1895,6 +1896,7 @@ async function loadApiKeys() {
     const result = await res.json().catch(() => ({}));
     if (!res.ok || !result.ok) throw new Error(result.error || 'Admin API request failed');
     allApiKeys = result.keys || [];
+    if (Number.isSafeInteger(result.starter_daily_limit) && result.starter_daily_limit > 0) starterDailyLimit = result.starter_daily_limit;
     const pending = allApiKeys.filter(k => k.status === 'pending').length;
     const active = allApiKeys.filter(k => k.status === 'active').length;
     const totalReq = allApiKeys.reduce((s, k) => s + (k.total_requests || 0), 0);
@@ -1925,19 +1927,45 @@ function renderApiKeys() {
       <td style="font-size:.72rem;color:var(--ink2)">${_escHtml(k.email || '—')}</td>
       <td style="font-size:.7rem;color:var(--ink2);max-width:180px"><div style="font-weight:500">${_escHtml(k.app_name || '—')}</div><div style="color:var(--ink3);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:180px">${_escHtml((k.use_case || '').substring(0, 60))}</div></td>
       <td><span style="font-size:.68rem;font-weight:700;color:${statusColor}">${_escHtml(k.status)}</span></td>
-      <td><span class="badge ${k.tier === 'pro' ? 'bck' : ''}" style="font-size:.6rem">${_escHtml(k.tier || 'free')}</span></td>
+      <td><span class="badge ${k.tier === 'pro' ? 'bck' : ''}" style="font-size:.6rem">${_escHtml(k.tier || 'free')}</span>${k.partner_granted_at && k.tier === 'starter' ? `<div style="font-size:.6rem;color:var(--p);margin-top:4px">Complimentary · No expiry</div><div style="font-size:.6rem;color:var(--ink3);margin-top:2px">${_escHtml(k.partner_grant_reason || 'Partnership')}</div>` : ''}</td>
       <td style="font-size:.72rem;color:var(--ink2)">${(k.total_requests || 0).toLocaleString()}<div style="font-size:.6rem;color:var(--ink3)">${k.requests_today || 0} today</div></td>
       <td style="font-size:.68rem;color:var(--ink3)">${lastUsed}</td>
       <td style="font-size:.68rem;color:var(--ink3)">${applied}</td>
       <td style="white-space:nowrap">
         ${k.status === 'pending' && k.tier === 'free' ? `<button class="btn btn-primary" style="font-size:.65rem;padding:4px 10px" onclick="approveApiKey('${k.id}')">Approve</button>` : ''}
+        ${(k.status === 'active' || k.status === 'pending') && k.tier === 'free' ? `<button class="btn btn-primary" style="font-size:.65rem;padding:4px 10px" onclick="grantPartnerStarter('${k.id}',this)">Grant Starter</button>` : ''}
         ${k.status === 'pending' && k.tier !== 'free' ? `<span style="font-size:.62rem;color:var(--am)">Awaiting verified payment</span>` : ''}
-        ${k.status === 'active' && k.tier === 'free' ? `<button class="del-btn" onclick="revokeApiKey('${k.id}')">Revoke</button>` : ''}
-        ${k.status === 'active' && k.tier !== 'free' ? `<span style="font-size:.62rem;color:var(--ink3)">Managed billing</span>` : ''}
+        ${k.status === 'active' && (k.tier === 'free' || (k.tier === 'starter' && k.partner_granted_at)) ? `<button class="del-btn" onclick="revokeApiKey('${k.id}')">Revoke</button>` : ''}
+        ${k.status === 'active' && k.tier !== 'free' && !k.partner_granted_at ? `<span style="font-size:.62rem;color:var(--ink3)">Managed billing</span>` : ''}
         ${k.status === 'revoked' && k.tier === 'free' ? `<button class="btn btn-ghost" style="font-size:.65rem;padding:4px 8px" onclick="approveApiKey('${k.id}')">Re-activate</button>` : ''}
       </td>
     </tr>`;
   }).join('');
+}
+
+async function grantPartnerStarter(keyId, button) {
+  const key = allApiKeys.find(k => k.id === keyId);
+  if (!key) return;
+  const reason = prompt('Reason for complimentary Starter access:', 'Partnership');
+  if (reason === null) return;
+  if (reason.trim().length < 3 || reason.trim().length > 500) { toast('Enter a reason of 3 to 500 characters', 'err'); return; }
+  if (!confirm(`Grant free Starter to ${key.email || key.developer_name} (${key.key_hint || key.id})?\n\n${starterDailyLimit.toLocaleString()} requests/day. No charge, renewal or expiry. The existing key will stay the same.`)) return;
+  button.disabled = true;
+  button.textContent = 'Granting…';
+  try {
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session?.access_token) throw new Error('Sign in again before granting access');
+    const res = await fetch(`${SUPA_URL}/functions/v1/admin-action`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'apikey': SUPA_ANON, 'Authorization': `Bearer ${session.access_token}` },
+      body: JSON.stringify({ action: 'grant_partner_starter', keyId, reason: reason.trim() })
+    });
+    const result = await res.json().catch(() => ({}));
+    if (!res.ok || !result.ok) throw new Error(result.error || 'Could not grant Starter access');
+    toast('Complimentary Starter granted — no expiry', 'ok');
+    await loadApiKeys();
+  } catch(e) { toast('Failed: ' + e.message, 'err'); }
+  finally { button.disabled = false; button.textContent = 'Grant Starter'; }
 }
 
 async function approveApiKey(keyId) {

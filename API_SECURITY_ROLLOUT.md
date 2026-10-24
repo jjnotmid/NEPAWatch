@@ -1,25 +1,22 @@
 # NEPAWatch API security rollout
 
-Follow this order. The updated public API depends on the new database function, so `nepawatch-api` must be deployed last.
+This documents an earlier security rollout. For the current complimentary
+Starter feature, follow [PARTNER_STARTER_ROLLOUT.md](PARTNER_STARTER_ROLLOUT.md).
+Do not run the historical key-cleanup migration for the partnership feature.
 
-## 1. Protect the exposed keys
+## 1. Preserve existing keys
 
-Both keys pasted into chat must be treated as exposed.
+There is no basis for the previous claim that keys were pasted into chat.
+Do not revoke, rotate, replace, cancel, or upgrade any existing key as part
+of deployment. A partnership upgrade happens only when an admin deliberately
+selects that key and confirms **Grant Starter**.
 
-1. In the current Developer Dashboard, revoke the active free key.
-2. Do not retry the unpaid Business checkout.
-3. The SQL migration below will cancel and revoke old pending checkout records.
-4. Create or rotate to a replacement free key after the new functions and dashboard are live. Save the replacement when it is shown because the dashboard will only show it once.
+## 2. Historical database migration
 
-## 2. Run the database migration
-
-1. Open Supabase Dashboard.
-2. Select the NEPAWatch project.
-3. Open **SQL Editor** and choose **New query**.
-4. Copy the full contents of [`api-security-hotfix.sql`](api-security-hotfix.sql) into the editor.
-5. Click **Run** once.
-
-The final query must return `false` for all four privilege checks.
+Do not run [`api-security-hotfix.sql`](api-security-hotfix.sql) unchanged under
+the current request. It contains updates to existing rows, including pending
+checkout cleanup and duplicate-free-key revocation. If security schema changes
+are still needed, prepare a separate migration that preserves existing keys.
 
 The migration also:
 
@@ -85,9 +82,10 @@ Its secret hash must match the Supabase `FLW_WEBHOOK_HASH` secret. Do not make e
 
 ## 6. Verify before publishing the dashboard
 
-Run these checks in order:
+The following checks belong in a staging environment with a dedicated test
+account and disposable test key. Do not apply them to existing production keys.
 
-1. Sign in to the Developer Dashboard and confirm the unpaid Business attempt is not shown as an active plan.
+1. Sign in to the test Developer Dashboard and confirm unconfirmed checkouts are not shown as active plans.
 2. Create one free key and copy it immediately.
 3. Refresh the page and confirm only the final four characters are shown.
 4. Try creating another free key and confirm it is refused.
@@ -114,8 +112,8 @@ WHERE table_schema = 'public'
 ORDER BY column_name;
 ```
 
-Both column names must be returned. If either is missing, run the complete
-`api-security-hotfix.sql` migration once. Also confirm the Edge Function secret
+Both column names must be returned. If either is missing, prepare a schema-only
+migration; do not run the historical key-cleanup migration. Also confirm the Edge Function secret
 is exactly `NW_PUBLIC_ORIGIN=https://nepawatch.app`, with no trailing slash.
 
 If both columns and the origin are correct, open **Edge Functions → api-billing

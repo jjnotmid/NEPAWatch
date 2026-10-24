@@ -46,7 +46,7 @@ Deno.serve(async (req) => {
 
   if (action === 'list_api_keys') {
     const { data, error } = await supabaseAdmin.from('api_keys')
-      .select('id, developer_name, app_name, email, use_case, key, status, tier, daily_limit, requests_today, total_requests, last_request_at, last_reset_date, created_at, approved_at, revoked_at')
+      .select('id, developer_name, app_name, email, use_case, key, status, tier, daily_limit, requests_today, total_requests, last_request_at, last_reset_date, created_at, approved_at, revoked_at, partner_granted_at, partner_granted_by, partner_grant_reason')
       .order('created_at', { ascending: false })
       .limit(500)
     if (error) return json({ error: error.message }, 400)
@@ -59,7 +59,7 @@ Deno.serve(async (req) => {
         key_hint: `${String(rawKey).slice(0, 8)}…${String(rawKey).slice(-4)}`,
       }
     })
-    return json({ ok: true, keys })
+    return json({ ok: true, keys, starter_daily_limit: Number(Deno.env.get('NW_LIMIT_STARTER') ?? 1000) })
   }
 
   if (action === 'delete_report') {
@@ -79,6 +79,36 @@ Deno.serve(async (req) => {
     // Also delete profile row directly in case no FK cascade
     await supabaseAdmin.from('profiles').delete().eq('id', userId)
     return json({ ok: true })
+  }
+
+  if (action === 'grant_partner_starter') {
+    const keyId = String(body.keyId ?? '')
+    const reason = String(body.reason ?? '').trim()
+    if (!/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(keyId)) {
+      return json({ error: 'A valid keyId is required' }, 400)
+    }
+    if (reason.length < 3 || reason.length > 500) {
+      return json({ error: 'A partnership reason of 3 to 500 characters is required' }, 400)
+    }
+    const dailyLimit = Number(Deno.env.get('NW_LIMIT_STARTER') ?? 1000)
+    if (!Number.isSafeInteger(dailyLimit) || dailyLimit < 1 || dailyLimit > 2147483647) {
+      return json({ error: 'Invalid NW_LIMIT_STARTER configuration' }, 500)
+    }
+    const { data, error } = await supabaseAdmin.rpc('grant_partner_starter', {
+      p_key_id: keyId,
+      p_admin_id: user.id,
+      p_reason: reason,
+      p_daily_limit: dailyLimit,
+    })
+    if (error) {
+      if (['42883', '42703', 'PGRST202'].includes(error.code)) {
+        return json({ error: 'Apply api-partner-grants.sql before granting Starter access' }, 503)
+      }
+      const status = error.code === '42501' ? 403 : error.code === 'P0002' ? 404 : error.code === '22023' ? 400 : 409
+      return json({ error: error.message }, status)
+    }
+    if (!data?.[0]) return json({ error: 'Partnership grant was not applied' }, 500)
+    return json({ ok: true, key: data[0] })
   }
 
   if (action === 'approve_api_key') {

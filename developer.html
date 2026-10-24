@@ -229,6 +229,7 @@ function renderPlan(keys){
   const box=document.getElementById('planBox');
   const activeEntry=(keys||[]).find(k=>k.status==='active'&&k.subscription&&(k.subscription.status==='active'||k.subscription.status==='past_due'));
   const sub=activeEntry?.subscription;
+  const partnerEntry=(keys||[]).find(k=>k.status==='active'&&k.tier==='starter'&&k.complimentary&&!k.subscription);
   const pending=(keys||[]).filter(k=>k.status==='pending'&&k.subscription?.status==='pending');
   if(sub){
     const tier=String(sub.tier||'pro');
@@ -246,6 +247,8 @@ function renderPlan(keys){
         <button class="btn danger" onclick="doCancelPlan('${activeEntry.id}')">Cancel plan</button>
       </div>
     </div>`;
+  } else if(partnerEntry){
+    box.innerHTML=`<div class="plan-grid"><div><div style="font-weight:800;font-size:.95rem">Starter · Partnership</div><div style="font-size:.72rem;color:var(--p);margin-top:3px">Complimentary access · ${nf(Number(partnerEntry.daily_limit))} requests/day · No expiry</div></div><a href="mailto:nepawatchtechnologies@gmail.com?subject=API%20partnership" class="btn ghost" style="text-decoration:none">Contact support</a></div>`;
   } else {
     box.innerHTML=`<div class="plan-grid"><div><div style="font-weight:800;font-size:.95rem">Free</div><div style="font-size:.72rem;color:var(--ink3);margin-top:3px">No paid plan is active · 100 requests/day</div></div><button class="btn" onclick="showUpgrade()">Choose a paid plan</button></div>`;
   }

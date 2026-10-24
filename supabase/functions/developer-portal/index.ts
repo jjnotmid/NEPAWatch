@@ -96,7 +96,7 @@ serve(async (req) => {
 
       const { data: keys, error: kErr } = await sb
         .from("api_keys")
-        .select("id, name, key, status, tier, daily_limit, requests_today, total_requests, last_reset_date, created_at")
+        .select("id, name, key, status, tier, daily_limit, requests_today, total_requests, last_reset_date, created_at, partner_granted_at")
         .eq("user_id", userId)
         .order("created_at", { ascending: false })
         .limit(50);
@@ -139,6 +139,7 @@ serve(async (req) => {
           keyHint: k.status === "pending" ? "Not issued until payment is confirmed" : `••••${String(k.key).slice(-4)}`,
           status: k.status,
           tier: k.tier,
+          complimentary: k.tier === "starter" && !!k.partner_granted_at,
           daily_limit: k.daily_limit,
           requests_today: k.requests_today,
           total_requests: k.total_requests,
